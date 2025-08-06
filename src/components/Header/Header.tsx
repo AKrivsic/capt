@@ -15,7 +15,7 @@ export default function Header() {
           <a href="#benefits" onClick={() => setOpen(false)}>Benefits</a>
           <a href="#pricing" onClick={() => setOpen(false)}>Pricing</a>
           <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>
-          <a href="#demo" className={styles.cta}>Try Free</a>
+          <a href="#demo" className={styles.cta} onClick={() => setOpen(false)}>Try Free</a>
         </nav>
 
         <button className={styles.burger} onClick={() => setOpen(!open)}>
