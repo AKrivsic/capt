@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: NextRequest) {
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+  });
+
   const { style, platform, output, vibe } = await req.json();
 
   const prompt = `Vytvoř ${output.toLowerCase()} pro ${platform}, styl: ${style}, nálada: ${vibe}`;
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     const generated = completion.choices[0].message.content;
     return NextResponse.json({ result: generated });
   } catch (err) {
+    console.error("OpenAI error:", err);
     return NextResponse.json({ error: "OpenAI error" }, { status: 500 });
   }
 }
