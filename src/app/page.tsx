@@ -1,19 +1,26 @@
-import Hero from "@/components/Hero";
-import Generator from "@/components/Generator";
-import Testimonials from "@/components/Testimonials";
-import Benefits from "@/components/Benefits";
-import Footer from "@/components/Footer";
+import Hero from "@/components/Hero/Hero";
+import Generator from "@/components/Generator/Generator";
+import Testimonials from "@/components/Testimonials/Testimonials";
+import Benefits from "@/components/Benefits/Benefits";
+import Footer from "@/components/Footer/Footer";
+import Previews from "@/components/Previews/Previews";
+import Faq from "@/components/Faq/Faq";
+import Pricing from "@/components/Pricing/Pricing";
+import FinalCTA from "@/components/FinalCTA/FinalCTA";
+import Header from "@/components/Header/Header";
 
 export default function HomePage() {
   return (
     <>
-      <header>
-        <h2>Captioni ✨</h2>
-      </header>
+      <Header />
       <Hero />
       <Testimonials />
       <Generator />
       <Benefits />
+      <Previews />
+      <Faq />
+      <Pricing />
+      <FinalCTA />
       <Footer />
     </>
   );

@@ -1,0 +1,13 @@
+.footer {
+    padding: 2rem 1rem;
+    text-align: center;
+    background-color: #fff;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.link {
+    color: inherit;
+    text-decoration: underline;
+    margin: 0 0.3rem;
+}

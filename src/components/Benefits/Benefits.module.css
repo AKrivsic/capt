@@ -1,0 +1,24 @@
+.benefits {
+    padding: 2rem 1rem;
+    max-width: 700px;
+    margin: auto;
+    text-align: center;
+}
+
+.heading {
+    margin-bottom: 1.5rem;
+}
+
+.list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+}
+
+.item {
+    background-color: #fadadd;
+    padding: 1rem;
+    border-radius: 12px;
+    font-weight: bold;
+}

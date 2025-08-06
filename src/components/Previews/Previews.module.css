@@ -1,0 +1,48 @@
+.section {
+    padding: 2rem 1rem;
+    max-width: 900px;
+    margin: auto;
+}
+
+.heading {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+    padding: 1rem;
+    border-radius: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    color: #333;
+}
+
+.barbie {
+    background-color: #fadadd;
+}
+
+.edgy {
+    background-color: #d1d1e0;
+}
+
+.glamour {
+    background-color: #ead9ff;
+}
+
+.fun {
+    background-color: #c5f5d1;
+}
+
+.aesthetic {
+    background-color: #f5f5dc;
+}
+
+.minimalist {
+    background-color: #e0e0e0;
+}

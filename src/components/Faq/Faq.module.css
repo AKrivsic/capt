@@ -1,0 +1,41 @@
+.section {
+    padding: 2rem 1rem;
+    max-width: 800px;
+    margin: auto;
+}
+
+.heading {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.item {
+    border-radius: 10px;
+    background-color: #f9fafb;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.question {
+    width: 100%;
+    padding: 1rem;
+    background: none;
+    border: none;
+    font-weight: bold;
+    font-size: 1rem;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.answer {
+    padding: 0 1rem 1rem;
+    font-size: 0.95rem;
+    color: #444;
+}

@@ -1,0 +1,56 @@
+.pricing {
+    padding: 3rem 1rem;
+    text-align: center;
+    background-color: #f9fafb;
+}
+
+.heading {
+    margin-bottom: 2rem;
+}
+
+.plans {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .plans {
+        flex-direction: row;
+        justify-content: center;
+    }
+}
+
+.plan {
+    background: #fff;
+    border: 2px solid #ead9ff;
+    border-radius: 16px;
+    padding: 2rem;
+    flex: 1;
+    min-width: 250px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.recommended {
+    border-color: #c084fc;
+    background-color: #f3e8ff;
+}
+
+.price {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 1rem 0;
+}
+
+.btn {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #8b5cf6;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1rem;
+}

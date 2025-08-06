@@ -1,0 +1,17 @@
+.testimonial {
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.avatar {
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    margin-bottom: 1rem;
+}
+
+.quote {
+    font-size: 1rem;
+    color: #333;
+}
