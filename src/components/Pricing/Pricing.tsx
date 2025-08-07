@@ -7,37 +7,51 @@ export default function Pricing() {
       <div className={styles.plans}>
         <div className={styles.plan}>
           <h3>Free</h3>
-          <p className={styles.price}>0 €</p>
+          <p className={styles.price}>$0</p>
           <ul>
-            <li>✅ 5 generations/day</li>
-            <li>🚫 No saving</li>
-            <li>🚫 No customization</li>
+            <li>✅ 3 generations / day</li>
+            <li>🚫 No history saving</li>
+            <li>🚫 No style memory</li>
           </ul>
           <button className={styles.btn}>Start Free</button>
         </div>
 
-        <div className={`${styles.plan} ${styles.recommended}`}>
-          <h3>Creator</h3>
-          <p className={styles.price}>9 €/month</p>
+        <div className={styles.plan}>
+          <h3>Starter</h3>
+          <p className={styles.price}>$9 / 3 days</p>
           <ul>
-            <li>✅ 100 generations/day</li>
-            <li>✅ Save captions</li>
-            <li>✅ Style memory</li>
+            <li>✅ 15 generations total</li>
+            <li>✅ Premium styles</li>
+            <li>🚫 No saving</li>
           </ul>
-          <button className={styles.btn}>Choose Plan</button>
+          <button className={styles.btn}>Unlock Access</button>
         </div>
 
+        <div className={`${styles.plan} ${styles.proPlan}`}>
+  <div className={styles.badge}>🔥 Most popular</div>
+  <h3>Pro</h3>
+  <p className={styles.price}>$29 / month</p>
+  <ul>
+    <li>✅ Unlimited generations</li>
+    <li>✅ Save & organize outputs</li>
+    <li>✅ Style & vibe memory</li>
+    <li>✅ Priority support</li>
+  </ul>
+  <button className={styles.btn}>Go Pro</button>
+</div>
+
         <div className={styles.plan}>
-          <h3>Pro</h3>
-          <p className={styles.price}>19 €/month</p>
+          <h3>Premium</h3>
+          <p className={styles.price}>$79 / 3 months</p>
           <ul>
-            <li>✅ Unlimited generations</li>
-            <li>✅ Save & organize</li>
-            <li>✅ Early access to features</li>
+            <li>✅ Everything in Pro</li>
+            <li>💸 Save $8 compared to monthly</li>
+            <li>🚀 Best for regular creators</li>
           </ul>
-          <button className={styles.btn}>Choose Plan</button>
+          <button className={styles.btn}>Get Premium</button>
         </div>
       </div>
     </section>
   );
 }
+

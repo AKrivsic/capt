@@ -1,0 +1,62 @@
+.container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 16px;
+    cursor: pointer;
+    transition: 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.card.checked {
+    border-color: #8B5CF6;
+    box-shadow: 0 0 0 2px #8B5CF6;
+}
+
+.card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.emoji {
+    font-size: 24px;
+}
+
+.label {
+    font-weight: 600;
+    flex-grow: 1;
+    margin-left: 8px;
+}
+
+.tier {
+    font-size: 10px;
+    background: #34D399;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+    text-transform: uppercase;
+}
+
+.desc {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #444;
+}
