@@ -11,7 +11,7 @@ export default function Header() {
         <a href="#" className={styles.logo}>Captioni ✨</a>
 
         <nav className={`${styles.nav} ${open ? styles.open : ""}`}>
-          <a href="#demo" onClick={() => setOpen(false)}>Demo</a>
+          <a href="?demo=true" onClick={() => setOpen(false)}>Demo</a>
           <a href="#benefits" onClick={() => setOpen(false)}>Benefits</a>
           <a href="#pricing" onClick={() => setOpen(false)}>Pricing</a>
           <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>

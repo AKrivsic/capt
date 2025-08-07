@@ -13,6 +13,7 @@ export default function HomePage() {
   return (
     <>
       <Header />
+      
       <Hero />
       <Testimonials />
       <Generator />
