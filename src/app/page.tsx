@@ -8,13 +8,16 @@ import Faq from "@/components/Faq/Faq";
 import Pricing from "@/components/Pricing/Pricing";
 import FinalCTA from "@/components/FinalCTA/FinalCTA";
 import Header from "@/components/Header/Header";
+import { Suspense } from "react";
 
 export default function HomePage() {
   return (
     <>
       <Header />
       
-      <Hero />
+      <Suspense fallback={null}>
+        <Hero />
+      </Suspense>
       <Testimonials />
       <Generator />
       <Benefits />
