@@ -14,16 +14,15 @@ export default function HomePage() {
   return (
     <>
       <Header />
-      
       <Suspense fallback={null}>
         <Hero />
       </Suspense>
-      <Testimonials />
       <Generator />
       <Benefits />
       <Previews />
-      <Faq />
+      <Testimonials />
       <Pricing />
+      <Faq />
       <FinalCTA />
       <Footer />
     </>
