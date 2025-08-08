@@ -14,8 +14,15 @@ const platforms = Object.keys(platformMeta);
 const platformOutputMap: Record<string, string[]> = {
   Instagram: ["caption", "hashtags", "bio", "comments", "story"],
   TikTok: ["caption", "hashtags", "bio", "story", "hook"],
-  X: ["caption", "bio", "comments"],
+  "X/Twitter": ["caption", "bio", "comments"],
   OnlyFans: ["caption", "bio", "dm", "story", "hook"],
+};
+
+const platformIcon: Record<string, string> = {
+  Instagram: "📸",
+  TikTok: "🎵",
+  "X/Twitter": "🗨️",
+  OnlyFans: "⭐",
 };
 
 export default function Generator() {
@@ -47,7 +54,7 @@ export default function Generator() {
     setCopiedKey(null);
 
     if (userPlan === "free" && usageCount >= FREE_LIMIT) {
-      alert("\uD83D\uDEAB You’ve reached the free limit (3 generations). Upgrade to Pro for unlimited access.");
+      alert("🚫 You’ve reached the free limit (3 generations). Upgrade to Pro for unlimited access.");
       return;
     }
 
@@ -73,139 +80,158 @@ export default function Generator() {
   return (
     <section className={styles.section} id="demo">
       <h2 className={styles.heading}>Ready to slay your socials?</h2>
-<p className={styles.onboarding}>
-  Pick your vibe, choose your platform, and let Captioni craft the perfect content – just for you ✨
-</p>
-
+      <p className={styles.onboarding}>
+        Pick your vibe, choose your platform, and let Captioni craft the perfect content – just for you ✨
+      </p>
 
       <form onSubmit={handleSubmit} className={styles.form}>
-  <div className={styles.twoCol}>
-    <div className={styles.inputGroup}>
-      <label>Style</label>
-      <select className={styles.select} value={style} onChange={(e) => setStyle(e.target.value)}>
-        {stylesList.map((s) => <option key={s}>{s}</option>)}
-      </select>
-      <p className={styles.tooltipText}>{styleMeta[style]?.tooltip}</p>
-    </div>
-
-    <div className={styles.inputGroup}>
-      <label>Platform</label>
-      <select className={styles.select} value={platform} onChange={(e) => setPlatform(e.target.value)}>
-        {platforms.map((p) => <option key={p}>{p}</option>)}
-      </select>
-      <p className={styles.tooltipText}>{platformMeta[platform]?.tooltip}</p>
-    </div>
-  </div>
-
-  <div className={styles.inputGroup}>
-    <label>Vibe / Description</label>
-    <input
-      type="text"
-      className={styles.input}
-      value={vibe}
-      onChange={(e) => setVibe(e.target.value)}
-      placeholder="e.g. confident selfie at the beach"
-    />
-    <p className={styles.tooltipText}>Set the mood, describe the moment or just write how you feel 💫</p>
-  </div>
-
-  <div className={styles.inputGroup}>
-  <label>Select Outputs</label>
-  <p className={styles.tooltipText}>
-    These are the most effective content types for <strong>{platform}</strong>.
-    You can choose one or more to generate.
-  </p>
-  <div className={styles.checkboxGrid}>
-    {allowedOutputs.map((type) => (
-      <label key={type} className={styles.checkboxLabel}>
-        <input
-          type="checkbox"
-          checked={selectedOutputs.includes(type)}
-          onChange={() => handleToggleOutput(type)}
-        />
-        {outputMeta[type].emoji} {type}
-      </label>
-    ))}
-  </div>
-</div>
-        
-{extraOutputs.length > 0 && (
-  <div className={styles.inputGroup}>
-    <button
-      type="button"
-      className={styles.copyBtn}
-      onClick={() => setShowExtras((prev) => !prev)}
-    >
-      {showExtras ? "➖ Hide extra output ideas" : "➕ See what else we can generate"}
-    </button>
-
-    {showExtras && (
-      <>
-        <p className={styles.extraInfo}>
-          Want more than just captions and bios? 😉<br />
-          Here’s a sneak peek at other types of content we can generate for different platforms. So much more is possible! ✨
-        </p>
-        <div className={styles.extraBubbleGrid}>
-          {extraOutputs.map((type) => (
-            <span key={type} className={styles.extraBubble}>
-              {outputMeta[type].emoji} {type}
-            </span>
-          ))}
+        {/* STYLE: pills */}
+        <div className={styles.inputGroup}>
+          <label className={styles.groupLabel}>Style</label>
+          <div className={styles.pillGrid} role="listbox" aria-label="Style selector">
+            {stylesList.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`${styles.pillBtn} ${style === s ? styles.pillActive : ""}`}
+                onClick={() => setStyle(s)}
+                aria-pressed={style === s}
+              >
+                <span className={styles.pillEmoji}>{styleMeta[s]?.emoji || "✨"}</span>
+                <span>{s}</span>
+              </button>
+            ))}
+          </div>
+          <p className={styles.tooltipText}>{styleMeta[style]?.tooltip}</p>
         </div>
-      </>
-    )}
-  </div>
-)}
 
-<div className={styles.generateWrapper}>
+        {/* PLATFORM: icon buttons with tooltips */}
+        <div className={styles.inputGroup}>
+          <label className={styles.groupLabel}>Platform</label>
+          <div className={styles.platformRow}>
+            {platforms.map((p) => (
+              <Tippy key={p} content={platformMeta[p]?.tooltip || p} placement="top">
+                <button
+                  type="button"
+                  onClick={() => setPlatform(p)}
+                  className={`${styles.platformBtn} ${platform === p ? styles.platformActive : ""}`}
+                  aria-pressed={platform === p}
+                >
+                  <span className={styles.platformIcon}>{platformIcon[p] || "⭐"}</span>
+                  <span className={styles.platformLabel}>{p}</span>
+                </button>
+              </Tippy>
+            ))}
+          </div>
+        </div>
 
-  <button className={styles.btn} type="submit">
-    {loading ? "Generating..." : "Generate ✨"}
+        {/* VIBE: big textarea */}
+        <div className={styles.inputGroup}>
+          <label className={styles.groupLabel}>Vibe / Description</label>
+          <div className={styles.vibeWrap}>
+            <span className={styles.vibeEmoji}>✨</span>
+            <textarea
+              rows={3}
+              className={styles.textarea}
+              value={vibe}
+              onChange={(e) => setVibe(e.target.value)}
+              placeholder="e.g. confident selfie at the beach"
+            />
+          </div>
+          <p className={styles.tooltipText}>Set the mood, describe the moment or just write how you feel 💫</p>
+        </div>
+
+        {/* OUTPUTS: selectable cards */}
+        <div className={styles.inputGroup}>
+          <label className={styles.groupLabel}>Select Outputs</label>
+          <p className={styles.tooltipText}>
+            These are the most effective content types for <strong>{platform}</strong>. Click to select.
+          </p>
+          <div className={styles.cardGrid}>
+            {allowedOutputs.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={`${styles.outputCard} ${selectedOutputs.includes(type) ? styles.outputSelected : ""}`}
+                onClick={() => handleToggleOutput(type)}
+                aria-pressed={selectedOutputs.includes(type)}
+              >
+                <span className={styles.outputIcon}>{outputMeta[type].emoji}</span>
+                <span className={styles.outputName}>{type}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Extras teaser */}
+        {extraOutputs.length > 0 && (
+          <div className={styles.inputGroup}>
+            <button
+              type="button"
+              className={styles.toggleExtras}
+              onClick={() => setShowExtras((prev) => !prev)}
+            >
+              {showExtras ? "➖ Hide extra output ideas" : "➕ See what else we can generate"}
+            </button>
+            {showExtras && (
+              <>
+                <p className={styles.extraInfo}>
+                  Want more than just captions and bios? 😉<br />
+                  Here’s a sneak peek at other types of content we can generate for different platforms. So much more is possible! ✨
+                </p>
+                <div className={styles.extraBubbleGrid}>
+                  {extraOutputs.map((type) => (
+                    <span key={type} className={styles.extraBubble}>
+                      {outputMeta[type].emoji} {type}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Generate + usage */}
+        <div className={styles.generateBar}>
+          <button className={styles.btn} type="submit" disabled={loading}>
+            {loading ? "Generating..." : "Generate ✨"}
           </button>
-          
+
           {userPlan === "free" && usageCount < FREE_LIMIT && (
-    <p className={styles.usageNote}>
-      {FREE_LIMIT - usageCount} free generations remaining
-    </p>
+            <p className={styles.usageNote}>{FREE_LIMIT - usageCount} free generations remaining</p>
           )}
           {userPlan === "starter" && usageCount < 15 && (
-  <p className={styles.usageNote}>
-    {15 - usageCount} generations remaining in Starter
-  </p>
-)}
+            <p className={styles.usageNote}>{15 - usageCount} generations remaining in Starter</p>
+          )}
+        </div>
 
-  {userPlan === "free" && usageCount >= FREE_LIMIT && (
-    <div className={styles.limitCard}>
-      <h3 className={styles.limitHeading}>You&apos;ve reached your free limit</h3>
-      <p className={styles.limitText}>
-        You’ve used your 3 free generations for today. Unlock unlimited creativity with Captioni Pro ✨
-      </p>
-      <a href="#pricing" className={styles.limitButton}>See Plans</a>
-    </div>
-  )}
+        {userPlan === "free" && usageCount >= FREE_LIMIT && (
+          <div className={styles.limitCard}>
+            <h3 className={styles.limitHeading}>You&apos;ve reached your free limit</h3>
+            <p className={styles.limitText}>
+              You’ve used your 3 free generations for today. Unlock unlimited creativity with Captioni Pro ✨
+            </p>
+            <a href="#pricing" className={styles.limitButton}>See Plans</a>
+          </div>
+        )}
 
-  {userPlan === "starter" && usageCount >= 15 && (
-    <div className={styles.limitCard}>
-      <h3 className={styles.limitHeading}>Starter limit reached</h3>
-      <p className={styles.limitText}>
-        You’ve hit the 15 generations in your Starter plan. Upgrade to Pro for daily unlimited magic 💖
-      </p>
-      <a href="#pricing" className={styles.limitButton}>Upgrade now</a>
-    </div>
-  )}
-</div>
+        {userPlan === "starter" && usageCount >= 15 && (
+          <div className={styles.limitCard}>
+            <h3 className={styles.limitHeading}>Starter limit reached</h3>
+            <p className={styles.limitText}>
+              You’ve hit the 15 generations in your Starter plan. Upgrade to Pro for daily unlimited magic 💖
+            </p>
+            <a href="#pricing" className={styles.limitButton}>Upgrade now</a>
+          </div>
+        )}
       </form>
 
+      {/* Results */}
       {Object.keys(result).length > 0 && (
         <>
           <div className={styles.resultContainer}>
             {Object.entries(result).map(([key, value]) => {
-              const meta = outputMeta[key] || {
-                emoji: "✨",
-                color: "#6B7280",
-                description: "Generated text for your selected option.",
-              };
-
+              const meta = outputMeta[key] || { emoji: "✨", color: "#6B7280", description: "Generated text for your selected option." };
               return (
                 <div key={key} className={styles.card}>
                   <h4 className={styles.cardTitle} style={{ color: meta.color }}>
@@ -216,10 +242,7 @@ export default function Generator() {
                     {typeof value === "string" ? value : JSON.stringify(value)}
                   </pre>
                   {!String(value).startsWith("⚠️") && (
-                    <button
-                      className={styles.copyBtn}
-                      onClick={() => handleCopy(value, key)}
-                    >
+                    <button className={styles.copyBtn} onClick={() => handleCopy(String(value), key)}>
                       {copiedKey === key ? "Copied!" : "Copy to clipboard"}
                     </button>
                   )}
@@ -227,13 +250,12 @@ export default function Generator() {
               );
             })}
           </div>
+
+          {/* Legend */}
           <div className={styles.legend}>
             {Object.entries(outputMeta).map(([key, meta]) => (
               <div key={key} className={styles.legendItem}>
-                <span
-                  className={styles.legendBadge}
-                  style={{ backgroundColor: meta.color }}
-                >
+                <span className={styles.legendBadge} style={{ backgroundColor: meta.color }}>
                   {meta.emoji}
                 </span>
                 <span className={styles.legendText}>{key.toUpperCase()}</span>

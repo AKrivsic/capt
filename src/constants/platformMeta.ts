@@ -18,7 +18,7 @@ export const platformMeta: Record<
     color: "#000000",
     tooltip: "For content created on TikTok",
   },
-  X: {
+  "X/Twitter": {
     emoji: "🐦",
     color: "#1DA1F2",
     tooltip: "For short-form posts on X (Twitter)",
