@@ -1,12 +1,57 @@
 .testimonial {
-    padding: 2rem 1rem;
+    padding: 4rem 1rem;
+    background: #fef9f9;
     text-align: center;
+
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .testimonial {
+        grid-template-columns: repeat(3, 1fr);
+        /* pevně 3 vedle sebe */
+    }
+}
+
+/* Mobilní slider */
+@media (max-width: 768px) {
+    .testimonial {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        gap: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .card {
+        flex: 0 0 80%;
+        scroll-snap-align: center;
+        margin-right: 1rem;
+    }
+}
+
+.card {
+    padding: 2rem;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .avatar {
     border-radius: 50%;
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     object-fit: cover;
     margin-bottom: 1rem;
 }
@@ -14,4 +59,34 @@
 .quote {
     font-size: 1rem;
     color: #333;
+    line-height: 1.6;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fadeUp {
+    opacity: 0;
+    animation: fadeUp 0.8s ease-out forwards;
+}
+
+.delay1 {
+    animation-delay: 0.2s;
+}
+
+.delay2 {
+    animation-delay: 0.4s;
+}
+
+.delay3 {
+    animation-delay: 0.6s;
 }

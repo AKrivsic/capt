@@ -81,7 +81,9 @@ export default function DemoModal({ onClose }: Props) {
         <button className={styles.closeBtn} onClick={onClose}>
           ×
         </button>
-        <h2 className={styles.heading}>Try Captioni Demo ✨</h2>
+        <h2 className={styles.heading}>
+  {usedCount >= limit ? "Demo Limit Reached 💔" : "Try Captioni Demo ✨"}
+</h2>
 
         {usedCount >= limit ? (
   <div className={styles.blocked}>

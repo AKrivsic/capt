@@ -2,14 +2,14 @@
     position: sticky;
     top: 0;
     background-color: #fff;
-    z-index: 50;
+    z-index: 100;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .container {
     max-width: 1200px;
     margin: auto;
-    padding: 1rem;
+    padding: 1rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -17,9 +17,12 @@
 
 .logo {
     font-weight: bold;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     text-decoration: none;
-    color: #333;
+    color: #8b5cf6;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 
 .nav {
@@ -30,39 +33,73 @@
 
 .nav a {
     text-decoration: none;
-    color: #333;
+    color: #4b5563;
     font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.nav a:hover {
+    color: #ec4899;
 }
 
 .cta {
-    background-color: #8b5cf6;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
     color: white !important;
-    padding: 0.5rem 1rem;
-    border-radius: 10px;
+    padding: 0.5rem 1.2rem;
+    border-radius: 999px;
     font-weight: bold;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cta:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
 .burger {
     display: none;
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
+    color: #8b5cf6;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.burger:hover {
+    transform: scale(1.1);
 }
 
 @media (max-width: 768px) {
     .nav {
         position: absolute;
-        top: 70px;
+        top: 64px;
         left: 0;
         right: 0;
         background: #fff;
         flex-direction: column;
-        padding: 1rem;
+        padding: 1rem 0;
         display: none;
+        gap: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     }
 
     .open {
         display: flex;
+        animation: fadeIn 0.3s ease forwards;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .burger {

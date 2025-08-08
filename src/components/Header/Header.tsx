@@ -1,14 +1,25 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./Header.module.css";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
 
+  // Zavření menu při resize nad breakpoint
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) setOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <header className={styles.header}>
       <div className={styles.container}>
-        <a href="#" className={styles.logo}>Captioni ✨</a>
+        <a href="#" className={styles.logo}>
+          <span>✨</span> Captioni
+        </a>
 
         <nav className={`${styles.nav} ${open ? styles.open : ""}`}>
           <a href="?demo=true" onClick={() => setOpen(false)}>Demo</a>
@@ -19,9 +30,10 @@ export default function Header() {
         </nav>
 
         <button className={styles.burger} onClick={() => setOpen(!open)}>
-          ☰
+          {open ? "×" : "☰"}
         </button>
       </div>
     </header>
   );
 }
+

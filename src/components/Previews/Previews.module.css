@@ -16,13 +16,32 @@
 }
 
 .card {
-    padding: 1rem;
-    border-radius: 12px;
+    padding: 1.5rem;
+    border-radius: 14px;
     font-weight: bold;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    color: #333;
+    color: #222;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+.card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.caption {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.desc {
+    font-size: 0.85rem;
+    font-weight: normal;
+    opacity: 0.85;
+}
+
+/* Barevné styly */
 .barbie {
     background-color: #fadadd;
 }
