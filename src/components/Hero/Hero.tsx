@@ -1,25 +1,54 @@
 "use client";
-
-import { Poppins } from "next/font/google";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Montserrat } from "next/font/google";
+import DemoModal from "@/components/DemoModal/DemoModal";
 import styles from "./Hero.module.css";
 
-const poppins = Poppins({ subsets: ["latin"], weight: ["700", "900"] });
+const mont = Montserrat({ subsets: ["latin"], weight: ["800", "900"] });
 
 export default function Hero() {
+  const [showDemo, setShowDemo] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // otevřít při ?demo=true
+  useEffect(() => {
+    if (searchParams.get("demo") === "true") {
+      setShowDemo(true);
+    }
+  }, [searchParams]);
+
+  const openDemo = () => {
+    setShowDemo(true);                         // otevři hned
+    router.push("?demo=true", { scroll: false }); // a zapiš do URL
+  };
+
+  const closeDemo = () => {
+    setShowDemo(false);
+    router.push("/", { scroll: false }); // vyčisti URL
+  };
+
   return (
     <section className={styles.hero}>
-      <h1 className={`${styles.title} ${styles.fadeUp} ${styles.delay1} ${poppins.className}`}>
-        Create Viral Captions in Seconds 🚀
+      <h1 className={`${styles.title} ${styles.fadeUp} ${styles.delay1} ${mont.className}`}>
+        Create viral captions in seconds
       </h1>
 
       <p className={`${styles.subtitle} ${styles.fadeUp} ${styles.delay2}`}>
-        AI-powered captions, bios & hashtags that make your content pop.
+        Pick a vibe. Get perfect content. 
       </p>
 
       <div className={`${styles.buttonGroup} ${styles.fadeUp} ${styles.delay3}`}>
-        <a href="?demo=true" className={styles.btn}>Try Free Demo</a>
-        <a href="#pricing" className={styles.btn}>See Plans</a>
+        <button className={styles.btn} onClick={openDemo}>
+          🎯 Try Demo
+        </button>
+        <a href="#pricing" className={styles.btn}>
+          See Plans
+        </a>
       </div>
+
+      {showDemo && <DemoModal onClose={closeDemo} />}
     </section>
   );
 }
