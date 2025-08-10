@@ -26,7 +26,7 @@ export default function Testimonials() {
         >
           <Image
             src={item.avatar}
-            alt="User"
+            alt=""
             width={64}
             height={64}
             className={styles.avatar}

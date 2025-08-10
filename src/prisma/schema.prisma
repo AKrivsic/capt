@@ -1,0 +1,25 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model History {
+  id           String   @id @default(cuid())
+  userId       String?  // vyplníme až bude NextAuth (session.user.id)
+  platform     String   // "instagram" | "tiktok" | "x" | "onlyfans"
+  style        String   // např. "Barbie"
+  type         String   // "caption" | "bio" | "hashtags" | "dm" | ...
+  variantIndex Int
+  text         String
+  feedback     String?  // "like" | "dislike" | null
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([platform, type])
+  @@index([createdAt])
+}

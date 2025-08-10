@@ -1,32 +1,34 @@
-import styles from './OutputSelector.module.css';
+import styles from "./OutputSelector.module.css";
 
 type OutputType =
-  | 'caption'
-  | 'hashtags'
-  | 'bio'
-  | 'dm'
-  | 'comments'
-  | 'story'
-  | 'hook';
+  | "caption"
+  | "hashtags"
+  | "bio"
+  | "dm"
+  | "comments"
+  | "story"
+  | "hook";
 
-type Plan = 'free' | 'pro' | 'premium';
+// Treat "starter" as PRO-level access for outputs.
+// If you want stricter gating, I can change this mapping.
+type Plan = "free" | "starter" | "pro" | "premium";
 
 type OutputOption = {
   key: OutputType;
   label: string;
   description: string;
   emoji: string;
-  tier: Plan;
+  tier: Exclude<Plan, "starter">; // visual tier: "free" | "pro" | "premium"
 };
 
 const OPTIONS: OutputOption[] = [
-  { key: 'caption', label: 'Captions', emoji: '📝', description: 'Stylové popisky k fotkám', tier: 'free' },
-  { key: 'hashtags', label: 'Hashtagy', emoji: '#️⃣', description: 'Relevantní hashtagy', tier: 'pro' },
-  { key: 'bio', label: 'Bio', emoji: '✍️', description: 'Profilový popis', tier: 'pro' },
-  { key: 'comments', label: 'Komentáře', emoji: '💬', description: 'Komentáře pro růst', tier: 'pro' },
-  { key: 'story', label: 'Story texty', emoji: '📲', description: 'Výzvy do stories', tier: 'pro' },
-  { key: 'dm', label: 'DM zprávy', emoji: '💌', description: 'Flirty zprávy pro fanoušky', tier: 'premium' },
-  { key: 'hook', label: 'Hooky / overlay', emoji: '🎯', description: 'Úderné začátky a texty přes video', tier: 'premium' },
+  { key: "caption",  label: "Captions",          emoji: "📝", description: "Creative on-brand text for posts",     tier: "free" },
+  { key: "hashtags", label: "Hashtags",          emoji: "#️⃣", description: "Relevant, trending tags",              tier: "pro" },
+  { key: "bio",      label: "Bio",               emoji: "✍️", description: "Polished profile bio",                  tier: "pro" },
+  { key: "comments", label: "Comments",          emoji: "💬", description: "Growth-boosting comment ideas",         tier: "pro" },
+  { key: "story",    label: "Stories",           emoji: "📲", description: "Engaging story prompts",                tier: "pro" },
+  { key: "dm",       label: "DMs",               emoji: "💌", description: "Flirty messages for fans",              tier: "premium" },
+  { key: "hook",     label: "Hooks / Overlays",  emoji: "🎯", description: "Punchy openings & on-video text",       tier: "premium" },
 ];
 
 type Props = {
@@ -36,14 +38,16 @@ type Props = {
 };
 
 export const OutputSelector = ({ selected, onChange, userPlan }: Props) => {
-  const toggleOption = (key: OutputType, tier: Plan) => {
-    const isAllowed =
-      userPlan === 'premium' ||
-      (userPlan === 'pro' && tier !== 'premium') ||
-      (userPlan === 'free' && tier === 'free');
+  const isAllowed = (tier: OutputOption["tier"]): boolean => {
+    if (userPlan === "premium") return true;
+    if (userPlan === "pro" || userPlan === "starter") return tier !== "premium";
+    // free plan:
+    return tier === "free";
+  };
 
-    if (!isAllowed) {
-      alert('Tato funkce je dostupná pouze pro vyšší plán.');
+  const toggleOption = (key: OutputType, tier: OutputOption["tier"]) => {
+    if (!isAllowed(tier)) {
+      alert("This feature is available on a higher plan.");
       return;
     }
 
@@ -57,23 +61,32 @@ export const OutputSelector = ({ selected, onChange, userPlan }: Props) => {
   return (
     <div className={styles.container}>
       {OPTIONS.map(({ key, label, description, emoji, tier }) => {
-        const isChecked = selected.includes(key);
-        const isDisabled =
-          (tier === 'pro' && userPlan === 'free') || (tier === 'premium' && userPlan !== 'premium');
+        const checked = selected.includes(key);
+        const locked =
+          (tier === "pro" && (userPlan === "free")) ||
+          (tier === "premium" && userPlan !== "premium");
 
         return (
-          <div
+          <button
             key={key}
-            className={`${styles.card} ${isChecked ? styles.checked : ''} ${isDisabled ? styles.disabled : ''}`}
+            type="button"
+            className={`${styles.card} ${checked ? styles.checked : ""} ${
+              locked ? styles.locked : ""
+            }`}
             onClick={() => toggleOption(key, tier)}
+            aria-pressed={checked}
+            aria-disabled={locked}
+            data-tier={tier}
           >
             <div className={styles.header}>
               <span className={styles.emoji}>{emoji}</span>
               <span className={styles.label}>{label}</span>
-              {tier !== 'free' && <span className={styles.tier}>{tier.toUpperCase()}</span>}
+              {tier !== "free" && (
+                <span className={styles.badge}>{tier.toUpperCase()}</span>
+              )}
             </div>
             <p className={styles.desc}>{description}</p>
-          </div>
+          </button>
         );
       })}
     </div>

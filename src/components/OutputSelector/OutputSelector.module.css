@@ -60,3 +60,21 @@
     font-size: 13px;
     color: #444;
 }
+
+/* OutputSelector.module.css – add these if missing */
+.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.badge {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, .08);
+}
+
+.checked {
+    outline: 2px solid currentColor;
+}

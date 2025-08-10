@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { getUsage, incUsage } from "@/utils/usage";
+import { useState, useMemo, useEffect } from "react";
 import Tippy from "@tippyjs/react";
 import "tippy.js/dist/tippy.css";
 import styles from "./Generator.module.css";
+
 import { outputMeta } from "@/constants/outputMeta";
 import { styleMeta } from "@/constants/styleMeta";
 import { platformMeta } from "@/constants/platformMeta";
+import { normalizePlatform } from "@/utils/normalizePlatform"; // ✅ opravený import
 
+/** ================================
+ *  UI konstanty
+ *  ================================ */
 const stylesList = Object.keys(styleMeta);
 const platforms = Object.keys(platformMeta);
 
@@ -25,58 +31,193 @@ const platformIcon: Record<string, string> = {
   OnlyFans: "⭐",
 };
 
+/** ================================
+ *  Typy
+ *  ================================ */
+type Plan = "free" | "starter" | "pro" | "premium";
+type ResultsMap = Record<string, string | string[]>;
+type FeedbackState = Record<string, Record<number, "like" | "dislike" | null>>;
+
+const PREF_KEY = "captioni_pref_v1";
+const FREE_LIMIT = 3;
+const STARTER_LIMIT = 15;
+const VARIANTS_PER_OUTPUT = 3;
+
 export default function Generator() {
+  /** ================================
+   *  State
+   *  ================================ */
   const [style, setStyle] = useState("Barbie");
   const [platform, setPlatform] = useState("Instagram");
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>(["caption"]);
   const [vibe, setVibe] = useState("");
-  const [result, setResult] = useState<Record<string, string>>({});
+
+  const [result, setResult] = useState<ResultsMap>({});
+  const [likes, setLikes] = useState<FeedbackState>({});
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // TODO: napoj na reálný plán po integraci auth/billing
+  const [userPlan] = useState<Plan>("free");
   const [usageCount, setUsageCount] = useState(0);
-  const [userPlan, setUserPlan] = useState<"free" | "starter" | "pro" | "premium">("free");
+
   const [showExtras, setShowExtras] = useState(false);
 
-  const FREE_LIMIT = 3;
-
+  /** ================================
+   *  Derived
+   *  ================================ */
   const allowedOutputs = useMemo(() => platformOutputMap[platform] || [], [platform]);
   const allOutputKeys = Object.keys(outputMeta);
   const extraOutputs = allOutputKeys.filter((key) => !allowedOutputs.includes(key));
 
+  /** ================================
+   *  Effects – načtení preferencí
+   *  ================================ */
+  useEffect(() => {
+    setUsageCount(getUsage("freeUsed"));
+    // (volitelně) načtení like stavů
+    try {
+      const raw = localStorage.getItem(PREF_KEY);
+      if (raw) setLikes(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  /** ================================
+   *  Helpers
+   *  ================================ */
   const handleToggleOutput = (key: string) => {
     setSelectedOutputs((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
   };
 
+  async function saveHistoryFeedback(params: {
+    type: string;
+    index: number;
+    text: string;
+    feedback: "like" | "dislike" | null;
+  }) {
+    try {
+      await fetch("/api/history/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: normalizePlatform(platform), // "instagram"|"tiktok"|"x"|"onlyfans"
+          style,
+          type: params.type,
+          index: params.index,
+          text: params.text,
+          feedback: params.feedback,
+        }),
+      });
+    } catch {
+      // no-op
+    }
+  }
+
+  function persistLikes(next: FeedbackState) {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify(next));
+    } catch {}
+  }
+
+  function canGenerateMore(): boolean {
+    if (userPlan === "free") return usageCount < FREE_LIMIT;
+    if (userPlan === "starter") return usageCount < STARTER_LIMIT;
+    return true; // pro/premium – bez limitu
+  }
+
+  function remainingText(): string | null {
+    if (userPlan === "free" && usageCount < FREE_LIMIT)
+      return `${FREE_LIMIT - usageCount} free generations remaining`;
+    if (userPlan === "starter" && usageCount < STARTER_LIMIT)
+      return `${STARTER_LIMIT - usageCount} generations remaining in Starter`;
+    return null;
+  }
+
+  function toggleFeedback(key: string, idx: number, val: "like" | "dislike") {
+    setLikes((prev) => {
+      const cur = prev[key] || {};
+      const nextVal = cur[idx] === val ? null : val; // toggle
+      const next: FeedbackState = { ...prev, [key]: { ...cur, [idx]: nextVal } };
+      persistLikes(next);
+      const text = (Array.isArray(result[key]) ? result[key][idx] : result[key]) ?? "";
+      void saveHistoryFeedback({ type: key, index: idx, text: String(text ?? ""), feedback: nextVal });
+      return next;
+    });
+  }
+
+  const handleCopy = async (text: string, key?: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // fallback
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    } finally {
+      if (key) {
+        setCopiedKey(key);
+        window.setTimeout(() => setCopiedKey(null), 1500);
+      }
+    }
+  };
+
+  /** ================================
+   *  Submit – hlavní generace
+   *  ================================ */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCopiedKey(null);
 
-    if (userPlan === "free" && usageCount >= FREE_LIMIT) {
-      alert("🚫 You’ve reached the free limit (3 generations). Upgrade to Pro for unlimited access.");
+    if (!canGenerateMore()) {
+      if (userPlan === "free") {
+        alert("🚫 You’ve reached the free limit (3 generations). Upgrade to Pro for unlimited access.");
+      } else if (userPlan === "starter") {
+        alert("🚫 Starter limit reached (15). Upgrade to Pro for unlimited access.");
+      }
       return;
     }
 
     setLoading(true);
+    setResult({});
 
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ style, platform, outputs: selectedOutputs, vibe }),
-    });
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          style,
+          platform: normalizePlatform(platform),
+          outputs: selectedOutputs,
+          vibe,
+          variants: VARIANTS_PER_OUTPUT,
+          demo: userPlan === "free", // dokud není auth
+        }),
+      });
 
-    const data = await res.json();
-    setResult(data || {});
-    setLoading(false);
-    setUsageCount((prev) => prev + 1);
+      const payload: { ok: boolean; data?: ResultsMap; error?: string } = await res.json();
+      if (!payload?.ok) {
+        alert(payload?.error || "⚠️ Generation failed. Try again.");
+        return;
+      }
+
+      setResult(payload.data || {});
+    } catch {
+      alert("⚠️ Network error. Try again.");
+    } finally {
+      setLoading(false);
+      const next = incUsage("freeUsed"); // ✅ persist per day
+      setUsageCount(next);
+    }
   };
 
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-  };
-
+  /** ================================
+   *  Render
+   *  ================================ */
   return (
     <section className={styles.section} id="demo">
       <h2 className={styles.heading}>Ready to slay your socials?</h2>
@@ -86,23 +227,21 @@ export default function Generator() {
 
       <form onSubmit={handleSubmit} className={styles.form}>
         {/* STYLE: pills */}
-        <div className={styles.inputGroup}>
-          <label className={styles.groupLabel}>Style</label>
-          <div className={styles.pillGrid} role="listbox" aria-label="Style selector">
-            {stylesList.map((s) => (
+        <div className={styles.pillGrid} role="listbox" aria-label="Style selector">
+          {stylesList.map((s) => (
+            <Tippy key={s} content={styleMeta[s]?.tooltip || s} placement="top">
               <button
-                key={s}
                 type="button"
                 className={`${styles.pillBtn} ${style === s ? styles.pillActive : ""}`}
                 onClick={() => setStyle(s)}
                 aria-pressed={style === s}
+                aria-label={`${s} style`}
               >
                 <span className={styles.pillEmoji}>{styleMeta[s]?.emoji || "✨"}</span>
                 <span>{s}</span>
               </button>
-            ))}
-          </div>
-          <p className={styles.tooltipText}>{styleMeta[style]?.tooltip}</p>
+            </Tippy>
+          ))}
         </div>
 
         {/* PLATFORM: icon buttons with tooltips */}
@@ -197,14 +336,10 @@ export default function Generator() {
             {loading ? "Generating..." : "Generate ✨"}
           </button>
 
-          {userPlan === "free" && usageCount < FREE_LIMIT && (
-            <p className={styles.usageNote}>{FREE_LIMIT - usageCount} free generations remaining</p>
-          )}
-          {userPlan === "starter" && usageCount < 15 && (
-            <p className={styles.usageNote}>{15 - usageCount} generations remaining in Starter</p>
-          )}
+          {remainingText() && <p className={styles.usageNote}>{remainingText()}</p>}
         </div>
 
+        {/* Limit cards */}
         {userPlan === "free" && usageCount >= FREE_LIMIT && (
           <div className={styles.limitCard}>
             <h3 className={styles.limitHeading}>You&apos;ve reached your free limit</h3>
@@ -215,7 +350,7 @@ export default function Generator() {
           </div>
         )}
 
-        {userPlan === "starter" && usageCount >= 15 && (
+        {userPlan === "starter" && usageCount >= STARTER_LIMIT && (
           <div className={styles.limitCard}>
             <h3 className={styles.limitHeading}>Starter limit reached</h3>
             <p className={styles.limitText}>
@@ -230,22 +365,57 @@ export default function Generator() {
       {Object.keys(result).length > 0 && (
         <>
           <div className={styles.resultContainer}>
-            {Object.entries(result).map(([key, value]) => {
-              const meta = outputMeta[key] || { emoji: "✨", color: "#6B7280", description: "Generated text for your selected option." };
+            {Object.entries(result).map(([key, variants]) => {
+              const meta = outputMeta[key] || {
+                emoji: "✨",
+                color: "#6B7280",
+                description: "Generated text for your selected option.",
+              };
+              const list = Array.isArray(variants) ? variants : [String(variants)];
+
               return (
                 <div key={key} className={styles.card}>
                   <h4 className={styles.cardTitle} style={{ color: meta.color }}>
                     {meta.emoji} {key.toUpperCase()}
                   </h4>
                   <p className={styles.cardDescription}>{meta.description}</p>
-                  <pre className={styles.resultText}>
-                    {typeof value === "string" ? value : JSON.stringify(value)}
-                  </pre>
-                  {!String(value).startsWith("⚠️") && (
-                    <button className={styles.copyBtn} onClick={() => handleCopy(String(value), key)}>
-                      {copiedKey === key ? "Copied!" : "Copy to clipboard"}
-                    </button>
-                  )}
+
+                  {list.map((text, idx) => {
+                    const status = likes[key]?.[idx] ?? null;
+                    const copyId = `${key}-${idx}`;
+                    return (
+                      <div key={copyId} className={styles.variantBlock}>
+                        <pre className={styles.resultText}>{text}</pre>
+                        <div className={styles.variantActions}>
+                          <button className={styles.copyBtn} onClick={() => handleCopy(text, copyId)}>
+                            {copiedKey === copyId ? "Copied!" : "Copy"}
+                          </button>
+
+                          <button
+                            className={`${styles.iconBtn} ${status === "like" ? styles.active : ""}`}
+                            onClick={() => toggleFeedback(key, idx, "like")}
+                            aria-pressed={status === "like"}
+                            aria-label="Like this variant"
+                            title="I like this"
+                          >👍</button>
+
+                          <button
+                            className={`${styles.iconBtn} ${status === "dislike" ? styles.active : ""}`}
+                            onClick={() => toggleFeedback(key, idx, "dislike")}
+                            aria-pressed={status === "dislike"}
+                            aria-label="Dislike this variant"
+                            title="Not for me"
+                          >👎</button>
+
+                          {!!status && (
+                            <span className={styles.pickedLabel}>
+                              {status === "like" ? "Liked" : "Disliked"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

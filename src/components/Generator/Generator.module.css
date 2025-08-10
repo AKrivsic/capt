@@ -179,8 +179,16 @@
     background: #f3e8ff;
 }
 
+.outputCard.outputSelected,
+.outputCard.outputSelected:hover {
+    border-color: #d8b4fe;
+    background: #f3e8ff;
+}
 .outputIcon {
     font-size: 1.25rem;
+}
+.outputCard:active {
+    transform: translateY(-1px) scale(0.99);
 }
 
 .outputName {
@@ -404,4 +412,40 @@
     font-size: 0.85rem;
     color: #6b7280;
     text-align: center;
+}
+
+.variantActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.iconBtn {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform .04s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.iconBtn:hover {
+    transform: translateY(1px);
+}
+
+.iconBtn.active {
+    border-color: #8B5CF6;
+    /* violet */
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+}
+
+.pickedLabel {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(139, 92, 246, 0.12);
+    color: #7C3AED;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    margin-left: 4px;
 }

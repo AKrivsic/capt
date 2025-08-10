@@ -20,8 +20,9 @@ export default function Hero() {
   }, [searchParams]);
 
   const openDemo = () => {
-    setShowDemo(true);                         // otevři hned
-    router.push("?demo=true", { scroll: false }); // a zapiš do URL
+   const params = new URLSearchParams(window.location.search);
+   params.set("demo", "true");
+    router.push(`?${params.toString()}`);
   };
 
   const closeDemo = () => {
