@@ -1,43 +1,55 @@
-// src/app/api/history/export/route.ts
+// app/api/history/export/route.ts
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { normalizePlatform, normalizeFeedback } from "@/utils/normalizePlatform";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { getSessionServer } from "@/lib/session";
+import type { Prisma } from "@prisma/client";
 
 type Row = {
   id: string;
-  platform: "instagram" | "tiktok" | "x" | "onlyfans";
-  style: string;
-  type: string;
-  variantIndex: number;
-  text: string;
+  platform: "instagram" | "tiktok" | "x" | "onlyfans" | "";
+  variant: number | null;
   feedback: "like" | "dislike" | null;
   createdAt: Date;
+  prompt: string;
+  outputs_json: string; // stringified JSON (bez 'text' v modelu)
 };
 
 const PlatformEnum = z.enum(["instagram", "tiktok", "x", "onlyfans"]);
 const OrderEnum = z.enum(["new", "old"]);
 
 const QuerySchema = z.object({
-  // stejné filtry jako /list
   platform: PlatformEnum.optional(),
-  type: z.string().min(2).max(32).optional(),
-  style: z.string().min(2).max(50).optional(),
   q: z.string().min(1).max(200).optional(),
   order: OrderEnum.default("new"),
-  limit: z.coerce.number().int().min(1).max(5000).default(1000), // export max 5k řádků naráz
+  limit: z.coerce.number().int().min(1).max(5000).default(1000),
 });
 
-function toCsvValue(s: string | number | null) {
-  const v = s === null ? "" : String(s);
-  // escape – obal do uvozovek a zdvoj uvozovky uvnitř
+function toCsvValue(s: string | number | null | undefined) {
+  const v = s == null ? "" : String(s);
   return `"${v.replace(/"/g, '""')}"`;
 }
 
+function getUserIdFromSession(session: unknown): string | null {
+  if (!session || typeof session !== "object") return null;
+  const u = (session as Record<string, unknown>).user;
+  if (!u || typeof u !== "object") return null;
+  const id = (u as Record<string, unknown>).id;
+  return id == null ? null : String(id);
+}
+
 export async function GET(req: NextRequest) {
+  // auth guard
+  const session = await getSessionServer();
+  const userId = getUserIdFromSession(session);
+  if (!userId) {
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success) {
@@ -46,56 +58,58 @@ export async function GET(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { platform, type, style, q, order, limit } = parsed.data;
+  const { platform, q, order, limit } = parsed.data;
 
-  // TODO: až bude NextAuth → skutečné userId
-  const userId: string | null = null;
+  const where: Prisma.HistoryWhereInput = {
+  userId,
+  ...(platform ? { platform } : {}),
+  ...(q ? { prompt: { contains: q, mode: "insensitive" } } : {}),
+};
 
-  const where = {
-    ...(userId ? { userId } : { userId: null }),
-    ...(platform ? { platform } : {}),
-    ...(type ? { type } : {}),
-    ...(style ? { style } : {}),
-    ...(q ? { text: { contains: q, mode: "insensitive" as const } } : {}),
-  };
+let data = await prisma.history.findMany({
+  where,
+  orderBy: { createdAt: order === "new" ? "desc" : "asc" },
+  take: limit,
+  select: {
+    id: true,
+    platform: true,
+    variant: true,
+    liked: true,
+    createdAt: true,
+    prompt: true,
+    outputs: true,
+  },
+});
 
-  const data = await prisma.history.findMany({
-    where,
-    orderBy: { createdAt: order === "new" ? "desc" : "asc" },
-    take: limit,
-    select: {
-      id: true,
-      platform: true,
-      style: true,
-      type: true,
-      variantIndex: true,
-      feedback: true,
-      createdAt: true,
-      text: true,
-    },
+if (q) {
+  const qLower = q.toLowerCase();
+  data = data.filter((r) => {
+    try {
+      return JSON.stringify(r.outputs ?? "").toLowerCase().includes(qLower);
+    } catch {
+      return false;
+    }
   });
+}
 
-  // Map → Row[] + normalizace platformy a feedbacku
   const rows: Row[] = data.map((r) => ({
     id: r.id,
-    platform: normalizePlatform(r.platform) as Row["platform"],
-    style: r.style as Row["style"],
-    type: r.type as Row["type"],
-    variantIndex: r.variantIndex,
-    feedback: normalizeFeedback(r.feedback),
+    platform: normalizePlatform(r.platform ?? "") || "",
+    variant: r.variant,
+    feedback: normalizeFeedback(r.liked),
     createdAt: r.createdAt,
-    text: r.text,
+    prompt: r.prompt,
+    outputs_json: JSON.stringify(r.outputs ?? null),
   }));
 
   const header = [
     "id",
     "platform",
-    "style",
-    "type",
-    "variantIndex",
+    "variant",
     "feedback",
     "createdAt",
-    "text",
+    "prompt",
+    "outputs_json",
   ]
     .map(toCsvValue)
     .join(",");
@@ -105,12 +119,11 @@ export async function GET(req: NextRequest) {
       [
         r.id,
         r.platform,
-        r.style,
-        r.type,
-        r.variantIndex,
+        r.variant ?? "",
         r.feedback ?? "",
         r.createdAt.toISOString(),
-        r.text,
+        r.prompt,
+        r.outputs_json,
       ]
         .map(toCsvValue)
         .join(",")

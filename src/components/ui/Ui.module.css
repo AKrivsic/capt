@@ -1,0 +1,71 @@
+/* Lokální scope pro dashboard – žádné globální zásahy */
+.scope {
+    --accentViolet: #8b5cf6;
+    --accentPink: #ec4899;
+    --textStrong: #111827;
+    --muted: #4b5563;
+    --border: #e5e7eb;
+    --card: #fff;
+    --shadow: 0 6px 18px rgba(17, 24, 39, 0.07);
+    --radius: 16px;
+}
+
+/* Buttons */
+.btnPrimary {
+    background: linear-gradient(135deg, var(--accentViolet), var(--accentPink));
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 0.55rem 1.15rem;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    transition: transform .15s ease, box-shadow .2s ease;
+}
+
+.btnPrimary:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 10px 22px rgba(139, 92, 246, .28);
+}
+
+.btnGhost {
+    background: #fff;
+    color: var(--textStrong);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.btnGhost:hover {
+    background: #fafafa;
+    border-color: #d1d5db;
+}
+
+/* Card */
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1rem;
+}
+
+/* Badge */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .82rem;
+    color: var(--accentViolet);
+    background: rgba(139, 92, 246, .08);
+    border: 1px solid rgba(139, 92, 246, .22);
+    border-radius: 999px;
+    padding: .28rem .6rem;
+}

@@ -1,11 +1,16 @@
+// src/components/Header/Header.tsx
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import HeaderAuth from "../HeaderAuth/HeaderAuth";
 import styles from "./Header.module.css";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
 
-  // Zavření menu při resize nad breakpoint
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth > 768) setOpen(false);
@@ -14,20 +19,61 @@ export default function Header() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const closeMenu = () => setOpen(false);
+
   return (
     <header className={styles.header}>
       <div className={styles.container}>
-        <a href="#" className={styles.logo}>
+        <Link href="/" className={styles.logo} onClick={closeMenu}>
           <span>✨</span> Captioni
-        </a>
+        </Link>
 
         <nav className={`${styles.nav} ${open ? styles.open : ""}`}>
-          <a href="?demo=true" onClick={() => setOpen(false)}>Demo</a>
-          <a href="#benefits" onClick={() => setOpen(false)}>Benefits</a>
-          <a href="#pricing" onClick={() => setOpen(false)}>Pricing</a>
-          <a href="#faq" onClick={() => setOpen(false)}>FAQ</a>
-          <a href="#demo" className={styles.cta} onClick={() => setOpen(false)}>Try Free</a>
+          {/* --- Nepřihlášený má i DEMO, přihlášený ne --- */}
+          {!isLoggedIn && (
+            <Link href="/?demo=true" className={styles.navLink} onClick={closeMenu}>
+              Demo
+            </Link>
+          )}
+          <Link href="#benefits" className={styles.navLink} onClick={closeMenu}>
+            Benefits
+          </Link>
+          <Link href="#pricing" className={styles.navLink} onClick={closeMenu}>
+            Pricing
+          </Link>
+          <Link href="#faq" className={styles.navLink} onClick={closeMenu}>
+            FAQ
+          </Link>
+
+          {/* --- Sekundární odkaz do dashboardu jen pro přihlášené --- */}
+          {isLoggedIn && (
+  <Link href="/dashboard" className={styles.navSecondary} onClick={closeMenu}>
+    <svg
+      className={styles.navSecondaryIcon}
+      viewBox="0 0 20 20" aria-hidden="true"
+    >
+      <path d="M4 11h4v5H4v-5Zm6-8h4v13h-4V3ZM2 7h4v9H2V7Zm12 4h4v5h-4v-5Z" />
+    </svg>
+    Dashboard
+  </Link>
+)}
+
+          {/* --- Primary CTA (Try Free vs Generate) --- */}
+          {isLoggedIn ? (
+            <Link href="/#generator" className={styles.cta} onClick={closeMenu}>
+              Generate
+            </Link>
+          ) : (
+            <Link href="/?demo=true" className={styles.cta} onClick={closeMenu}>
+              Try Free
+            </Link>
+          )}
         </nav>
+
+        {/* 🔽 Auth blok vpravo (plán + sign in/out), bez odkazu Dashboard (bude jen v nav) */}
+        <div className={styles.auth}>
+          <HeaderAuth />
+        </div>
 
         <button className={styles.burger} onClick={() => setOpen(!open)}>
           {open ? "×" : "☰"}
@@ -36,4 +82,3 @@ export default function Header() {
     </header>
   );
 }
-

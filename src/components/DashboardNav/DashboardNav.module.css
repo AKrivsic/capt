@@ -1,0 +1,32 @@
+.nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.link {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 600;
+    padding: .45rem .75rem;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.link:hover {
+    background: rgba(0, 0, 0, .05);
+    color: #111827;
+}
+
+.active {
+    color: #111827;
+    background: rgba(139, 92, 246, .10);
+    border-color: rgba(139, 92, 246, .28);
+}
+
+/* mobilní „stack“ layout */
+.stack {
+    flex-direction: column;
+    gap: .75rem;
+}

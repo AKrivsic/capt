@@ -27,7 +27,8 @@ export default function DemoModal({ onClose }: Props) {
 
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [demoUsed, setDemoUsed] = useState(0); // per-day persisted
+  const [demoUsed, setDemoUsed] = useState(0); // per-day persisted (client-side counter)
+  const [limitReached, setLimitReached] = useState(false); // server-side RL flag
   const [error, setError] = useState<string | null>(null);
 
   const DEMO_LIMIT = 2;
@@ -48,37 +49,57 @@ export default function DemoModal({ onClose }: Props) {
     setDemoUsed(getUsage("demoUsed"));
   }, []);
 
-  // Generování výstupu (napojení na /api/generate)
+  // Generování výstupu (napojení na /api/generate) + detekce 429 → CTA
   const handleGenerate = async () => {
-    if (demoUsed >= DEMO_LIMIT) return;
     if (!vibe.trim()) return;
 
     setLoading(true);
     setError(null);
-    // setResult(null); // pokud chceš čistit předchozí výsledek, odkomentuj
+    setResult(null);
 
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          style,                          // např. "Barbie"
+          style,                          // e.g., "Barbie"
           platform: toEnum(platform),     // "instagram" | "tiktok" | "x" | "onlyfans"
-          outputs: ["caption"],           // v demu generujeme 1 typ
-          vibe,                           // vstup uživatele
-          variants: 3,                    // 3 varianty
-          demo: true,                     // demo režim
+          outputs: ["caption"],           // demo: one output
+          vibe,                           // user input
+          variants: 3,                    // 3 variants
+          demo: true,                     // demo mode
         }),
       });
 
+      // Server-side RL (429) → ukaž CTA
+      if (res.status === 429) {
+        setLimitReached(true);
+        return;
+      }
+
       const payload = await res.json();
+
+      // API může vrátit LIMIT i 200/4xx s ok:false
       if (!payload?.ok) {
+        if (payload?.error === "LIMIT") {
+          setLimitReached(true);
+          return;
+        }
         setError(payload?.error || "Generation failed.");
-      } else {
-        setResult(payload.data as GenerateResponse);
-        // inkrementuj až po úspěchu (per-day persist)
-        const next = incUsage("demoUsed");
-        setDemoUsed(next);
+        return;
+      }
+
+      setResult(payload.data as GenerateResponse);
+
+      // inkrementuj až po úspěchu (per-day persist – pro místní metriku/UX)
+      const next = incUsage("demoUsed");
+      setDemoUsed(next);
+
+      // pokud jsme právě dojeli na limit i podle lokální metriky, ukaž CTA při další akci
+      if (next >= DEMO_LIMIT) {
+        // necháme uživateli zobrazit právě vygenerovaný výsledek;
+        // CTA se ukáže při dalším kliknutí, nebo hned pokud chceš:
+        // setLimitReached(true);
       }
     } catch {
       setError("Network error. Try again.");
@@ -100,8 +121,8 @@ export default function DemoModal({ onClose }: Props) {
     }, 100);
   };
 
-  // ✅ Limit obrazovka až když je limit vyčerpán a zároveň nemáme výsledek k zobrazení
-  const locked = demoUsed >= DEMO_LIMIT && !result;
+  // Zobraz CTA když limit hlásí server, nebo když lokálně víme, že už je vyčerpáno a nemáme nové výsledky
+  const showCTA = (limitReached || demoUsed >= DEMO_LIMIT) && !result;
   const captionVariants = result?.caption ?? null;
 
   return (
@@ -110,23 +131,23 @@ export default function DemoModal({ onClose }: Props) {
         <button className={styles.closeBtn} onClick={onClose}>×</button>
 
         <h2 className={styles.heading}>
-          {locked ? "Demo Limit Reached 💔" : "Try Captioni Demo ✨"}
+          {showCTA ? "Demo Limit Reached 💔" : "Try Captioni Demo ✨"}
         </h2>
 
-        {locked ? (
+        {showCTA ? (
           <div className={styles.blocked}>
             <p className={styles.limitText}>
-              You’ve reached your {DEMO_LIMIT} free demo generations.
+              You’ve used {DEMO_LIMIT} demo generations today.
             </p>
             <p className={styles.cta}>
               Unlock more styles, vibes, and outputs with our plans.
             </p>
             <div className={styles.buttonGroup}>
+              <a className={styles.btn} href="/signup">
+                ✨ Create free account
+              </a>
               <button className={styles.btn} onClick={handleGoToPricing}>
-                🔓 Continue with Free Plan
-              </button>
-              <button className={styles.btn} onClick={handleGoToPricing}>
-                See All Plans
+                See pricing
               </button>
             </div>
           </div>
@@ -166,13 +187,26 @@ export default function DemoModal({ onClose }: Props) {
               placeholder="e.g. sunny beach photo with confidence"
             />
 
-            <button
-              className={styles.btn}
-              onClick={handleGenerate}
-              disabled={loading || !vibe.trim() || demoUsed >= DEMO_LIMIT}
-            >
-              {loading ? "Generating..." : "Generate"}
-            </button>
+            {/* Button → CTA swap */}
+            {!limitReached ? (
+              <button
+                className={styles.btn}
+                onClick={handleGenerate}
+                disabled={loading || !vibe.trim()}
+              >
+                {loading ? "Generating..." : "Generate"}
+              </button>
+            ) : (
+              <div className={styles.ctaWrap}>
+                <p className={styles.limitNote}>
+                  You’ve used {DEMO_LIMIT} demo generations today.
+                </p>
+                <div className={styles.ctaBtns}>
+                  <a className={styles.primary} href="/signup">Create free account</a>
+                  <a className={styles.secondary} href="#pricing">See pricing</a>
+                </div>
+              </div>
+            )}
 
             {error && (
               <p className={styles.limitText} style={{ color: "crimson" }}>

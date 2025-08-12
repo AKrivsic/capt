@@ -106,3 +106,125 @@
         display: block;
     }
 }
+
+/* ...původní CSS beze změn výš... */
+
+.nav a {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.nav a:hover {
+    color: #ec4899;
+}
+
+/* explicitně pojmenujeme pro přehlednost */
+.navLink {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.navLink:hover {
+    color: #ec4899;
+}
+
+/* Sekundární link (Dashboard) – trochu odlišený, ale stále decentní */
+.navSecondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+
+    /* gradient border trik */
+    border: 1px solid transparent;
+    background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(135deg, #8b5cf6, #ec4899) border-box;
+    color: #374151;
+    text-decoration: none;
+    transition: transform .12s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+}
+
+.navSecondary:hover {
+    /* jemný pastelový fill na hover */
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.98)) padding-box,
+        linear-gradient(135deg, #8b5cf6, #ec4899) border-box;
+    box-shadow: 0 6px 18px rgba(139, 92, 246, 0.18);
+    transform: translateY(-1px);
+    color: #111827;
+}
+
+.navSecondaryIcon {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .navSecondary {
+        padding: 0.55rem 1rem;
+        font-size: 0.95rem;
+    }
+}
+
+.cta {
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: white !important;
+    padding: 0.5rem 1.2rem;
+    border-radius: 999px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cta:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* ...původní burger + responsive styl beze změn... */
+
+@media (max-width: 768px) {
+    .nav {
+        position: absolute;
+        top: 64px;
+        left: 0;
+        right: 0;
+        background: #fff;
+        flex-direction: column;
+        padding: 1rem 0;
+        display: none;
+        gap: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .open {
+        display: flex;
+        animation: fadeIn 0.3s ease forwards;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .burger {
+        display: block;
+    }
+}

@@ -1,0 +1,20 @@
+"use client";
+import Link from "next/link";
+import ui from "@/components/ui/Ui.module.css";
+import { useUsageInfo } from "@/hooks/useUsageInfo";
+
+export default function UsageCard() {
+  const { plan, leftLabel, resetHint } = useUsageInfo();
+
+  return (
+    <div className={ui.card}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h3 style={{ fontWeight: 700, fontSize: "1.05rem" }}>Current plan: {String(plan)}</h3>
+          <p style={{ opacity: .7, fontSize: ".9rem" }}>{leftLabel} {resetHint}</p>
+        </div>
+        <Link href="/#pricing" className={ui.btnPrimary}>Upgrade</Link>
+      </div>
+    </div>
+  );
+}

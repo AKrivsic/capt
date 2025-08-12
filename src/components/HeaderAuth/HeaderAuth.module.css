@@ -1,0 +1,46 @@
+.authBox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.plan {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.08);
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+}
+
+.link {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #4b5563;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.link:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: #ec4899;
+}
+
+.btnSign {
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: white;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btnSign:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}

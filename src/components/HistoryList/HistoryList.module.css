@@ -1,4 +1,6 @@
-:root {
+/* ❌ žádné :root v CSS modulech */
+/* Proměnné nastavíme lokálně na wrapper → platí pro celý podstrom komponenty */
+.wrapper {
     --bg: #f9fafb;
     --card: #ffffff;
     --text: #1f2937;
@@ -10,9 +12,7 @@
     --emerald: #34D399;
     --emerald-dark: #10B981;
     --ring: rgba(139, 92, 246, 0.35);
-}
 
-.wrapper {
     padding: 28px 20px;
     background: var(--bg);
     border-radius: 16px;

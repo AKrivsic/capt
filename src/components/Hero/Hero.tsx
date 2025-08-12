@@ -1,8 +1,11 @@
+// app/components/Hero/Hero.tsx (nebo kde soubor leží)
 "use client";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Montserrat } from "next/font/google";
 import DemoModal from "@/components/DemoModal/DemoModal";
+import { goToGenerator } from "@/utils/goToGenerator";
 import styles from "./Hero.module.css";
 
 const mont = Montserrat({ subsets: ["latin"], weight: ["800", "900"] });
@@ -11,6 +14,8 @@ export default function Hero() {
   const [showDemo, setShowDemo] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
 
   // otevřít při ?demo=true
   useEffect(() => {
@@ -19,16 +24,12 @@ export default function Hero() {
     }
   }, [searchParams]);
 
-  const openDemo = () => {
-   const params = new URLSearchParams(window.location.search);
-   params.set("demo", "true");
-    router.push(`?${params.toString()}`);
-  };
-
   const closeDemo = () => {
     setShowDemo(false);
     router.push("/", { scroll: false }); // vyčisti URL
   };
+
+  const primaryLabel = isLoggedIn ? "Generate" : "🎯 Try Demo";
 
   return (
     <section className={styles.hero}>
@@ -41,8 +42,11 @@ export default function Hero() {
       </p>
 
       <div className={`${styles.buttonGroup} ${styles.fadeUp} ${styles.delay3}`}>
-        <button className={styles.btn} onClick={openDemo}>
-          🎯 Try Demo
+        <button
+          className={styles.btn}
+          onClick={() => goToGenerator(router, isLoggedIn)}
+        >
+          {primaryLabel}
         </button>
         <a href="#pricing" className={styles.btn}>
           See Plans

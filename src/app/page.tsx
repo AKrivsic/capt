@@ -1,3 +1,4 @@
+// src/app/page.tsx
 import Hero from "@/components/Hero/Hero";
 import Generator from "@/components/Generator/Generator";
 import Testimonials from "@/components/Testimonials/Testimonials";
@@ -17,7 +18,13 @@ export default function HomePage() {
       <Suspense fallback={null}>
         <Hero />
       </Suspense>
-      <Generator />
+
+      {/* ⇩⇩⇩ přidaný anchor */}
+      <section id="generator">
+        <Generator />
+      </section>
+      {/* ⇧⇧⇧ */}
+
       <Benefits />
       <Previews />
       <Testimonials />
@@ -28,3 +35,4 @@ export default function HomePage() {
     </>
   );
 }
+
