@@ -7,9 +7,10 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSessionServer } from "@/lib/session";
 import type { Prisma } from "@prisma/client";
+import { assertSameOrigin } from "@/lib/origin";
 
 // Přepínač: chceš vyžadovat přihlášení?
-const REQUIRE_AUTH = false;
+const REQUIRE_AUTH = process.env.ANON_HISTORY_SAVE === "1" ? false : true;
 
 const PlatformEnum = z.enum(["instagram", "tiktok", "x", "onlyfans"]);
 const FeedbackEnum = z.enum(["like", "dislike"]);
@@ -25,6 +26,9 @@ const HistorySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    if (!assertSameOrigin(req)) {
+      return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
+    }
     // 1) Auth (volitelně)
     let userId: string | null = null;
     if (REQUIRE_AUTH) {

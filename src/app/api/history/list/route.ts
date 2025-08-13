@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
   }
-  const userId = (session.user as { id: string }).id;
+  const userId = session.user.id;
 
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse(Object.fromEntries(url.searchParams));

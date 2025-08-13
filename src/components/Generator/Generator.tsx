@@ -436,6 +436,7 @@ export default function Generator() {
                           <button
                             className={styles.copyBtn}
                             onClick={() => handleCopy(text, copyId)}
+                            aria-label="Copy text to clipboard"
                           >
                             {copiedKey === copyId ? "Copied!" : "Copy"}
                           </button>

@@ -3,9 +3,27 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { requireAdmin } from "@/lib/admin";
+import { assertSameOrigin } from "@/lib/origin";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    // V produkci endpoint neexistuje
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ ok: false }, { status: 404 });
+    }
+
+    // Ochrana proti CSRF / cizím původům
+    if (!assertSameOrigin(req)) {
+      return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
+    }
+
+    // Povolit jen adminům
+    const { isAdmin } = await requireAdmin();
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
+
     const tr = nodemailer.createTransport({
       host: process.env.EMAIL_SERVER_HOST,
       port: Number(process.env.EMAIL_SERVER_PORT ?? 2525),
@@ -37,4 +55,3 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

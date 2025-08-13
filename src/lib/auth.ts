@@ -1,4 +1,5 @@
 // lib/auth.ts
+import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import EmailProvider from "next-auth/providers/email";
@@ -55,7 +56,7 @@ export const authOptions: NextAuthOptions = {
       }: VerificationParams) {
         const { host } = new URL(url);
 
-        console.log("[EmailProvider] Preparing message →", {
+        if (process.env.NODE_ENV !== "production") console.log("[EmailProvider] Preparing message →", {
           to: identifier,
           url,
           host,
@@ -79,8 +80,8 @@ export const authOptions: NextAuthOptions = {
         });
 
         // Ověř SMTP spojení – když selže, hned uvidíš důvod v konzoli
-        await transport.verify().then(
-          () => console.log("[EmailProvider] SMTP verify → OK"),
+await transport.verify().then(
+          () => { if (process.env.NODE_ENV !== "production") console.log("[EmailProvider] SMTP verify → OK"); },
           (e) => {
             console.error("[EmailProvider] SMTP verify → FAILED", e);
             throw e;
@@ -100,13 +101,14 @@ export const authOptions: NextAuthOptions = {
           `,
         });
 
-        console.log("[EmailProvider] Sent result →", {
-          messageId: result.messageId,
-          accepted: result.accepted,
-          rejected: result.rejected,
-          response: result.response,
-        });
-
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[EmailProvider] Sent result →", {
+            messageId: result.messageId,
+            accepted: result.accepted,
+            rejected: result.rejected,
+            response: result.response,
+          });
+        }
         if (!result.accepted || result.accepted.length === 0) {
           throw new Error("SMTP did not accept any recipients");
         }
@@ -129,8 +131,11 @@ export const authOptions: NextAuthOptions = {
     return session;
   },
   async redirect({ url, baseUrl }) {
-    if (url.startsWith(baseUrl)) return "/"; // 👈 sem
-    if (url.startsWith("/")) return "/";     // 👈 sem
+    try {
+      if (url.startsWith("/")) return url;
+      const u = new URL(url);
+     if (u.origin === baseUrl) return u.pathname + u.search + u.hash;
+    } catch {}
     return baseUrl;
   },
 },

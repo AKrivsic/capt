@@ -7,11 +7,10 @@ import { z } from "zod";
 import { getSessionServer } from "@/lib/session";
 import {
   planDailyLimit,
-  peekUsageForUser,
   getAndIncUsageForUser,
-  peekUsageForIp,
   getAndIncUsageForIp,
 } from "@/lib/limits";
+import { assertSameOrigin } from "@/lib/origin";
 
 // ====== types ======
 const OutputEnum = z.enum(["caption", "bio", "hashtags", "dm", "comments", "story", "hook"]);
@@ -115,6 +114,9 @@ function getPlanFromSession(session: unknown): PlanUpper | undefined {
 }
 
 export async function POST(req: NextRequest) {
+  if (!assertSameOrigin(req)) {
+    return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
+  }
   // --- identify client & plan ---
   const h = await headers();
   const ip =
@@ -164,68 +166,58 @@ export async function POST(req: NextRequest) {
   let remainingToday: number | null = null;
 
   if (!isAuthed) {
-    // DEMO/IP scope
-    if (typeof peekUsageForIp === "function" && typeof getAndIncUsageForIp === "function") {
-      const used = await peekUsageForIp(ip, "DEMO");
-      const hard = 2;
-      if (used >= hard) {
+    // DEMO/IP scope — increment → check (bez off-by-one)
+    const hard = 2;
+    if (typeof getAndIncUsageForIp === "function") {
+      const count = await getAndIncUsageForIp(ip, "DEMO");
+      if (count > hard) {
         return NextResponse.json(
           { ok: false, error: "LIMIT", message: "Demo limit reached (2/day).", meta: { remainingToday: 0, demo: true } },
           { status: 429 }
         );
       }
-      await getAndIncUsageForIp(ip, "DEMO");
-      remainingToday = hard - used - 1;
+      remainingToday = Math.max(0, hard - count);
     } else {
       // in-memory fallback
       const key = `gen:ip:${ip}:${DAY()}`;
       const rec = rl.get(key);
-      const hard = 2;
-      if (!rec) {
-        rl.set(key, { count: 1, day: DAY() });
-        remainingToday = hard - 1;
-      } else if (rec.count >= hard) {
+      const newCount = rec ? (rec.count += 1) : (rl.set(key, { count: 1, day: DAY() }), 1);
+      if (newCount > hard) {
         return NextResponse.json(
           { ok: false, error: "LIMIT", message: "Demo limit reached (2/day).", meta: { remainingToday: 0, demo: true } },
           { status: 429 }
         );
-      } else {
-        rec.count += 1;
-        remainingToday = hard - rec.count;
       }
-    }
+      remainingToday = Math.max(0, hard - newCount);
+     }
 
     // neregistrovaný uživatel může jen demo
     input.demo = true;
   } else {
     // USER scope
     if (limit !== null) {
-      if (typeof peekUsageForUser === "function" && typeof getAndIncUsageForUser === "function") {
-        const used = await peekUsageForUser(userId!, "GENERATION");
-        if (used >= limit) {
+      // increment → check (bez off-by-one)
+      if (typeof getAndIncUsageForUser === "function") {
+        const count = await getAndIncUsageForUser(userId!, "GENERATION");
+        if (count > limit) {
           return NextResponse.json(
             { ok: false, error: "LIMIT", message: "Daily limit reached.", meta: { remainingToday: 0, plan } },
             { status: 429 }
           );
         }
-        await getAndIncUsageForUser(userId!, "GENERATION");
-        remainingToday = limit - used - 1;
+        remainingToday = Math.max(0, limit - count);
       } else {
         // in-memory fallback
         const key = `gen:user:${userId}:${DAY()}`;
         const rec = rl.get(key);
-        if (!rec) {
-          rl.set(key, { count: 1, day: DAY() });
-          remainingToday = limit - 1;
-        } else if (rec.count >= limit) {
+        const newCount = rec ? (rec.count += 1) : (rl.set(key, { count: 1, day: DAY() }), 1);
+        if (newCount > limit) {
           return NextResponse.json(
             { ok: false, error: "LIMIT", message: "Daily limit reached.", meta: { remainingToday: 0, plan } },
             { status: 429 }
           );
-        } else {
-          rec.count += 1;
-          remainingToday = limit - rec.count;
         }
+        remainingToday = Math.max(0, limit - newCount);
       }
     } else {
       // unlimited plan — přesto počítáme usage, ale meta = null
@@ -242,6 +234,23 @@ export async function POST(req: NextRequest) {
 
   const reqHeaders: Record<string, string> = { "Content-Type": "application/json" };
   const isDirectOpenAI = OPENAI_PROXY_URL.includes("api.openai.com");
+
+  // Host allowlist – zamezí SSRF při špatném nastavení env
+  try {
+    const host = new URL(OPENAI_PROXY_URL).hostname;
+    const allowed = (process.env.OPENAI_PROXY_HOSTS || "api.openai.com")
+      .split(",")
+      .map(h => h.trim())
+      .filter(Boolean);
+    if (!allowed.includes(host)) {
+      clearTimeout(timeout);
+      return NextResponse.json({ ok: false, error: "DISALLOWED_PROXY_HOST" }, { status: 500 });
+    }
+  } catch {
+    clearTimeout(timeout);
+    return NextResponse.json({ ok: false, error: "BAD_PROXY_URL" }, { status: 500 });
+  }
+
   if (isDirectOpenAI) {
     if (!OPENAI_API_KEY) {
       clearTimeout(timeout);
