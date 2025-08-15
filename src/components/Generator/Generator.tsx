@@ -82,7 +82,7 @@ export default function Generator() {
    *  Effects
    *  ================================ */
   useEffect(() => {
-    setUsageCount(getUsage("freeUsed")); // purely for UX note
+    setUsageCount(getUsage("gen")); // purely for UX note
     try {
       const raw = localStorage.getItem(PREF_KEY);
       if (raw) setLikes(JSON.parse(raw));
@@ -227,7 +227,7 @@ export default function Generator() {
       setResult(payload.data || {});
 
       // local UX counter (non-authoritative)
-      const next = incUsage("freeUsed");
+      const next = incUsage("gen");
       setUsageCount(next);
     } catch {
       alert("⚠️ Network error. Try again.");

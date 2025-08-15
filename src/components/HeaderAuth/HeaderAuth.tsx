@@ -12,7 +12,7 @@ export default function HeaderAuth() {
   if (!isClientAuthed) {
     return (
       <button
-        onClick={() => signIn(undefined, { callbackUrl: "/" })}
+        onClick={() => signIn(undefined, { callbackUrl: "/?consent=1" })}
         className={styles.btnSign}
       >
         Sign in

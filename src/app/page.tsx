@@ -10,10 +10,14 @@ import Pricing from "@/components/Pricing/Pricing";
 import FinalCTA from "@/components/FinalCTA/FinalCTA";
 import Header from "@/components/Header/Header";
 import { Suspense } from "react";
+import ConsentOnHome from "@/components/marketing/ConsentOnHome";
 
 export default function HomePage() {
   return (
     <>
+       <Suspense fallback={null}>
+        <ConsentOnHome />
+      </Suspense>
       <Header />
       <Suspense fallback={null}>
         <Hero />

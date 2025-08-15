@@ -1,31 +1,37 @@
-// lib/auth.ts
+// src/lib/auth.ts
 import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import EmailProvider from "next-auth/providers/email";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import type { $Enums } from "@prisma/client";
 import { prisma } from "./prisma";
 import nodemailer from "nodemailer";
 
-// Lokální typ pro sendVerificationRequest (aby nebyly implicit-any chyby)
+// Lokální typ pro sendVerificationRequest (bez implicit-any)
 type VerificationParams = {
   identifier: string;
   url: string;
   provider: { from: string };
 };
 
+function required(name: string, val: string | undefined | null): string {
+  if (!val) throw new Error(`Missing required env var: ${name}`);
+  return val;
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
 
   pages: {
-    // signIn stránku nechávám na default (/api/auth/signin), ať nepadáš na 404
+    // signIn necháváme default (/api/auth/signin)
     verifyRequest: "/verify-request",
   },
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: required("GOOGLE_CLIENT_ID", process.env.GOOGLE_CLIENT_ID),
+      clientSecret: required("GOOGLE_CLIENT_SECRET", process.env.GOOGLE_CLIENT_SECRET),
       authorization: {
         params: {
           scope: "openid email profile",
@@ -38,36 +44,34 @@ export const authOptions: NextAuthOptions = {
 
     EmailProvider({
       server: {
-        host: process.env.EMAIL_SERVER_HOST!,                 // sandbox.smtp.mailtrap.io
-        port: Number(process.env.EMAIL_SERVER_PORT || 2525),  // Mailtrap preferuje 2525
-        secure: false,                                        // důležité pro sandbox
+        host: required("EMAIL_SERVER_HOST", process.env.EMAIL_SERVER_HOST),
+        port: Number(process.env.EMAIL_SERVER_PORT || 2525),
+        secure: false, // Mailtrap / sandbox
         auth: {
-          user: process.env.EMAIL_SERVER_USER!,
-          pass: process.env.EMAIL_SERVER_PASSWORD!,
+          user: required("EMAIL_SERVER_USER", process.env.EMAIL_SERVER_USER),
+          pass: required("EMAIL_SERVER_PASSWORD", process.env.EMAIL_SERVER_PASSWORD),
         },
       },
-      from: process.env.EMAIL_FROM!,                          // např. no-reply@captioni.com
-      maxAge: 15 * 60,
+      from: required("EMAIL_FROM", process.env.EMAIL_FROM), // např. no-reply@captioni.com
+      maxAge: 15 * 60, // 15 min
 
-      async sendVerificationRequest({
-        identifier,
-        url,
-        provider,
-      }: VerificationParams) {
+      async sendVerificationRequest({ identifier, url, provider }: VerificationParams) {
         const { host } = new URL(url);
 
-        if (process.env.NODE_ENV !== "production") console.log("[EmailProvider] Preparing message →", {
-          to: identifier,
-          url,
-          host,
-          from: provider.from,
-          smtp: {
-            host: process.env.EMAIL_SERVER_HOST,
-            port: Number(process.env.EMAIL_SERVER_PORT || 2525),
-            secure: false,
-            user: process.env.EMAIL_SERVER_USER ? "SET" : "MISSING",
-          },
-        });
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[EmailProvider] Preparing message →", {
+            to: identifier,
+            url,
+            host,
+            from: provider.from,
+            smtp: {
+              host: process.env.EMAIL_SERVER_HOST,
+              port: Number(process.env.EMAIL_SERVER_PORT || 2525),
+              secure: false,
+              user: process.env.EMAIL_SERVER_USER ? "SET" : "MISSING",
+            },
+          });
+        }
 
         const transport = nodemailer.createTransport({
           host: process.env.EMAIL_SERVER_HOST,
@@ -79,9 +83,12 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        // Ověř SMTP spojení – když selže, hned uvidíš důvod v konzoli
-await transport.verify().then(
-          () => { if (process.env.NODE_ENV !== "production") console.log("[EmailProvider] SMTP verify → OK"); },
+        await transport.verify().then(
+          () => {
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[EmailProvider] SMTP verify → OK");
+            }
+          },
           (e) => {
             console.error("[EmailProvider] SMTP verify → FAILED", e);
             throw e;
@@ -118,27 +125,45 @@ await transport.verify().then(
 
   session: {
     strategy: "database",
-    maxAge: 30 * 24 * 60 * 60,
-    updateAge: 24 * 60 * 60,
+    maxAge: 30 * 24 * 60 * 60, // 30 dní
+    updateAge: 24 * 60 * 60,   // 24 h
   },
 
   callbacks: {
-  async session({ session, user }) {
-    if (session.user) {
-      session.user.id = user.id;
-      session.user.plan = user.plan ?? null;
-    }
-    return session;
+    async session({ session, user }) {
+      if (session.user) {
+        // Typy sjednocené s Prismou: plan = $Enums.Plan | null
+        type SessUser = typeof session.user & { id: string; plan: $Enums.Plan | null };
+        const su = session.user as SessUser;
+
+        su.id = user.id;
+        su.plan = (user as { plan?: $Enums.Plan | null }).plan ?? null;
+      }
+      return session;
+    },
+
+    async redirect({ url, baseUrl }) {
+      try {
+        const base = new URL(baseUrl);
+        const u = new URL(url, baseUrl);
+
+        // 1) Respektuj callbackUrl v query (např. "/?consent=1")
+        const cb = u.searchParams.get("callbackUrl");
+        if (cb) {
+          const cbUrl = new URL(cb, baseUrl);
+          if (cbUrl.origin === base.origin) return cbUrl.toString();
+        }
+
+        // 2) Povolit jen stejné origin
+        if (u.origin === base.origin) return u.toString();
+
+        // 3) Fallback
+        return baseUrl;
+      } catch {
+        return baseUrl;
+      }
+    },
   },
-  async redirect({ url, baseUrl }) {
-    try {
-      if (url.startsWith("/")) return url;
-      const u = new URL(url);
-     if (u.origin === baseUrl) return u.pathname + u.search + u.hash;
-    } catch {}
-    return baseUrl;
-  },
-},
 
   debug: process.env.NODE_ENV === "development",
   logger: {
@@ -147,5 +172,5 @@ await transport.verify().then(
     debug: (...args) => console.debug("[NextAuth][debug]", ...args),
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: required("NEXTAUTH_SECRET", process.env.NEXTAUTH_SECRET),
 };
