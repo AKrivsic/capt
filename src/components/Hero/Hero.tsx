@@ -1,4 +1,3 @@
-// app/components/Hero/Hero.tsx (nebo kde soubor leží)
 "use client";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -21,12 +20,14 @@ export default function Hero() {
   useEffect(() => {
     if (searchParams.get("demo") === "true") {
       setShowDemo(true);
+    } else {
+      setShowDemo(false);
     }
-  }, [searchParams]);
+  }, [searchParams]); // závislost je přímo searchParams
 
   const closeDemo = () => {
     setShowDemo(false);
-    router.push("/", { scroll: false }); // vyčisti URL
+    router.replace("/", { scroll: false }); // vyčisti URL, bez historie
   };
 
   const primaryLabel = isLoggedIn ? "Generate" : "🎯 Try Demo";

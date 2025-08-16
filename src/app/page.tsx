@@ -11,6 +11,7 @@ import FinalCTA from "@/components/FinalCTA/FinalCTA";
 import Header from "@/components/Header/Header";
 import { Suspense } from "react";
 import ConsentOnHome from "@/components/marketing/ConsentOnHome";
+import BlogTeaser from "@/components/Blog/BlogTeaser";
 
 export default function HomePage() {
   return (
@@ -18,6 +19,26 @@ export default function HomePage() {
        <Suspense fallback={null}>
         <ConsentOnHome />
       </Suspense>
+      <script
+  type="application/ld+json"
+  dangerouslySetInnerHTML={{
+    __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Captioni",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      description:
+        "AI tool to generate captions, bios, hashtags and stories.",
+      offers: {
+        "@type": "Offer",
+        price: "29.00",
+        priceCurrency: "USD",
+      },
+      url: "https://captioni.com",
+    }),
+  }}
+/>
       <Header />
       <Suspense fallback={null}>
         <Hero />
@@ -34,6 +55,7 @@ export default function HomePage() {
       <Testimonials />
       <Pricing />
       <Faq />
+      <BlogTeaser />
       <FinalCTA />
       <Footer />
     </>

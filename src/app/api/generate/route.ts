@@ -11,6 +11,7 @@ import {
   getAndIncUsageForIp,
 } from "@/lib/limits";
 import { assertSameOrigin } from "@/lib/origin";
+import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
 
 // ====== types ======
 const OutputEnum = z.enum(["caption", "bio", "hashtags", "dm", "comments", "story", "hook"]);
@@ -75,18 +76,48 @@ function targetByType(t: z.infer<typeof OutputEnum>) {
   }
 }
 
-function buildMessages(i: Input, type: z.infer<typeof OutputEnum>) {
+// === preference-aware message builder ===
+function buildMessages(
+  i: Input,
+  type: z.infer<typeof OutputEnum>,
+  prefs?: PrefSummary | null
+) {
+  const prefNote =
+    prefs &&
+    [
+      prefs.topStyles.length
+        ? `User prefers styles (recent likes): ${prefs.topStyles
+            .slice(0, 3)
+            .map((s) => s.style)
+            .join(", ")}.`
+        : null,
+      typeof prefs.avgCaptionLen === "number"
+        ? `Preferred caption length ≈ ${prefs.avgCaptionLen} characters.`
+        : null,
+      typeof prefs.emojiRatio === "number"
+        ? prefs.emojiRatio > 0.6
+          ? "Include emojis generously (user likes emoji-heavy texts)."
+          : "Use emojis sparingly (user likes cleaner texts)."
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
   return [
     {
       role: "system",
-      content: [
-        "You are Captioni — an expert social content copywriter.",
-        `Platform: ${i.platform}. ${platformNote(i.platform)}`,
-        `Style: ${i.style}. Voice: ${styleNotes[i.style] || i.style}.`,
-        targetByType(type),
-        "Avoid NSFW. Keep it brand-safe.",
-        "Never wrap the whole output in quotes.",
-      ].join("\n"),
+      content:
+        [
+          "You are Captioni — an expert social content copywriter.",
+          `Platform: ${i.platform}. ${platformNote(i.platform)}`,
+          `Style: ${i.style}. Voice: ${styleNotes[i.style] || i.style}.`,
+          prefNote || null, // preference guidance if available
+          targetByType(type),
+          "Avoid NSFW. Keep it brand-safe.",
+          "Never wrap the whole output in quotes.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
     },
     { role: "user", content: `Topic/Vibe: ${i.vibe}` },
   ];
@@ -117,6 +148,7 @@ export async function POST(req: NextRequest) {
   if (!assertSameOrigin(req)) {
     return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
   }
+
   // --- identify client & plan ---
   const h = await headers();
   const ip =
@@ -228,6 +260,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // --- načtení preferencí (jen pro přihlášené) ---
+  const prefs = isAuthed ? await getUserPreferences(userId!) : null;
+
   // --- OpenAI/proxy call ---
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
@@ -271,7 +306,7 @@ export async function POST(req: NextRequest) {
           signal: controller.signal,
           body: JSON.stringify({
             model: MODEL,
-            messages: buildMessages(input, type),
+            messages: buildMessages(input, type, prefs),
             temperature: 0.9,
             max_tokens: 350,
             n: variants,
@@ -316,29 +351,96 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// helpers (umísti nad simpleFallback)
+const STOPWORDS = new Set([
+  "the","and","for","with","this","that","from","your","you","about","just","have","will","into",
+  "what","when","where","which","how","why","are","was","were","been","more","less","very"
+]);
+
+const BANNED_TAGS = new Set([
+  "trending","viral","explore","inspo","creator","follow","f4f","l4l","likeforlike","like4like"
+]);
+
+function truncate(s: string, max = 140): string {
+  return s.length <= max ? s : s.slice(0, max - 1).trimEnd() + "…";
+}
+
+function pickEmoji(style: string): string {
+  switch (style) {
+    case "Barbie": return "💖";
+    case "Edgy": return "⚡";
+    case "Glamour": return "✨";
+    case "Baddie": return "💅";
+    case "Innocent": return "🌸";
+    case "Funny": return "😜";
+    default: return "✨";
+  }
+}
+
+function keywordify(vibe: string): string[] {
+  const words = vibe
+    .toLowerCase()
+    .replace(/[#@]/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !STOPWORDS.has(w));
+  // odstraň duplicity, zachovej pořadí
+  const seen = new Set<string>();
+  const uniq: string[] = [];
+  for (const w of words) if (!seen.has(w)) { seen.add(w); uniq.push(w); }
+  return uniq;
+}
+
+function toHashtags(vibe: string, count = 18): string {
+  const kws = keywordify(vibe)
+    .filter(w => !BANNED_TAGS.has(w))
+    .slice(0, count + 2); // malá rezerva
+  const tags = kws.map(w => `#${w.replace(/-+/g, "").slice(0, 28)}`)
+                  .filter(t => t.length >= 3);
+  // bezpečné minimum: když nic kloudného, vrať 8 obecně užitečných tagů podle tématu
+  if (tags.length === 0) return "#content #post #daily #community #share #create #story #vibes";
+  return tags.slice(0, count).join(" ");
+}
+
+
 // --- fallback generator ---
 function simpleFallback(type: z.infer<typeof OutputEnum>, i: Input) {
-  const e =
-    i.style === "Barbie" ? "💖" :
-    i.style === "Edgy" ? "⚡" :
-    i.style === "Glamour" ? "✨" :
-    i.style === "Baddie" ? "💅" :
-    i.style === "Innocent" ? "🌸" : "😜";
-  const t = i.vibe;
+  const e = pickEmoji(i.style);
+  const t = truncate(i.vibe, 160);
+
   switch (type) {
     case "caption":
-      return `${e} ${t} — let it shine.`;
+      // krátký caption z vibe, bez floskulí
+      return `${e} ${t}`;
     case "bio":
-      return `${e} ${t} | new drops weekly`;
+      // stručný bio, limitovaný
+      return `${truncate(i.vibe, 120)}`;
     case "hashtags":
-      return `#${i.platform} #trending #viral #explore #inspo #creator`;
+      // odvozené hashtagy z vibe, bez #trending/#viral apod.
+      return toHashtags(i.vibe, 22);
     case "dm":
-      return `${e} Hey! Loved your vibe. If you're into ${t}, got something you'll like — wanna peek?`;
+      // přátelský opener s tématem z vibe
+      return `Hey! ${truncate(i.vibe, 90)} — thought this might be your vibe. Want a peek?`;
     case "comments":
-      return `OMG love this 😍\nSo good!! 🔥\nVibes ✨\nSaving this 💾\nNeed more of this 🙌`;
+      // 5 kratších komentů po řádcích
+      return [
+        "Love this! 🔥",
+        "So good! 🙌",
+        "Saved for later 👀",
+        "Vibes ✨",
+        `Need more like this ${e}`,
+      ].join("\n");
     case "story":
-      return `Slide 1: ${t}\nSlide 2: Behind the scenes\nSlide 3: CTA → link in bio`;
+      return `Slide 1: ${truncate(i.vibe, 60)}
+Slide 2: Behind the scenes
+Slide 3: Tap for more`;
     case "hook":
-      return `Stop scrolling. Read this.\nYou won't believe this.\nThis changed everything.`;
+      return [
+        `${t}?`,
+        `Wait—${truncate(i.vibe, 70)}.`,
+        `Before you scroll: ${truncate(i.vibe, 60)}`,
+        `Real talk: ${truncate(i.vibe, 70)}`,
+        `If you care about ${truncate(i.vibe, 40)}, read this.`,
+      ].join("\n");
   }
 }
