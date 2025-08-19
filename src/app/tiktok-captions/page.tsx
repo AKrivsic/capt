@@ -106,7 +106,7 @@ export default function TikTokCaptionsPage() {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost}`}>See pricing</Link>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost}`}>See pricing</Link>
         </div>
       </header>
 
@@ -159,7 +159,7 @@ export default function TikTokCaptionsPage() {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Go Pro</Link>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Go Pro</Link>
         </div>
       </section>
 
@@ -192,7 +192,7 @@ export default function TikTokCaptionsPage() {
         <ul className={t.ul}>
           <li><Link href="/instagram-captions">Instagram Caption Generator</Link></li>
           <li><Link href="/onlyfans-bio-ideas">OnlyFans Bio Ideas</Link></li>
-          <li><Link href="/pricing">Pricing</Link></li>
+          <li><Link href="/#pricing">Pricing</Link></li>
         </ul>
       </section>
     </main>

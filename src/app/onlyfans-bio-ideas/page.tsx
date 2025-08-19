@@ -106,7 +106,7 @@ export default function OnlyFansBioIdeasPage() {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost}`}>See plans</Link>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost}`}>See plans</Link>
         </div>
       </header>
 
@@ -149,7 +149,7 @@ export default function OnlyFansBioIdeasPage() {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Upgrade for more</Link>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Upgrade for more</Link>
         </div>
       </section>
 
@@ -182,7 +182,7 @@ export default function OnlyFansBioIdeasPage() {
         <ul className={t.ul}>
           <li><Link href="/instagram-captions">Instagram Caption Generator</Link></li>
           <li><Link href="/tiktok-captions">TikTok Caption Generator</Link></li>
-          <li><Link href="/pricing">Pricing</Link></li>
+          <li><Link href="/#pricing">Pricing</Link></li>
         </ul>
       </section>
     </main>

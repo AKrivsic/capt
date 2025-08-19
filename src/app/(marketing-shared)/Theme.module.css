@@ -211,3 +211,37 @@
         width: 100%;
     }
 }
+/* Text utils pro FAQ */
+.h3 {
+    /* pokud už nechceš fallback přes inline style */
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.4;
+    margin: 8px 0;
+}
+
+.p {
+    margin: 8px 0 12px;
+    color: var(--text);
+}
+
+/* FAQ containers */
+.details {
+    margin: 8px 0;
+    border: 1px solid #eee;
+    border-radius: var(--r-md);
+    background: var(--bg);
+    padding: 8px 12px;
+}
+
+.summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 700;
+    padding: 6px 0;
+}
+
+/* schovat default marker jen na našich summary (pure selektor) */
+.summary::-webkit-details-marker {
+    display: none;
+}

@@ -149,7 +149,7 @@ export default async function BlogPostPage({ params }: PageProps) {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>
             See pricing
           </Link>
         </div>

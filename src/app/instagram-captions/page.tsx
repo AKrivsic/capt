@@ -107,7 +107,7 @@ export default function InstagramCaptionsPage() {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost}`}>See pricing</Link>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost}`}>See pricing</Link>
         </div>
       </header>
 
@@ -167,44 +167,47 @@ export default function InstagramCaptionsPage() {
 >
   Try free demo
 </Link>
-          <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Upgrade for more</Link>
+          <Link href="/#pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Upgrade for more</Link>
         </div>
       </section>
 
       {/* FAQ (visible) */}
-      <section className={t.section}>
-        <h2 className={t.h2}>FAQ</h2>
-        <details>
-          <summary className={t.h3}>How do I write a good Instagram caption?</summary>
-          <p className={t.p}>
-            Start with a clear hook, keep one idea per sentence, and add a lightweight CTA
-            (save, share, or comment). Use emojis to show tone, not as decoration.
-          </p>
-        </details>
-        <details>
-          <summary className={t.h3}>Does Captioni generate hashtags too?</summary>
-          <p className={t.p}>
-            Yes — you get caption variants plus hashtag prompts tailored to your niche.
-            On paid plans, style memory keeps your tone consistent.
-          </p>
-        </details>
-        <details>
-          <summary className={t.h3}>Can I try it for free?</summary>
-          <p className={t.p}>
-            Absolutely. Use the free demo to generate multiple caption ideas instantly — no signup required.
-          </p>
-        </details>
-      </section>
+<section className={t.section} id="faq">
+  <h2 className={t.h2}>FAQ</h2>
 
-      {/* See also (internal linking) */}
-      <section className={t.section}>
-        <h2 className={t.h2}>See also</h2>
-        <ul className={t.ul}>
-          <li><Link href="/tiktok-captions">TikTok Caption Generator</Link></li>
-          <li><Link href="/onlyfans-bio-ideas">OnlyFans Bio Ideas</Link></li>
-          <li><Link href="/pricing">Pricing</Link></li>
-        </ul>
-      </section>
+  <details className={t.details} open>
+    <summary className={t.summary}><span className={t.h2} style={{fontSize: 18}}>How do I write a good Instagram caption?</span></summary>
+    <p className={t.p}>
+      Start with a clear hook, keep one idea per sentence, and add a lightweight CTA
+      (save, share, or comment). Use emojis to show tone, not as decoration.
+    </p>
+  </details>
+
+  <details className={t.details}>
+    <summary className={t.summary}><span className={t.h2} style={{fontSize: 18}}>Does Captioni generate hashtags too?</span></summary>
+    <p className={t.p}>
+      Yes — you get caption variants plus hashtag prompts tailored to your niche.
+      On paid plans, style memory keeps your tone consistent.
+    </p>
+  </details>
+
+  <details className={t.details}>
+    <summary className={t.summary}><span className={t.h2} style={{fontSize: 18}}>Can I try it for free?</span></summary>
+    <p className={t.p}>
+      Absolutely. Use the free demo to generate multiple caption ideas instantly — no signup required.
+    </p>
+  </details>
+</section>
+
+{/* See also (internal linking) */}
+<section className={t.section}>
+  <h2 className={t.h2}>See also</h2>
+  <ul className={t.ul}>
+    <li><Link href="/tiktok-captions">TikTok Caption Generator</Link></li>
+    <li><Link href="/onlyfans-bio-ideas">OnlyFans Bio Ideas</Link></li>
+    <li><Link href="/#pricing">Pricing</Link></li>
+  </ul>
+</section>
     </main>
   );
 }
