@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import t from "../(marketing-shared)/Theme.module.css";
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "TikTok Caption Generator – Hooks that hit",
     description: "Get concise, scroll-stopping TikTok captions with AI.",
-    url: "https://captioni.com/tiktok-captions",
+    url: "/tiktok-captions",
     type: "website",
   },
   twitter: {
@@ -23,13 +24,88 @@ export const metadata: Metadata = {
 export default function TikTokCaptionsPage() {
   return (
     <main className={`${t.container} ${t.theme}`}>
+      {/* JSON-LD: Breadcrumbs + WebPage */}
+      <Script
+        id="ld-tiktok-breadcrumbs"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://captioni.com/" },
+              { "@type": "ListItem", "position": 2, "name": "TikTok Captions", "item": "https://captioni.com/tiktok-captions" }
+            ]
+          }),
+        }}
+      />
+      <Script
+        id="ld-tiktok-webpage"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "TikTok Caption Generator",
+            "url": "https://captioni.com/tiktok-captions",
+            "description": "Generate short, punchy TikTok captions and hooks that spark comments."
+          }),
+        }}
+      />
+      {/* JSON-LD: FAQPage */}
+      <Script
+        id="ld-tiktok-faq"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What makes a good TikTok caption?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Keep it short and specific, add a clear CTA (comment, duet, or save), and match the tone of your on-screen text."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I get multiple caption variants?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes — Captioni generates 10+ options per vibe so you can test fast and pick the best hook."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is there a free demo?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Try the free demo to generate caption ideas instantly, no signup required."
+                }
+              }
+            ]
+          }),
+        }}
+      />
+
       <header style={{ marginBottom: 24 }}>
         <h1 className={t.h1}>TikTok Caption Generator</h1>
         <p className={t.subtle}>
           Short. Punchy. Comment-bait—without sounding thirsty.
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-          <Link href="/?demo=true" className={`${t.btn} ${t.btnPrimary}`}>Try the free demo</Link>
+          <Link
+  href="/?demo=true"
+  data-pt-event="Demo click"
+  data-pt-props='{"source":"blog"}'
+>
+  Try free demo
+</Link>
           <Link href="/pricing" className={`${t.btn} ${t.btnGhost}`}>See pricing</Link>
         </div>
       </header>
@@ -76,10 +152,50 @@ export default function TikTokCaptionsPage() {
           <li>Copy & tweak in one click</li>
         </ul>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-          <Link href="/?demo=true" className={`${t.btn} ${t.btnPrimary} ${t.btnLg}`}>Generate your hooks</Link>
+          <Link
+  href="/?demo=true"
+  data-pt-event="Demo click"
+  data-pt-props='{"source":"blog"}'
+>
+  Try free demo
+</Link>
           <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Go Pro</Link>
         </div>
+      </section>
+
+      {/* FAQ (visible) */}
+      <section className={t.section}>
+        <h2 className={t.h2}>FAQ</h2>
+        <details>
+          <summary className={t.h3}>What makes a good TikTok caption?</summary>
+          <p className={t.p}>
+            Keep it short and specific, add a clear CTA (comment, duet, or save), and match the tone of your on-screen text.
+          </p>
+        </details>
+        <details>
+          <summary className={t.h3}>Can I get multiple caption variants?</summary>
+          <p className={t.p}>
+            Yes — generate 10+ options per vibe so you can test fast and pick the best hook.
+          </p>
+        </details>
+        <details>
+          <summary className={t.h3}>Is there a free demo?</summary>
+          <p className={t.p}>
+            Absolutely. Try the free demo — no signup required.
+          </p>
+        </details>
+      </section>
+
+      {/* See also */}
+      <section className={t.section}>
+        <h2 className={t.h2}>See also</h2>
+        <ul className={t.ul}>
+          <li><Link href="/instagram-captions">Instagram Caption Generator</Link></li>
+          <li><Link href="/onlyfans-bio-ideas">OnlyFans Bio Ideas</Link></li>
+          <li><Link href="/pricing">Pricing</Link></li>
+        </ul>
       </section>
     </main>
   );
 }
+

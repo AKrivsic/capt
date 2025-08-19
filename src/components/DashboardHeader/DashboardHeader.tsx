@@ -5,6 +5,7 @@ import DashboardNav from "../DashboardNav/DashboardNav";
 import UsageBadge from "@/app/dashboard/UsageBadge";
 import ui from "@/components/ui/Ui.module.css";
 import styles from "./DashboardHeader.module.css";
+import { trackGeneratorAccess } from "@/utils/tracking";
 
 export default function DashboardHeader() {
   const [open, setOpen] = useState(false);
@@ -29,7 +30,13 @@ export default function DashboardHeader() {
             <div className={styles.badgeWrap}>
               <UsageBadge />
             </div>
-            <Link href="/#generator" className={ui.btnPrimary}>
+            <Link
+              href="/#generator"
+              className={ui.btnPrimary}
+              onClick={() => {
+                trackGeneratorAccess("dashboard");
+              }}
+            >
               <span className={styles.ctaDesktop}>New generation</span>
               <span className={styles.ctaMobile}>New</span>
             </Link>
@@ -60,7 +67,9 @@ export default function DashboardHeader() {
         >
           <div className={styles.panelHead}>
             <span className={styles.panelTitle}>Menu</span>
-            <button className={styles.close} onClick={close} aria-label="Close menu">×</button>
+            <button className={styles.close} onClick={close} aria-label="Close menu">
+              ×
+            </button>
           </div>
 
           <nav className={styles.navMobile}>
@@ -68,7 +77,14 @@ export default function DashboardHeader() {
           </nav>
 
           <div className={styles.panelCtas}>
-            <Link href="/#generator" className={ui.btnPrimary} onClick={close}>
+            <Link
+              href="/#generator"
+              className={ui.btnPrimary}
+              onClick={() => {
+                trackGeneratorAccess("dashboard");
+                close();
+              }}
+            >
               New generation
             </Link>
           </div>

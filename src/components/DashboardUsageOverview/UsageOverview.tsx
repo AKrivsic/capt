@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import ui from "@/components/ui/Ui.module.css";
 import { getUsage } from "@/utils/usage";
+import { trackUpgradeClick } from "@/utils/tracking";
 
 const USAGE_PREFIX = "gen"; // ⚠️ stejný prefix jako používá Generator
 
@@ -102,7 +103,15 @@ export default function UsageOverview() {
             {leftLabel} {resetHint}
           </p>
         </div>
-        <Link href="/#pricing" className={ui.btnPrimary}>Upgrade</Link>
+        <Link
+          href="/#pricing"
+          className={ui.btnPrimary}
+          onClick={() => {
+            trackUpgradeClick("dashboard");
+          }}
+        >
+          Upgrade
+        </Link>
       </div>
     </div>
   );

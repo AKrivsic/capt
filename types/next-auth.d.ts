@@ -22,3 +22,19 @@ declare module "next-auth/adapters" {
     plan?: Plan | null;
   }
 }
+
+export {}; // ensure this file is a module (safe even if already present above)
+
+type PlausibleProps = Record<string, string | number | boolean | null | undefined>;
+
+declare global {
+  interface Window {
+    plausible?: (
+      eventName: string,
+      options?: {
+        props?: PlausibleProps;
+        revenue?: number;
+      }
+    ) => void;
+  }
+}

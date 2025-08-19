@@ -1,3 +1,4 @@
+// src/components/Hero/Hero.tsx
 "use client";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -6,6 +7,12 @@ import { Montserrat } from "next/font/google";
 import DemoModal from "@/components/DemoModal/DemoModal";
 import { goToGenerator } from "@/utils/goToGenerator";
 import styles from "./Hero.module.css";
+import {
+  trackDemoClick,
+  trackGeneratorAccess,
+  trackPricingClick,
+  trackSignupStart,
+} from "@/utils/tracking";
 
 const mont = Montserrat({ subsets: ["latin"], weight: ["800", "900"] });
 
@@ -16,14 +23,15 @@ export default function Hero() {
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
 
-  // otevřít při ?demo=true
+  // otevřít při ?demo=true (+ tracking)
   useEffect(() => {
-    if (searchParams.get("demo") === "true") {
-      setShowDemo(true);
-    } else {
-      setShowDemo(false);
+    const isDemo = searchParams.get("demo") === "true";
+    setShowDemo(isDemo);
+    if (isDemo) {
+      // vstup do dema bez kliku (např. z reklamy / deeplinku)
+      trackDemoClick("homepage");
     }
-  }, [searchParams]); // závislost je přímo searchParams
+  }, [searchParams]);
 
   const closeDemo = () => {
     setShowDemo(false);
@@ -32,6 +40,16 @@ export default function Hero() {
 
   const primaryLabel = isLoggedIn ? "Generate" : "🎯 Try Demo";
 
+  const handlePrimary = () => {
+    if (isLoggedIn) {
+      trackGeneratorAccess("homepage");
+    } else {
+      trackDemoClick("homepage");
+      trackSignupStart("homepage");
+    }
+    goToGenerator(router, isLoggedIn);
+  };
+
   return (
     <section className={styles.hero}>
       <h1 className={`${styles.title} ${styles.fadeUp} ${styles.delay1} ${mont.className}`}>
@@ -39,17 +57,26 @@ export default function Hero() {
       </h1>
 
       <p className={`${styles.subtitle} ${styles.fadeUp} ${styles.delay2}`}>
-        Pick a vibe. Get perfect content. 
+        Pick a vibe. Get perfect content.
       </p>
 
       <div className={`${styles.buttonGroup} ${styles.fadeUp} ${styles.delay3}`}>
         <button
           className={styles.btn}
-          onClick={() => goToGenerator(router, isLoggedIn)}
+          onClick={handlePrimary}
+          aria-label={isLoggedIn ? "Open generator" : "Open demo"}
+          data-testid="hero-primary"
         >
           {primaryLabel}
         </button>
-        <a href="#pricing" className={styles.btn}>
+
+        <a
+          href="#pricing"
+          className={styles.btn}
+          onClick={() => trackPricingClick("homepage")}
+          aria-label="See pricing plans"
+          data-testid="hero-pricing"
+        >
           See Plans
         </a>
       </div>

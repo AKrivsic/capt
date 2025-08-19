@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/crons/no-gen-24h", "schedule": "0 7 * * *" }
+  ]
+}

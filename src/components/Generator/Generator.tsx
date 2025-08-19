@@ -13,6 +13,16 @@ import { platformMeta } from "@/constants/platformMeta";
 import { normalizePlatform } from "@/utils/normalizePlatform";
 import { useSession } from "next-auth/react";
 
+// ✅ tracking
+import {
+  trackDemoClick,
+  trackSignupStart,
+  trackGeneratorAccess,
+  trackGenerationComplete,
+  trackPricingClick,
+  trackUpgradeClick,
+} from "@/utils/tracking";
+
 /** ================================
  *  UI constants
  *  ================================ */
@@ -40,6 +50,14 @@ type Plan = "free" | "starter" | "pro" | "premium";
 type ResultsMap = Record<string, string | string[]>;
 type FeedbackState = Record<string, Record<number, "like" | "dislike" | null>>;
 
+// mapování na tracking Plan union ("FREE" | "STARTER" | "PRO" | "PREMIUM")
+const planToTracking: Record<Plan, "FREE" | "STARTER" | "PRO" | "PREMIUM"> = {
+  free: "FREE",
+  starter: "STARTER",
+  pro: "PRO",
+  premium: "PREMIUM",
+};
+
 const PREF_KEY = "captioni_pref_v1";
 const FREE_LIMIT = 3;
 const STARTER_LIMIT = 15;
@@ -47,7 +65,7 @@ const VARIANTS_PER_OUTPUT = 3;
 
 export default function Generator() {
   /** Auth (client) **/
-  const { data: session /*, status*/ } = useSession();
+  const { data: session } = useSession();
   const authed = !!session?.user;
 
   /** ================================
@@ -183,14 +201,19 @@ export default function Generator() {
     setCopiedKey(null);
     setLimitReached(false);
 
-    // if not authed → block and show CTA
+    // if not authed → block and show CTA (+ tracking)
     if (!authed) {
+      trackDemoClick("generator");
+      trackSignupStart("generator");
       // optional: smooth scroll to signup/pricing
       return;
     }
 
     setLoading(true);
     setResult({});
+
+    // track: vstup do generátoru
+    trackGeneratorAccess("generator");
 
     try {
       const res = await fetch("/api/generate", {
@@ -202,7 +225,6 @@ export default function Generator() {
           outputs: selectedOutputs,
           vibe,
           variants: VARIANTS_PER_OUTPUT,
-          // server decides by cookies/plan; demo flag can stay harmless:
           demo: userPlan === "free",
         }),
       });
@@ -225,6 +247,9 @@ export default function Generator() {
       }
 
       setResult(payload.data || {});
+
+      // ✅ track: úspěšné vygenerování
+      trackGenerationComplete(planToTracking[userPlan]);
 
       // local UX counter (non-authoritative)
       const next = incUsage("gen");
@@ -254,9 +279,7 @@ export default function Generator() {
             <Tippy key={s} content={styleMeta[s]?.tooltip || s} placement="top">
               <button
                 type="button"
-                className={`${styles.pillBtn} ${
-                  style === s ? styles.pillActive : ""
-                }`}
+                className={`${styles.pillBtn} ${style === s ? styles.pillActive : ""}`}
                 onClick={() => setStyle(s)}
                 aria-pressed={style === s}
                 aria-label={`${s} style`}
@@ -279,9 +302,7 @@ export default function Generator() {
                 <button
                   type="button"
                   onClick={() => setPlatform(p)}
-                  className={`${styles.platformBtn} ${
-                    platform === p ? styles.platformActive : ""
-                  }`}
+                  className={`${styles.platformBtn} ${platform === p ? styles.platformActive : ""}`}
                   aria-pressed={platform === p}
                 >
                   <span className={styles.platformIcon}>{platformIcon[p] || "⭐"}</span>
@@ -345,10 +366,19 @@ export default function Generator() {
                 unlimited magic ✨
               </p>
               <div>
-                <a className={styles.limitButton} href="/signup">
+                <a
+                  className={styles.limitButton}
+                  href="/signup"
+                  onClick={() => trackSignupStart("generator")}
+                >
                   Create free account
                 </a>
-                <a className={styles.limitButton} href="#pricing" style={{ marginLeft: 12 }}>
+                <a
+                  className={styles.limitButton}
+                  href="#pricing"
+                  style={{ marginLeft: 12 }}
+                  onClick={() => trackPricingClick("generator")}
+                >
                   See pricing
                 </a>
               </div>
@@ -372,7 +402,11 @@ export default function Generator() {
               creativity with Captioni Pro ✨
             </p>
             <div>
-              <a className={styles.limitButton} href="#pricing">
+              <a
+                className={styles.limitButton}
+                href="#pricing"
+                onClick={() => trackUpgradeClick("generator")}
+              >
                 See Plans
               </a>
             </div>
@@ -387,7 +421,11 @@ export default function Generator() {
               You’ve used your 3 free generations for today. Unlock unlimited
               creativity with Captioni Pro ✨
             </p>
-            <a href="#pricing" className={styles.limitButton}>
+            <a
+              href="#pricing"
+              className={styles.limitButton}
+              onClick={() => trackUpgradeClick("generator")}
+            >
               See Plans
             </a>
           </div>
@@ -399,7 +437,11 @@ export default function Generator() {
               You’ve hit the 15 generations in your Starter plan. Upgrade to Pro
               for daily unlimited magic 💖
             </p>
-            <a href="#pricing" className={styles.limitButton}>
+            <a
+              href="#pricing"
+              className={styles.limitButton}
+              onClick={() => trackUpgradeClick("generator")}
+            >
               Upgrade now
             </a>
           </div>
@@ -442,9 +484,7 @@ export default function Generator() {
                           </button>
 
                           <button
-                            className={`${styles.iconBtn} ${
-                              status === "like" ? styles.active : ""
-                            }`}
+                            className={`${styles.iconBtn} ${status === "like" ? styles.active : ""}`}
                             onClick={() => toggleFeedback(key, idx, "like")}
                             aria-pressed={status === "like"}
                             aria-label="Like this variant"
@@ -454,9 +494,7 @@ export default function Generator() {
                           </button>
 
                           <button
-                            className={`${styles.iconBtn} ${
-                              status === "dislike" ? styles.active : ""
-                            }`}
+                            className={`${styles.iconBtn} ${status === "dislike" ? styles.active : ""}`}
                             onClick={() => toggleFeedback(key, idx, "dislike")}
                             aria-pressed={status === "dislike"}
                             aria-label="Dislike this variant"

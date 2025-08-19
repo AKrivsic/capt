@@ -1,4 +1,10 @@
-import styles from './Pricing.module.css';
+// src/components/Pricing/Pricing.tsx
+"use client";
+import styles from "./Pricing.module.css";
+import {
+  trackSignupStart,
+  trackCheckoutStart,
+} from "@/utils/tracking";
 
 export default function Pricing() {
   return (
@@ -14,7 +20,14 @@ export default function Pricing() {
             <li>🚫 No history saving</li>
             <li>🚫 No style memory</li>
           </ul>
-          <button className={styles.btn}>Start Free</button>
+          <button
+            className={styles.btn}
+            onClick={() => trackSignupStart("pricing")}
+            aria-label="Start free plan"
+            data-testid="btn-pricing-free"
+          >
+            Start Free
+          </button>
         </div>
 
         <div className={`${styles.plan} ${styles.starterPlan}`}>
@@ -25,7 +38,14 @@ export default function Pricing() {
             <li>✅ Premium styles</li>
             <li>🚫 No saving</li>
           </ul>
-          <button className={styles.btn}>Unlock Access</button>
+          <button
+            className={styles.btn}
+            onClick={() => trackCheckoutStart("STARTER")}
+            aria-label="Unlock Starter plan"
+            data-testid="btn-pricing-starter"
+          >
+            Unlock Access
+          </button>
         </div>
 
         <div className={`${styles.plan} ${styles.proPlan}`}>
@@ -38,7 +58,14 @@ export default function Pricing() {
             <li>✅ Style & vibe memory</li>
             <li>✅ Priority support</li>
           </ul>
-          <button className={styles.btn}>Go Pro</button>
+          <button
+            className={styles.btn}
+            onClick={() => trackCheckoutStart("PRO")}
+            aria-label="Go Pro plan"
+            data-testid="btn-pricing-pro"
+          >
+            Go Pro
+          </button>
         </div>
 
         <div className={`${styles.plan} ${styles.premiumPlan}`}>
@@ -50,7 +77,14 @@ export default function Pricing() {
             <li>💸 Save $8 compared to monthly</li>
             <li>🚀 Best for regular creators</li>
           </ul>
-          <button className={styles.btn}>Get Premium</button>
+          <button
+            className={styles.btn}
+            onClick={() => trackCheckoutStart("PREMIUM")}
+            aria-label="Get Premium plan"
+            data-testid="btn-pricing-premium"
+          >
+            Get Premium
+          </button>
         </div>
 
       </div>

@@ -4,11 +4,28 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { goToGenerator } from "@/utils/goToGenerator";
 import styles from "./FinalCTA.module.css";
+import {
+  trackDemoClick,
+  trackGeneratorAccess,
+  trackSignupStart,
+} from "@/utils/tracking";
 
 export default function FinalCTA() {
   const router = useRouter();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
+
+  const handleClick = () => {
+    if (isLoggedIn) {
+      // Aktivace generátoru (uživatel je v systému)
+      trackGeneratorAccess("homepage");
+    } else {
+      // Zájem o demo + začátek registrace (funnel)
+      trackDemoClick("homepage");
+      trackSignupStart("homepage");
+    }
+    goToGenerator(router, isLoggedIn);
+  };
 
   return (
     <section className={styles.cta} id="final-cta">
@@ -19,7 +36,9 @@ export default function FinalCTA() {
 
       <button
         className={styles.button}
-        onClick={() => goToGenerator(router, isLoggedIn)}
+        onClick={handleClick}
+        aria-label={isLoggedIn ? "Open generator" : "Start free trial in generator"}
+        data-testid="final-cta-button"
       >
         {isLoggedIn ? "Generate now" : "Try Captioni for Free"}
       </button>

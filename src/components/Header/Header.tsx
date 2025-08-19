@@ -5,6 +5,12 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import HeaderAuth from "../HeaderAuth/HeaderAuth";
 import styles from "./Header.module.css";
+import {
+  trackDemoClick,
+  trackGeneratorAccess,
+  trackPricingClick,
+  trackSignupStart,
+} from "@/utils/tracking";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -31,40 +37,69 @@ export default function Header() {
         <nav className={`${styles.nav} ${open ? styles.open : ""}`}>
           {/* --- Nepřihlášený má i DEMO, přihlášený ne --- */}
           {!isLoggedIn && (
-            <Link href="/?demo=true" className={styles.navLink} onClick={closeMenu}>
+            <Link
+              href="/?demo=true"
+              onClick={() => {
+                trackDemoClick("header");
+                closeMenu();
+              }}
+              className={styles.navLink}
+            >
               Demo
             </Link>
           )}
+
           <Link href="#benefits" className={styles.navLink} onClick={closeMenu}>
             Benefits
           </Link>
-          <Link href="#pricing" className={styles.navLink} onClick={closeMenu}>
+
+          <Link
+            href="#pricing"
+            className={styles.navLink}
+            onClick={() => {
+              trackPricingClick("header");
+              closeMenu();
+            }}
+          >
             Pricing
           </Link>
+
           <Link href="#faq" className={styles.navLink} onClick={closeMenu}>
             FAQ
           </Link>
 
           {/* --- Sekundární odkaz do dashboardu jen pro přihlášené --- */}
           {isLoggedIn && (
-  <Link href="/dashboard" className={styles.navSecondary} onClick={closeMenu}>
-    <svg
-      className={styles.navSecondaryIcon}
-      viewBox="0 0 20 20" aria-hidden="true"
-    >
-      <path d="M4 11h4v5H4v-5Zm6-8h4v13h-4V3ZM2 7h4v9H2V7Zm12 4h4v5h-4v-5Z" />
-    </svg>
-    Dashboard
-  </Link>
-)}
+            <Link href="/dashboard" className={styles.navSecondary} onClick={closeMenu}>
+              <svg className={styles.navSecondaryIcon} viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M4 11h4v5H4v-5Zm6-8h4v13h-4V3ZM2 7h4v9H2V7Zm12 4h4v5h-4v-5Z" />
+              </svg>
+              Dashboard
+            </Link>
+          )}
 
           {/* --- Primary CTA (Try Free vs Generate) --- */}
           {isLoggedIn ? (
-            <Link href="/#generator" className={styles.cta} onClick={closeMenu}>
+            <Link
+              href="/#generator"
+              className={styles.cta}
+              onClick={() => {
+                trackGeneratorAccess("header");
+                closeMenu();
+              }}
+            >
               Generate
             </Link>
           ) : (
-            <Link href="/?demo=true" className={styles.cta} onClick={closeMenu}>
+            <Link
+              href="/?demo=true"
+              className={styles.cta}
+              onClick={() => {
+                trackDemoClick("header");
+                trackSignupStart("header");
+                closeMenu();
+              }}
+            >
               Try Free
             </Link>
           )}
@@ -75,7 +110,7 @@ export default function Header() {
           <HeaderAuth />
         </div>
 
-        <button className={styles.burger} onClick={() => setOpen(!open)}>
+        <button className={styles.burger} onClick={() => setOpen(!open)} aria-label="Toggle menu">
           {open ? "×" : "☰"}
         </button>
       </div>

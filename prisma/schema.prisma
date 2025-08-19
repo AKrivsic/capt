@@ -30,6 +30,8 @@ model User {
   marketingConsent   Boolean?
   marketingConsentAt DateTime?
 
+  deletedAt DateTime?
+
   accounts  Account[]
   sessions  Session[]
   histories History[]
@@ -37,8 +39,9 @@ model User {
 
   consentLogs ConsentLog[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  LoginDevice LoginDevice[]
 }
 
 model ConsentLog {
@@ -123,4 +126,31 @@ model Usage {
   @@unique([userId, date, kind], name: "userId_date_kind")
   @@unique([ipHash, date, kind], name: "ipHash_date_kind")
   @@index([date, kind])
+}
+
+model EmailEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  type      String
+  to        String?
+  from      String?
+  subject   String?
+  messageId String?
+  details   Json
+}
+
+model LoginDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  fingerprint String
+  firstSeen   DateTime @default(now())
+  lastSeen    DateTime @default(now())
+  count       Int      @default(1)
+  lastIp      String?
+  lastUA      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([userId, lastSeen])
 }

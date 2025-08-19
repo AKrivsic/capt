@@ -1,7 +1,9 @@
+// src/components/DemoModal/DemoModal.tsx
 "use client";
 import { useEffect, useState } from "react";
 import styles from "./DemoModal.module.css";
 import { getUsage, incUsage } from "@/utils/usage";
+import { trackGenerationComplete, trackPricingClick, trackSignupStart } from "@/utils/tracking";
 
 type Props = {
   onClose: () => void;
@@ -91,15 +93,16 @@ export default function DemoModal({ onClose }: Props) {
 
       setResult(payload.data as GenerateResponse);
 
+      // tracking: úspěšná generace v demu = FREE
+      trackGenerationComplete("FREE");
+
       // inkrementuj až po úspěchu (per-day persist – pro místní metriku/UX)
       const next = incUsage("demoUsed");
       setDemoUsed(next);
 
       // pokud jsme právě dojeli na limit i podle lokální metriky, ukaž CTA při další akci
       if (next >= DEMO_LIMIT) {
-        // necháme uživateli zobrazit právě vygenerovaný výsledek;
-        // CTA se ukáže při dalším kliknutí, nebo hned pokud chceš:
-        // setLimitReached(true);
+        // volitelně: setLimitReached(true);
       }
     } catch {
       setError("Network error. Try again.");
@@ -114,6 +117,9 @@ export default function DemoModal({ onClose }: Props) {
   };
 
   const handleGoToPricing = () => {
+    // tracking
+    trackPricingClick("demoModal");
+
     onClose();
     setTimeout(() => {
       const section = document.querySelector("#pricing");
@@ -143,7 +149,11 @@ export default function DemoModal({ onClose }: Props) {
               Unlock more styles, vibes, and outputs with our plans.
             </p>
             <div className={styles.buttonGroup}>
-              <a className={styles.btn} href="/signup">
+              <a
+                className={styles.btn}
+                href="/signup"
+                onClick={() => trackSignupStart("demoModal")}
+              >
                 ✨ Create free account
               </a>
               <button className={styles.btn} onClick={handleGoToPricing}>
@@ -202,8 +212,20 @@ export default function DemoModal({ onClose }: Props) {
                   You’ve used {DEMO_LIMIT} demo generations today.
                 </p>
                 <div className={styles.ctaBtns}>
-                  <a className={styles.primary} href="/signup">Create free account</a>
-                  <a className={styles.secondary} href="#pricing">See pricing</a>
+                  <a
+                    className={styles.primary}
+                    href="/signup"
+                    onClick={() => trackSignupStart("demoModal")}
+                  >
+                    Create free account
+                  </a>
+                  <a
+                    className={styles.secondary}
+                    href="#pricing"
+                    onClick={() => trackPricingClick("demoModal")}
+                  >
+                    See pricing
+                  </a>
                 </div>
               </div>
             )}

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import ui from "@/components/ui/Ui.module.css";
 import { useUsageInfo } from "@/hooks/useUsageInfo";
+import { trackUpgradeClick } from "@/utils/tracking";
 
 export default function UsageCard() {
   const { plan, leftLabel, resetHint } = useUsageInfo();
@@ -10,10 +11,23 @@ export default function UsageCard() {
     <div className={ui.card}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <h3 style={{ fontWeight: 700, fontSize: "1.05rem" }}>Current plan: {String(plan)}</h3>
-          <p style={{ opacity: .7, fontSize: ".9rem" }}>{leftLabel} {resetHint}</p>
+          <h3 style={{ fontWeight: 700, fontSize: "1.05rem" }}>
+            Current plan: {String(plan)}
+          </h3>
+          <p style={{ opacity: 0.7, fontSize: ".9rem" }}>
+            {leftLabel} {resetHint}
+          </p>
         </div>
-        <Link href="/#pricing" className={ui.btnPrimary}>Upgrade</Link>
+
+        <Link
+          href="/#pricing"
+          className={ui.btnPrimary}
+          onClick={() => {
+            trackUpgradeClick("dashboard");
+          }}
+        >
+          Upgrade
+        </Link>
       </div>
     </div>
   );

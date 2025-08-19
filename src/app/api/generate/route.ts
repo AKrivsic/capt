@@ -12,6 +12,7 @@ import {
 } from "@/lib/limits";
 import { assertSameOrigin } from "@/lib/origin";
 import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
+import { mlMarkEvent } from "@/lib/mailerlite";
 
 // ====== types ======
 const OutputEnum = z.enum(["caption", "bio", "hashtags", "dm", "comments", "story", "hook"]);
@@ -144,6 +145,15 @@ function getPlanFromSession(session: unknown): PlanUpper | undefined {
   return p === "FREE" || p === "STARTER" || p === "PRO" || p === "PREMIUM" ? p : undefined;
 }
 
+function getEmailFromSession(session: unknown): string | null {
+  if (!session || typeof session !== "object") return null;
+  const u = (session as Record<string, unknown>).user;
+  if (!u || typeof u !== "object") return null;
+  const e = (u as Record<string, unknown>).email;
+  return typeof e === "string" ? e : null;
+}
+
+
 export async function POST(req: NextRequest) {
   if (!assertSameOrigin(req)) {
     return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
@@ -164,6 +174,9 @@ export async function POST(req: NextRequest) {
   const session = await getSessionServer().catch(() => null);
   const sessionUserId = getUserIdFromSession(session);
   const planFromSession = getPlanFromSession(session);
+  const userEmail = getEmailFromSession(session);
+
+  
 
   const userId = sessionUserId ?? cookieUserId;
   const isAuthed = Boolean(userId);
@@ -230,25 +243,27 @@ export async function POST(req: NextRequest) {
     if (limit !== null) {
       // increment → check (bez off-by-one)
       if (typeof getAndIncUsageForUser === "function") {
-        const count = await getAndIncUsageForUser(userId!, "GENERATION");
-        if (count > limit) {
-          return NextResponse.json(
-            { ok: false, error: "LIMIT", message: "Daily limit reached.", meta: { remainingToday: 0, plan } },
-            { status: 429 }
-          );
-        }
-        remainingToday = Math.max(0, limit - count);
-      } else {
+  const count = await getAndIncUsageForUser(userId!, "GENERATION");
+  if (count > limit) {
+    if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+    return NextResponse.json(
+      { ok: false, error: "LIMIT", message: "Daily limit reached.", meta: { remainingToday: 0, plan } },
+      { status: 429 }
+    );
+  }
+  remainingToday = Math.max(0, limit - count);
+} else {
         // in-memory fallback
         const key = `gen:user:${userId}:${DAY()}`;
-        const rec = rl.get(key);
-        const newCount = rec ? (rec.count += 1) : (rl.set(key, { count: 1, day: DAY() }), 1);
-        if (newCount > limit) {
-          return NextResponse.json(
-            { ok: false, error: "LIMIT", message: "Daily limit reached.", meta: { remainingToday: 0, plan } },
-            { status: 429 }
-          );
-        }
+const rec = rl.get(key);
+const newCount = rec ? (rec.count += 1) : (rl.set(key, { count: 1, day: DAY() }), 1);
+if (newCount > limit) {
+  if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+  return NextResponse.json(
+    { ok: false, error: "LIMIT", message: "Daily limit reached.", meta: { remainingToday: 0, plan } },
+    { status: 429 }
+  );
+}
         remainingToday = Math.max(0, limit - newCount);
       }
     } else {
@@ -257,6 +272,9 @@ export async function POST(req: NextRequest) {
         await getAndIncUsageForUser(userId!, "GENERATION");
       }
       remainingToday = null;
+    }
+    if (userEmail && remainingToday !== null && remainingToday > 0 && remainingToday <= 2) {
+      void mlMarkEvent(userEmail, "LOW_LEFT");
     }
   }
 

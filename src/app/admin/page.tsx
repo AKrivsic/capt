@@ -1,7 +1,8 @@
-// app/admin/page.tsx
+// src/app/admin/page.tsx
 import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import AdminUsersTable from "./users-table";
+import type { Metadata } from "next";
 
 type AdminUserDTO = {
   id: string;
@@ -9,7 +10,25 @@ type AdminUserDTO = {
   email: string | null;
   image: string | null;
   plan: "FREE" | "STARTER" | "PRO" | "PREMIUM";
-  createdAt: string; // ← string místo Date
+  createdAt: string;
+};
+
+export const metadata: Metadata = {
+  title: "Admin Dashboard | Captioni",
+  description: "Administrative area for managing Captioni users and plans.",
+  robots: { index: false, follow: false },
+  alternates: { canonical: "/admin" },
+  openGraph: {
+    title: "Admin Dashboard | Captioni",
+    description: "Administrative area for managing Captioni users and plans.",
+    url: "/admin",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Admin Dashboard | Captioni",
+    description: "Administrative area for managing Captioni users and plans.",
+  },
 };
 
 export default async function AdminPage() {
@@ -28,9 +47,9 @@ export default async function AdminPage() {
     select: { id: true, name: true, email: true, plan: true, createdAt: true, image: true },
   });
 
-  const users: AdminUserDTO[] = raw.map(u => ({
+  const users: AdminUserDTO[] = raw.map((u) => ({
     ...u,
-    createdAt: u.createdAt.toISOString(), // ← převod Date -> string
+    createdAt: u.createdAt.toISOString(),
   }));
 
   return (
@@ -40,4 +59,3 @@ export default async function AdminPage() {
     </main>
   );
 }
-

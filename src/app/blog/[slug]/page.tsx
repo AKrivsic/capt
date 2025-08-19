@@ -142,9 +142,13 @@ export default async function BlogPostPage({ params }: PageProps) {
 
       <footer style={{ marginTop: 28, borderTop: "1px solid #eee", paddingTop: 16 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link href="/?demo=true" className={`${t.btn} ${t.btnPrimary} ${t.btnLg}`}>
-            Try free demo
-          </Link>
+          <Link
+  href="/?demo=true"
+  data-pt-event="Demo click"
+  data-pt-props='{"source":"blog"}'
+>
+  Try free demo
+</Link>
           <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>
             See pricing
           </Link>

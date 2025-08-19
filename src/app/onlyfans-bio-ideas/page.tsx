@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 import t from "../(marketing-shared)/Theme.module.css";
 
 export const metadata: Metadata = {
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "OnlyFans Bio Ideas – Convert more subs",
     description: "Craft an on-brand bio that sets expectations and invites subs.",
-    url: "https://captioni.com/onlyfans-bio-ideas",
+    url: "/onlyfans-bio-ideas",
     type: "website",
   },
   twitter: {
@@ -23,13 +24,88 @@ export const metadata: Metadata = {
 export default function OnlyFansBioIdeasPage() {
   return (
     <main className={`${t.container} ${t.theme}`}>
+      {/* JSON-LD: Breadcrumbs + WebPage */}
+      <Script
+        id="ld-onlyfans-breadcrumbs"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://captioni.com/" },
+              { "@type": "ListItem", "position": 2, "name": "OnlyFans Bio Ideas", "item": "https://captioni.com/onlyfans-bio-ideas" }
+            ]
+          }),
+        }}
+      />
+      <Script
+        id="ld-onlyfans-webpage"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "OnlyFans Bio Ideas",
+            "url": "https://captioni.com/onlyfans-bio-ideas",
+            "description": "Generate on-brand OnlyFans bios with AI — playful, classy, flirty or mysterious."
+          }),
+        }}
+      />
+      {/* JSON-LD: FAQPage */}
+      <Script
+        id="ld-onlyfans-faq"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What should I include in an OnlyFans bio?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "State your vibe (playful, classy, mysterious), what fans get (teasers, sets, customs, DMs), and add a soft CTA (subscribe, say hi, request). Keep boundaries clear if needed."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is it safe to use AI for bios?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes — Captioni helps with safe, on-brand wording. You can edit any line before posting to fit your boundaries."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I try before upgrading?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Use the free demo first and upgrade anytime for style memory and saved favorites."
+                }
+              }
+            ]
+          }),
+        }}
+      />
+
       <header style={{ marginBottom: 24 }}>
         <h1 className={t.h1}>OnlyFans Bio Ideas</h1>
         <p className={t.subtle}>
           Say who you are, what fans get, and why they should stay—tastefully.
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-          <Link href="/?demo=true" className={`${t.btn} ${t.btnPrimary}`}>Generate your bio</Link>
+          <Link
+  href="/?demo=true"
+  data-pt-event="Demo click"
+  data-pt-props='{"source":"blog"}'
+>
+  Try free demo
+</Link>
           <Link href="/pricing" className={`${t.btn} ${t.btnGhost}`}>See plans</Link>
         </div>
       </header>
@@ -66,9 +142,48 @@ export default function OnlyFansBioIdeasPage() {
           <li>Save favorite styles on paid plans</li>
         </ul>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-          <Link href="/?demo=true" className={`${t.btn} ${t.btnPrimary} ${t.btnLg}`}>Write my bio</Link>
+          <Link
+  href="/?demo=true"
+  data-pt-event="Demo click"
+  data-pt-props='{"source":"blog"}'
+>
+  Try free demo
+</Link>
           <Link href="/pricing" className={`${t.btn} ${t.btnGhost} ${t.btnLg}`}>Upgrade for more</Link>
         </div>
+      </section>
+
+      {/* FAQ (visible) */}
+      <section className={t.section}>
+        <h2 className={t.h2}>FAQ</h2>
+        <details>
+          <summary className={t.h3}>What should I include in an OnlyFans bio?</summary>
+          <p className={t.p}>
+            State your vibe, what fans get, and add a soft CTA. Keep boundaries clear if needed.
+          </p>
+        </details>
+        <details>
+          <summary className={t.h3}>Is it safe to use AI for bios?</summary>
+          <p className={t.p}>
+            Yes — Captioni helps with safe, on-brand wording. You can edit any line before posting.
+          </p>
+        </details>
+        <details>
+          <summary className={t.h3}>Can I try before upgrading?</summary>
+          <p className={t.p}>
+            Absolutely. Start with the free demo, then upgrade for style memory and saved favorites.
+          </p>
+        </details>
+      </section>
+
+      {/* See also */}
+      <section className={t.section}>
+        <h2 className={t.h2}>See also</h2>
+        <ul className={t.ul}>
+          <li><Link href="/instagram-captions">Instagram Caption Generator</Link></li>
+          <li><Link href="/tiktok-captions">TikTok Caption Generator</Link></li>
+          <li><Link href="/pricing">Pricing</Link></li>
+        </ul>
       </section>
     </main>
   );
