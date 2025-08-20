@@ -1,6 +1,7 @@
 // src/lib/auth.ts
 import "server-only";
 import type { NextAuthOptions } from "next-auth";
+import type { Adapter } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -17,8 +18,54 @@ function required(name: string, val: string | undefined | null): string {
   return val;
 }
 
+// --- jednotná normalizace identifikátorů (email/identifier) ---
+function normalizeId(id: string): string {
+  try {
+    return decodeURIComponent(id).trim().toLowerCase();
+  } catch {
+    return id.trim().toLowerCase();
+  }
+}
+
+// --- Prisma adapter s ochranou na enkódovaný identifier ---
+const base = PrismaAdapter(prisma) as Adapter;
+
+const adapter: Adapter = {
+  ...base,
+
+  // NextAuth si ukládá verifikační token – zajistíme, že identifier je již normalized
+  createVerificationToken: async (token) => {
+    const t = { ...token, identifier: normalizeId(token.identifier) };
+    // @ts-expect-error – typ v adapters může být volitelný, ale v PrismaAdapter je k dispozici
+    return base.createVerificationToken(t);
+  },
+
+  // Při použití tokenu (klik v e-mailu) normalizeIdentifier předáme adapteru
+  useVerificationToken: async (params) => {
+    const p = { ...params, identifier: normalizeId(params.identifier) };
+    try {
+      // @ts-expect-error viz výše
+      return await base.useVerificationToken(p);
+    } catch (e) {
+      // Fallback: když by DB měla uložený už enkódovaný identifikátor (edge case)
+      try {
+        // @ts-expect-error viz výše
+        return await base.useVerificationToken(params);
+      } catch {
+        throw e;
+      }
+    }
+  },
+
+  // Pro jistotu sjednotíme i dotaz na uživatele dle e‑mailu
+  getUserByEmail: async (email) => {
+    // @ts-expect-error – v Adapter typu je metoda volitelná, ale PrismaAdapter ji má
+    return base.getUserByEmail(normalizeId(email));
+  },
+};
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter,
 
   pages: {
     verifyRequest: "/verify-request",
@@ -40,20 +87,7 @@ export const authOptions: NextAuthOptions = {
 
     EmailProvider({
       from: required("EMAIL_FROM", process.env.EMAIL_FROM), // např. "Captioni <no-reply@auth.captioni.com>"
-      maxAge: 30 * 60, // prodloužíme platnost na 30 min
-      /**
-       * Kritická část: sjednotíme identifikátor.
-       * NextAuth to zavolá při CREATE i při VERIFY, takže se vždy uloží/čte totéž.
-       */
-      normalizeIdentifier(identifier: string) {
-        try {
-          // dekódujeme případné %40 apod., ořízneme, sjednotíme case
-          const dec = decodeURIComponent(identifier);
-          return dec.trim().toLowerCase();
-        } catch {
-          return identifier.trim().toLowerCase();
-        }
-      },
+      maxAge: 30 * 60, // 30 min – méně citlivé na prodlevy / link‑scannery
 
       async sendVerificationRequest({ identifier, url, provider }) {
         // ---- Idempotentní anti-spam lock (30s) ----
@@ -70,20 +104,19 @@ export const authOptions: NextAuthOptions = {
         }
         g.__mlock.set(identifier, now);
 
-        // ---- Sanitizace magic linku: VŽDY odstraníme callbackUrl, email NEPŘEPISUJEME ----
+        // ---- Sanitizace magic linku: VŽDY odstraníme callbackUrl; email NEPŘEPISUJEME ----
         let safeUrl = url;
         try {
           const u = new URL(url);
-          u.searchParams.delete("callbackUrl"); // eliminace INVALID_CALLBACK_URL_ERROR
-          // DŮLEŽITÉ: NEPŘEPISUJ "email" – necháme hodnotu, kterou NextAuth vložil
+          u.searchParams.delete("callbackUrl");
           safeUrl = u.toString();
         } catch {
-          // fallback: pošleme původní url, když by parser selhal
+          // fallback: pošleme původní url
         }
 
         // ---- Odeslání e-mailu přes Resend helper ----
         await sendTransactionalEmail({
-          to: identifier, // už normalizeIdentifier → lowercased/decoded
+          to: normalizeId(identifier), // posíláme už normalizovaný e‑mail
           subject: "Your Captioni magic link ✨",
           html: authMagicLinkHtml(safeUrl),
           text: authMagicLinkText(safeUrl),
@@ -92,13 +125,12 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (process.env.NODE_ENV !== "production") {
-          console.log("[EmailProvider] Magic link sent →", { to: identifier, from: provider.from, safeUrl });
+          console.log("[EmailProvider] Magic link sent →", { to: normalizeId(identifier), from: provider.from, safeUrl });
         }
       },
     }),
   ],
 
-  // Database sessions (PrismaAdapter)
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60,
@@ -134,7 +166,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  // Events (arrow funkce – lepší kompatibilita se SWC)
   events: {
     createUser: async ({ user }) => {
       try {
