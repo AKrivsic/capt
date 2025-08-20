@@ -104,6 +104,9 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: required("GOOGLE_CLIENT_ID", process.env.GOOGLE_CLIENT_ID),
       clientSecret: required("GOOGLE_CLIENT_SECRET", process.env.GOOGLE_CLIENT_SECRET),
+      // Když uživatel nejdříve použil magic‑link a poté Google se stejným e‑mailem,
+      // automaticky propojíme účty (vyžaduje důvěryhodného poskytovatele s ověřeným e‑mailem)
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           scope: "openid email profile",
@@ -185,6 +188,92 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
+    // Propojíme Google účet s existujícím uživatelem (řeší OAuthAccountNotLinked)
+    async signIn({ user, account, profile }) {
+      try {
+        if (account?.provider === "google") {
+          const providerAccountId = account.providerAccountId ?? null;
+          if (!providerAccountId) return true;
+
+          // 1) Pokud je uživatel přihlášen (má id), linkneme Google přímo na jeho účet i při odlišném e-mailu
+          if (user?.id) {
+            await prisma.account.upsert({
+              where: {
+                provider_providerAccountId: {
+                  provider: "google",
+                  providerAccountId,
+                },
+              },
+              create: {
+                userId: user.id,
+                type: account.type ?? "oauth",
+                provider: "google",
+                providerAccountId,
+                access_token: account.access_token ?? null,
+                refresh_token: account.refresh_token ?? null,
+                id_token: account.id_token ?? null,
+                scope: account.scope ?? null,
+                token_type: account.token_type ?? null,
+                expires_at: account.expires_at ?? null,
+              },
+              update: {
+                access_token: account.access_token ?? null,
+                refresh_token: account.refresh_token ?? null,
+                id_token: account.id_token ?? null,
+                scope: account.scope ?? null,
+                token_type: account.token_type ?? null,
+                expires_at: account.expires_at ?? null,
+              },
+            });
+            return true;
+          }
+
+          // 2) Jinak zkusíme link podle shody e‑mailu (case-insensitive)
+          const emailFromProfile = (profile as { email?: string | null } | null)?.email ?? user?.email ?? null;
+          if (!emailFromProfile) return true;
+          const normalizedEmail = normalizeId(emailFromProfile);
+
+          const existingUser = await prisma.user.findFirst({
+            where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+          });
+
+          if (existingUser) {
+            await prisma.account.upsert({
+              where: {
+                provider_providerAccountId: {
+                  provider: "google",
+                  providerAccountId,
+                },
+              },
+              create: {
+                userId: existingUser.id,
+                type: account.type ?? "oauth",
+                provider: "google",
+                providerAccountId,
+                access_token: account.access_token ?? null,
+                refresh_token: account.refresh_token ?? null,
+                id_token: account.id_token ?? null,
+                scope: account.scope ?? null,
+                token_type: account.token_type ?? null,
+                expires_at: account.expires_at ?? null,
+              },
+              update: {
+                access_token: account.access_token ?? null,
+                refresh_token: account.refresh_token ?? null,
+                id_token: account.id_token ?? null,
+                scope: account.scope ?? null,
+                token_type: account.token_type ?? null,
+                expires_at: account.expires_at ?? null,
+              },
+            });
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error("[auth][signIn-link-google][error]", e);
+      }
+      return true;
+    },
     async session({ session, user }) {
       if (session.user) {
         type SessUser = typeof session.user & { id: string; plan: PlanEnum | null };

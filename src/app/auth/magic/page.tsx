@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { BRAND } from "@/lib/email/branding";
+import { headers } from "next/headers";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -77,7 +78,12 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const action = `/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  // Sestavíme absolutní URL callbacku včetně originu (https://captioni.com)
+  const hdrs = await headers();
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const host = hdrs.get("host") ?? "captioni.com";
+  const origin = `${proto}://${host}`;
+  const action = `${origin}/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
   return (
     <div
