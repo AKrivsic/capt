@@ -23,7 +23,7 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const action = `/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&method=POST`;
+  const action = `/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", padding: 24 }}>
@@ -31,7 +31,7 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
         <h1 style={{ marginBottom: 8 }}>Sign in</h1>
         <p style={{ color: "#666", marginBottom: 16 }}>Click the button to complete sign in.</p>
 
-        <form id="magic-form" method="POST" action={action}>
+        <form id="magic-form" method="GET" action={action}>
           <button type="submit" style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid #ddd" }}>
             Continue
           </button>
