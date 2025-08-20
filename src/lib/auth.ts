@@ -1,3 +1,4 @@
+// src/lib/auth.ts
 import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -20,7 +21,7 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
 
   pages: {
-    // Vlastní "check your email" stránka (ponech, nebo změň dle projektu)
+    // Vlastní "check your email" stránka
     verifyRequest: "/verify-request",
   },
 
@@ -40,9 +41,9 @@ export const authOptions: NextAuthOptions = {
 
     EmailProvider({
       from: required("EMAIL_FROM", process.env.EMAIL_FROM), // např. "Captioni <no-reply@auth.captioni.com>"
-      maxAge: 15 * 60, // 15 minut
+      maxAge: 15 * 60, // 15 min
       async sendVerificationRequest({ identifier, url, provider }) {
-        // Anti-spam: jednoduchý idempotentní lock na 30s
+        // ---- Idempotentní anti-spam lock (30s) ----
         type LockMap = Map<string, number>;
         const g = globalThis as unknown as { __mlock?: LockMap };
         if (!g.__mlock) g.__mlock = new Map<string, number>();
@@ -56,24 +57,37 @@ export const authOptions: NextAuthOptions = {
         }
         g.__mlock.set(identifier, now);
 
-        // Odeslání přes náš Resend helper (s volitelným `from`)
+        // ---- Sanitizace magic linku: úplně odstraníme callbackUrl ----
+        let safeUrl = url;
+        try {
+          const u = new URL(url);
+          // odstraníme callbackUrl, ať nikdy nevzniká double-encoding
+          if (u.searchParams.has("callbackUrl")) {
+            u.searchParams.delete("callbackUrl");
+          }
+          safeUrl = u.toString();
+        } catch {
+          // necháme původní url, když by parsing selhal
+        }
+
+        // ---- Odeslání e-mailu přes Resend helper ----
         await sendTransactionalEmail({
           to: identifier,
           subject: "Your Captioni magic link ✨",
-          html: authMagicLinkHtml(url),
-          text: authMagicLinkText(url),
+          html: authMagicLinkHtml(safeUrl),
+          text: authMagicLinkText(safeUrl),
           replyTo: "support@captioni.com",
-          from: provider.from, // použije EMAIL_FROM z env
+          from: provider.from, // = EMAIL_FROM z env (ověřený sender v Resend)
         });
 
         if (process.env.NODE_ENV !== "production") {
-          console.log("[EmailProvider] Magic link sent →", { to: identifier, from: provider.from });
+          console.log("[EmailProvider] Magic link sent →", { to: identifier, from: provider.from, safeUrl });
         }
       },
     }),
   ],
 
-  // Pozn.: se zapnutým PrismaAdapterem je "database" strategy OK
+  // Database sessions (PrismaAdapter)
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60,
@@ -83,7 +97,6 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
-        // Rozšíříme session.user o id a plan (bez any)
         type SessUser = typeof session.user & { id: string; plan: PlanEnum | null };
         const su = session.user as SessUser;
         su.id = user.id;
@@ -92,33 +105,27 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    // Oprava double-encodingu callbackUrl v magic linku
+    // Centrální redirect – po úspěšném callbacku vždy na "/?consent=1"
     async redirect({ url, baseUrl }) {
       try {
         const base = new URL(baseUrl);
         const u = new URL(url, baseUrl);
 
-        if (u.pathname.startsWith("/api/aut/callback/")) {
+        // Platí pro email i Google callback
+        if (u.pathname.startsWith("/api/auth/callback/")) {
           return `${base.origin}/?consent=1`;
         }
 
-        const cbRaw = u.searchParams.get("callbackUrl");
-        if (cbRaw) {
-          // jednorázově decode → validní absolutní URL v rámci stejného originu
-          const cbOnce = decodeURIComponent(cbRaw);
-          const target = new URL(cbOnce, baseUrl);
-          if (target.origin === base.origin) return target.toString();
-        }
-
+        // Bezpečný fallback: interní URL nech, externí utneme na homepage
         if (u.origin === base.origin) return u.toString();
-        return baseUrl;
+        return base.origin;
       } catch {
         return baseUrl;
       }
     },
   },
 
-  // NextAuth events – arrow funkce kvůli parsování SWC
+  // Events (arrow funkce – lepší kompatibilita se SWC)
   events: {
     createUser: async ({ user }) => {
       try {
@@ -134,9 +141,9 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
 
   logger: {
-    error: (...args) => console.error("[NextAuth][error]", ...args),
-    warn:  (...args) => console.warn("[NextAuth][warn]", ...args),
-    debug: (...args) => console.debug("[NextAuth][debug]", ...args),
+    error: (...args: unknown[]) => console.error("[NextAuth][error]", ...args),
+    warn:  (...args: unknown[]) => console.warn("[NextAuth][warn]", ...args),
+    debug: (...args: unknown[]) => console.debug("[NextAuth][debug]", ...args),
   },
 
   secret: required("NEXTAUTH_SECRET", process.env.NEXTAUTH_SECRET),
