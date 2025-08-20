@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import AutoSubmit from "./submit";
 import Link from "next/link";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
@@ -29,8 +28,8 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", padding: 24 }}>
       <div style={{ maxWidth: 520, textAlign: "center" }}>
-        <h1 style={{ marginBottom: 8 }}>Completing sign in…</h1>
-        <p style={{ color: "#666", marginBottom: 16 }}>If nothing happens, click the button below.</p>
+        <h1 style={{ marginBottom: 8 }}>Sign in</h1>
+        <p style={{ color: "#666", marginBottom: 16 }}>Click the button to complete sign in.</p>
 
         <form id="magic-form" method="POST" action={action}>
           <button type="submit" style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid #ddd" }}>
@@ -38,11 +37,8 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
           </button>
         </form>
 
-        {/* Auto submit once hydrated */}
-        <AutoSubmit formId="magic-form" />
-
         <noscript>
-          <p>JavaScript is required to complete sign in automatically. Please click Continue.</p>
+          <p>JavaScript is required to continue.</p>
         </noscript>
       </div>
     </div>
