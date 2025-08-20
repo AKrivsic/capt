@@ -59,8 +59,11 @@ const adapter: Adapter = {
 
   // Pro jistotu sjednotíme i dotaz na uživatele dle e‑mailu
   getUserByEmail: async (email) => {
-    // @ts-expect-error – v Adapter typu je metoda volitelná, ale PrismaAdapter ji má
-    return base.getUserByEmail(normalizeId(email));
+    const norm = normalizeId(email);
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: norm, mode: "insensitive" } },
+    });
+    return user as unknown as Awaited<ReturnType<NonNullable<typeof base.getUserByEmail>>>;
   },
 };
 
