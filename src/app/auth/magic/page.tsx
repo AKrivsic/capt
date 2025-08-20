@@ -50,14 +50,17 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
         <h1 style={{ marginBottom: 8 }}>Sign in</h1>
         <p style={{ color: "#666", marginBottom: 16 }}>Click the button to complete sign in.</p>
 
-        <form id="magic-form" method="GET" action={action}>
-          <button type="submit" style={{ padding: "10px 16px", borderRadius: 8, border: "1px solid #ddd" }}>
-            Continue
-          </button>
-        </form>
+        <a href={action} style={{ display: "inline-block", padding: "10px 16px", borderRadius: 8, border: "1px solid #ddd" }}>
+          Continue
+        </a>
+
+        <div style={{ marginTop: 12, fontSize: 12, color: "#888", wordBreak: "break-all" }}>
+          If the button doesn’t work, copy this URL into your browser:
+          <div style={{ marginTop: 6 }}><code>{action}</code></div>
+        </div>
 
         <noscript>
-          <p>JavaScript is required to continue.</p>
+          <p>JavaScript is not required here. Use the Continue link above.</p>
         </noscript>
       </div>
     </div>

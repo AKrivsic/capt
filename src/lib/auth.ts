@@ -236,7 +236,8 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  debug: process.env.NODE_ENV === "development",
+  // Umožní zapnout debug logy i v produkci nastavením ENABLE_AUTH_DEBUG=1
+  debug: process.env.ENABLE_AUTH_DEBUG === "1" || process.env.NODE_ENV === "development",
 
   logger: {
     error: (...args: unknown[]) => console.error("[NextAuth][error]", ...args),
