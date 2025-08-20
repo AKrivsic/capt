@@ -93,6 +93,8 @@ const adapter: Adapter = {
 
 export const authOptions: NextAuthOptions = {
   adapter,
+  // @ts-expect-error: available at runtime in next-auth v4, not present in our TS types
+  trustHost: true,
 
   pages: {
     verifyRequest: "/verify-request",
