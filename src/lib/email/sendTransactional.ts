@@ -1,3 +1,4 @@
+// src/lib/email/sendTransactional.ts
 import { Resend } from "resend";
 
 export type SendEmailParams = {
@@ -5,28 +6,64 @@ export type SendEmailParams = {
   subject: string;
   html: string;
   text?: string;
-  replyTo?: string | string[]; // povol i pole
+  replyTo?: string | string[];
+  from?: string; // optional override (jinak se použije EMAIL_FROM z env)
 };
 
-export async function sendTransactionalEmail(params: SendEmailParams) {
-  const { to, subject, html, text, replyTo } = params;
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM;
+type ResendOk = { id: string | null };
 
-  if (!apiKey) throw new Error("Missing RESEND_API_KEY");
-  if (!from) throw new Error("Missing EMAIL_FROM");
+const API_KEY = process.env.RESEND_API_KEY;
+if (!API_KEY) throw new Error("Missing RESEND_API_KEY");
 
-  const resend = new Resend(apiKey);
+const DEFAULT_FROM =
+  process.env.EMAIL_FROM ?? "Captioni <no-reply@auth.captioni.com>";
 
-  const { data, error } = await resend.emails.send({
-    from,
+const resend = new Resend(API_KEY);
+
+export async function sendTransactionalEmail(
+  params: SendEmailParams
+): Promise<ResendOk> {
+  const { to, subject, html, text, replyTo, from } = params;
+
+  const fromAddress = from ?? DEFAULT_FROM;
+  if (!fromAddress) {
+    throw new Error("Missing EMAIL_FROM and no 'from' provided");
+  }
+
+  const payload: {
+    from: string;
+    to: string | string[];
+    subject: string;
+    html: string;
+    text?: string;
+    reply_to?: string | string[];
+  } = {
+    from: fromAddress,
     to,
     subject,
     html,
-    text,
-    replyTo, // ✅ camelCase, string nebo string[]
-  });
+    ...(text ? { text } : {}),
+    ...(replyTo ? { reply_to: replyTo } : {}), // Resend SDK používá reply_to
+  };
 
-  if (error) throw new Error(`Resend error: ${String(error)}`);
-  return data;
+  const { data, error } = await resend.emails.send(payload);
+
+  if (error) {
+    const name = (error as { name?: string }).name ?? "Unknown";
+    const message = (error as { message?: string }).message ?? "No message";
+    // Čitelné logy + surová data (bez any)
+    console.error("RESEND_SEND_FAILED", {
+      name,
+      message,
+      raw: JSON.parse(JSON.stringify(error)),
+      meta: { to, from: fromAddress, subject },
+    });
+    throw new Error(`RESEND_SEND_FAILED: ${name}: ${message}`);
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("RESEND_SENT_OK", { to, id: data?.id ?? null });
+  }
+
+  return { id: data?.id ?? null };
 }

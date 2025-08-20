@@ -1,4 +1,3 @@
-// src/lib/auth.ts
 import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -9,7 +8,7 @@ import { mlEnsureUsersGroup } from "@/lib/mailerlite";
 import { sendTransactionalEmail } from "@/lib/email/sendTransactional";
 import { authMagicLinkHtml, authMagicLinkText } from "@/lib/email/templates/authMagicLink";
 
-// ✅ vlastní úzký typ pro plán (bez závislosti na @prisma/client type exportech)
+// Narrow plan type (bez závislosti na @prisma/client type exportech)
 type PlanEnum = "FREE" | "STARTER" | "PRO" | "PREMIUM";
 
 function required(name: string, val: string | undefined | null): string {
@@ -21,6 +20,7 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
 
   pages: {
+    // Vlastní "check your email" stránka (ponech, nebo změň dle projektu)
     verifyRequest: "/verify-request",
   },
 
@@ -39,10 +39,10 @@ export const authOptions: NextAuthOptions = {
     }),
 
     EmailProvider({
-      from: required("EMAIL_FROM", process.env.EMAIL_FROM),
-      maxAge: 15 * 60, // 15 minutes
+      from: required("EMAIL_FROM", process.env.EMAIL_FROM), // např. "Captioni <no-reply@auth.captioni.com>"
+      maxAge: 15 * 60, // 15 minut
       async sendVerificationRequest({ identifier, url, provider }) {
-        // — Idempotentní zámek: 30 s anti-spam —
+        // Anti-spam: jednoduchý idempotentní lock na 30s
         type LockMap = Map<string, number>;
         const g = globalThis as unknown as { __mlock?: LockMap };
         if (!g.__mlock) g.__mlock = new Map<string, number>();
@@ -56,12 +56,14 @@ export const authOptions: NextAuthOptions = {
         }
         g.__mlock.set(identifier, now);
 
+        // Odeslání přes náš Resend helper (s volitelným `from`)
         await sendTransactionalEmail({
           to: identifier,
           subject: "Your Captioni magic link ✨",
           html: authMagicLinkHtml(url),
           text: authMagicLinkText(url),
           replyTo: "support@captioni.com",
+          from: provider.from, // použije EMAIL_FROM z env
         });
 
         if (process.env.NODE_ENV !== "production") {
@@ -71,6 +73,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
+  // Pozn.: se zapnutým PrismaAdapterem je "database" strategy OK
   session: {
     strategy: "database",
     maxAge: 30 * 24 * 60 * 60,
@@ -80,7 +83,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
-        // typově bezpečně rozšíříme session.user o id a plan (bez any, bez Prisma importu)
+        // Rozšíříme session.user o id a plan (bez any)
         type SessUser = typeof session.user & { id: string; plan: PlanEnum | null };
         const su = session.user as SessUser;
         su.id = user.id;
@@ -89,15 +92,20 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
+    // Oprava double-encodingu callbackUrl v magic linku
     async redirect({ url, baseUrl }) {
       try {
         const base = new URL(baseUrl);
         const u = new URL(url, baseUrl);
-        const cb = u.searchParams.get("callbackUrl");
-        if (cb) {
-          const cbUrl = new URL(cb, baseUrl);
-          if (cbUrl.origin === base.origin) return cbUrl.toString();
+
+        const cbRaw = u.searchParams.get("callbackUrl");
+        if (cbRaw) {
+          // jednorázově decode → validní absolutní URL v rámci stejného originu
+          const cbOnce = decodeURIComponent(cbRaw);
+          const target = new URL(cbOnce, baseUrl);
+          if (target.origin === base.origin) return target.toString();
         }
+
         if (u.origin === base.origin) return u.toString();
         return baseUrl;
       } catch {
@@ -106,8 +114,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
+  // NextAuth events – arrow funkce kvůli parsování SWC
   events: {
-    async createUser({ user }) {
+    createUser: async ({ user }) => {
       try {
         if (user?.email) {
           await mlEnsureUsersGroup(user.email, user.name ?? null);
@@ -119,6 +128,7 @@ export const authOptions: NextAuthOptions = {
   },
 
   debug: process.env.NODE_ENV === "development",
+
   logger: {
     error: (...args) => console.error("[NextAuth][error]", ...args),
     warn:  (...args) => console.warn("[NextAuth][warn]", ...args),
