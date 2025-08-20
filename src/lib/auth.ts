@@ -59,16 +59,19 @@ export const authOptions: NextAuthOptions = {
 
         // ---- Sanitizace magic linku: úplně odstraníme callbackUrl ----
         let safeUrl = url;
-        try {
-          const u = new URL(url);
-          // odstraníme callbackUrl, ať nikdy nevzniká double-encoding
-          if (u.searchParams.has("callbackUrl")) {
-            u.searchParams.delete("callbackUrl");
-          }
-          safeUrl = u.toString();
-        } catch {
-          // necháme původní url, když by parsing selhal
-        }
+try {
+  const u = new URL(url);
+
+  // 1) callbackUrl vždy odstraníme (jinak hrozí double-encoding a invalid callback)
+  u.searchParams.delete("callbackUrl");
+
+  // 2) normalizujeme e-mail – musí být přesně stejný jako identifier v DB
+  u.searchParams.set("email", identifier);
+
+  safeUrl = u.toString();
+} catch {
+  // fallback: pošleme původní url, když by parsing selhal
+}
 
         // ---- Odeslání e-mailu přes Resend helper ----
         await sendTransactionalEmail({
