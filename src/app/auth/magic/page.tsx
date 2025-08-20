@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { BRAND } from "@/lib/email/branding";
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 
@@ -30,11 +31,45 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
 
   if (!token || !email) {
     return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", padding: 24 }}>
-        <div style={{ maxWidth: 520, textAlign: "center" }}>
-          <h1 style={{ marginBottom: 8 }}>Unable to sign in</h1>
-          <p style={{ color: "#666" }}>The magic link is missing required parameters. Please request a new link.</p>
-          <Link href="/" style={{ display: "inline-block", marginTop: 16, padding: "10px 16px", borderRadius: 8, border: "1px solid #ddd" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          background: `linear-gradient(135deg, ${BRAND.colors.accent} 0%, ${BRAND.colors.cta} 100%)`,
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 560,
+            background: BRAND.colors.card,
+            borderRadius: 16,
+            border: `1px solid ${BRAND.colors.border}`,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+            padding: 28,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 14, color: BRAND.colors.sub, marginBottom: 8 }}>Captioni</div>
+          <h1 style={{ margin: 0, marginBottom: 10, fontSize: 24, color: BRAND.colors.text }}>Unable to sign in</h1>
+          <p style={{ color: BRAND.colors.sub, margin: 0 }}>
+            The magic link is missing required parameters. Please request a new link.
+          </p>
+          <Link
+            href="/"
+            style={{
+              display: "inline-block",
+              marginTop: 20,
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: `1px solid ${BRAND.colors.border}`,
+              color: BRAND.colors.text,
+              textDecoration: "none",
+              background: "white",
+            }}
+          >
             Go to homepage
           </Link>
         </div>
@@ -45,23 +80,54 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
   const action = `/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
   return (
-    <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", padding: 24 }}>
-      <div style={{ maxWidth: 520, textAlign: "center" }}>
-        <h1 style={{ marginBottom: 8 }}>Sign in</h1>
-        <p style={{ color: "#666", marginBottom: 16 }}>Click the button to complete sign in.</p>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        background: `linear-gradient(135deg, ${BRAND.colors.accent} 0%, ${BRAND.colors.cta} 100%)`,
+        padding: 24,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 560,
+          background: BRAND.colors.card,
+          borderRadius: 16,
+          border: `1px solid ${BRAND.colors.border}`,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+          padding: 28,
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 14, color: BRAND.colors.sub, marginBottom: 8 }}>Captioni</div>
+        <h1 style={{ margin: 0, marginBottom: 10, fontSize: 24, color: BRAND.colors.text }}>Sign in</h1>
+        <p style={{ color: BRAND.colors.sub, margin: 0, marginBottom: 16 }}>
+          Click the button to complete sign in.
+        </p>
 
-        <a href={action} style={{ display: "inline-block", padding: "10px 16px", borderRadius: 8, border: "1px solid #ddd" }}>
+        <a
+          href={action}
+          style={{
+            display: "inline-block",
+            padding: "12px 18px",
+            borderRadius: 12,
+            background: BRAND.colors.accent,
+            color: "#fff",
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
+        >
           Continue
         </a>
 
-        <div style={{ marginTop: 12, fontSize: 12, color: "#888", wordBreak: "break-all" }}>
+        <div style={{ marginTop: 14, fontSize: 12, color: BRAND.colors.sub, wordBreak: "break-all" }}>
           If the button doesn’t work, copy this URL into your browser:
-          <div style={{ marginTop: 6 }}><code>{action}</code></div>
+          <div style={{ marginTop: 6 }}>
+            <code>{action}</code>
+          </div>
         </div>
-
-        <noscript>
-          <p>JavaScript is not required here. Use the Continue link above.</p>
-        </noscript>
       </div>
     </div>
   );
