@@ -7,7 +7,26 @@ type SearchParams = { [key: string]: string | string[] | undefined };
 export default async function MagicAuthPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const token = typeof sp?.token === "string" ? sp?.token : Array.isArray(sp?.token) ? (sp?.token as string[])[0] : null;
-  const email = typeof sp?.email === "string" ? sp?.email : Array.isArray(sp?.email) ? (sp?.email as string[])[0] : null;
+  const emailRaw = typeof sp?.email === "string" ? sp?.email : Array.isArray(sp?.email) ? (sp?.email as string[])[0] : null;
+
+  // Robustní dekódování e-mailu (zvládne email=%40 i email=%2540)
+  const email = (() => {
+    if (!emailRaw) return null;
+    try {
+      const once = decodeURIComponent(emailRaw);
+      // Pokud po prvním dekódu zůstane %xx, zkusíme dekódovat podruhé
+      if (/%[0-9A-Fa-f]{2}/.test(once)) {
+        try {
+          return decodeURIComponent(once);
+        } catch {
+          return once;
+        }
+      }
+      return once;
+    } catch {
+      return emailRaw;
+    }
+  })();
 
   if (!token || !email) {
     return (
