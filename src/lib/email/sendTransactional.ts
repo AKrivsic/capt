@@ -12,13 +12,20 @@ export type SendEmailParams = {
 
 type ResendOk = { id: string | null };
 
-const API_KEY = process.env.RESEND_API_KEY;
-if (!API_KEY) throw new Error("Missing RESEND_API_KEY");
-
 const DEFAULT_FROM =
   process.env.EMAIL_FROM ?? "Captioni <no-reply@auth.captioni.com>";
 
-const resend = new Resend(API_KEY);
+let resendClient: Resend | null = null;
+function getResend(): Resend {
+  if (resendClient) return resendClient;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    // Jasná chyba s kontextem – v prod se objeví v logs a route spadne s 500
+    throw new Error("Missing RESEND_API_KEY (required to send emails)");
+  }
+  resendClient = new Resend(apiKey);
+  return resendClient;
+}
 
 export async function sendTransactionalEmail(
   params: SendEmailParams
@@ -46,6 +53,7 @@ export async function sendTransactionalEmail(
     ...(replyTo ? { reply_to: replyTo } : {}), // Resend SDK používá reply_to
   };
 
+  const resend = getResend();
   const { data, error } = await resend.emails.send(payload);
 
   if (error) {
