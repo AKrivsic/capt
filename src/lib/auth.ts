@@ -36,6 +36,15 @@ const adapter: Adapter = {
   // NextAuth si ukládá verifikační token – zajistíme, že identifier je již normalized
   createVerificationToken: async (token) => {
     const t = { ...token, identifier: normalizeId(token.identifier) };
+    try {
+      // Bezpečné logování (neukazujeme celý token)
+      console.debug("[auth][createVerificationToken]", {
+        identifierRaw: token.identifier,
+        identifierNorm: t.identifier,
+        tokenPreview: String(token.token).slice(0, 8),
+        expires: token.expires,
+      });
+    } catch {}
     // @ts-expect-error – typ v adapters může být volitelný, ale v PrismaAdapter je k dispozici
     return base.createVerificationToken(t);
   },
@@ -44,13 +53,28 @@ const adapter: Adapter = {
   useVerificationToken: async (params) => {
     const p = { ...params, identifier: normalizeId(params.identifier) };
     try {
+      console.debug("[auth][useVerificationToken]", {
+        identifierRaw: params.identifier,
+        identifierNorm: p.identifier,
+        tokenPreview: String(params.token).slice(0, 8),
+      });
+    } catch {}
+    try {
       // @ts-expect-error viz výše
-      return await base.useVerificationToken(p);
+      const res = await base.useVerificationToken(p);
+      try {
+        console.debug("[auth][useVerificationToken][result]", { found: Boolean(res) });
+      } catch {}
+      return res;
     } catch (e) {
       // Fallback: když by DB měla uložený už enkódovaný identifikátor (edge case)
       try {
         // @ts-expect-error viz výše
-        return await base.useVerificationToken(params);
+        const res2 = await base.useVerificationToken(params);
+        try {
+          console.debug("[auth][useVerificationToken][fallback-result]", { found: Boolean(res2) });
+        } catch {}
+        return res2;
       } catch {
         throw e;
       }
