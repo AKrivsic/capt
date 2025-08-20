@@ -107,12 +107,30 @@ export const authOptions: NextAuthOptions = {
         }
         g.__mlock.set(identifier, now);
 
-        // ---- Sanitizace magic linku: VŽDY odstraníme callbackUrl; email NEPŘEPISUJEME ----
+        // ---- Vytvoření BOT‑SAFE mezipřistání: místo přímého callbacku pošleme odkaz na /auth/magic ----
+        // Link‑scannery často otevřou GET, čímž by spotřebovaly token. Stránka /auth/magic vyžaduje POST, který roboti typicky nespustí.
         let safeUrl = url;
         try {
           const u = new URL(url);
+
+          // 1) Vyčistíme nepodstatné parametry
+          const token = u.searchParams.get("token");
+          const email = u.searchParams.get("email");
+          const origin = `${u.protocol}//${u.host}`;
+
+          // (callbackUrl případně zahodíme – redirect řešíme v NextAuth callbacks.redirect)
           u.searchParams.delete("callbackUrl");
-          safeUrl = u.toString();
+
+          // 2) Sestavíme odkaz na interstitial stránku, která provede POST na NextAuth callback
+          if (token && email) {
+            const interstitial = new URL("/auth/magic", origin);
+            interstitial.searchParams.set("token", token);
+            interstitial.searchParams.set("email", email);
+            safeUrl = interstitial.toString();
+          } else {
+            // fallback: pošleme původní url (nemělo by nastat)
+            safeUrl = u.toString();
+          }
         } catch {
           // fallback: pošleme původní url
         }
