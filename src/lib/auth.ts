@@ -21,7 +21,6 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
 
   pages: {
-    // Vlastní "check your email" stránka
     verifyRequest: "/verify-request",
   },
 
@@ -41,7 +40,21 @@ export const authOptions: NextAuthOptions = {
 
     EmailProvider({
       from: required("EMAIL_FROM", process.env.EMAIL_FROM), // např. "Captioni <no-reply@auth.captioni.com>"
-      maxAge: 15 * 60, // 15 min
+      maxAge: 30 * 60, // prodloužíme platnost na 30 min
+      /**
+       * Kritická část: sjednotíme identifikátor.
+       * NextAuth to zavolá při CREATE i při VERIFY, takže se vždy uloží/čte totéž.
+       */
+      normalizeIdentifier(identifier: string) {
+        try {
+          // dekódujeme případné %40 apod., ořízneme, sjednotíme case
+          const dec = decodeURIComponent(identifier);
+          return dec.trim().toLowerCase();
+        } catch {
+          return identifier.trim().toLowerCase();
+        }
+      },
+
       async sendVerificationRequest({ identifier, url, provider }) {
         // ---- Idempotentní anti-spam lock (30s) ----
         type LockMap = Map<string, number>;
@@ -57,25 +70,20 @@ export const authOptions: NextAuthOptions = {
         }
         g.__mlock.set(identifier, now);
 
-        // ---- Sanitizace magic linku: úplně odstraníme callbackUrl ----
+        // ---- Sanitizace magic linku: VŽDY odstraníme callbackUrl, email NEPŘEPISUJEME ----
         let safeUrl = url;
-try {
-  const u = new URL(url);
-
-  // 1) callbackUrl vždy odstraníme (jinak hrozí double-encoding a invalid callback)
-  u.searchParams.delete("callbackUrl");
-
-  // 2) normalizujeme e-mail – musí být přesně stejný jako identifier v DB
-  u.searchParams.set("email", identifier);
-
-  safeUrl = u.toString();
-} catch {
-  // fallback: pošleme původní url, když by parsing selhal
-}
+        try {
+          const u = new URL(url);
+          u.searchParams.delete("callbackUrl"); // eliminace INVALID_CALLBACK_URL_ERROR
+          // DŮLEŽITÉ: NEPŘEPISUJ "email" – necháme hodnotu, kterou NextAuth vložil
+          safeUrl = u.toString();
+        } catch {
+          // fallback: pošleme původní url, když by parser selhal
+        }
 
         // ---- Odeslání e-mailu přes Resend helper ----
         await sendTransactionalEmail({
-          to: identifier,
+          to: identifier, // už normalizeIdentifier → lowercased/decoded
           subject: "Your Captioni magic link ✨",
           html: authMagicLinkHtml(safeUrl),
           text: authMagicLinkText(safeUrl),
@@ -114,12 +122,10 @@ try {
         const base = new URL(baseUrl);
         const u = new URL(url, baseUrl);
 
-        // Platí pro email i Google callback
         if (u.pathname.startsWith("/api/auth/callback/")) {
           return `${base.origin}/?consent=1`;
         }
 
-        // Bezpečný fallback: interní URL nech, externí utneme na homepage
         if (u.origin === base.origin) return u.toString();
         return base.origin;
       } catch {
