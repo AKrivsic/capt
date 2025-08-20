@@ -182,6 +182,20 @@ export const authOptions: NextAuthOptions = {
     updateAge: 24 * 60 * 60,
   },
 
+  // Explicitní cookie nastavení pro produkční doménu
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NODE_ENV === "production" ? "captioni.com" : undefined,
+      },
+    },
+  },
+
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
@@ -220,6 +234,17 @@ export const authOptions: NextAuthOptions = {
       } catch (e) {
         console.error("[ML createUser]", e);
       }
+    },
+    signIn: async (message) => {
+      try {
+        const u = message.user as { id?: string; email?: string | null };
+        console.log("[NextAuth][event][signIn]", { userId: u?.id, email: u?.email, account: message.account?.provider });
+      } catch {}
+    },
+    session: async ({ session }) => {
+      try {
+        console.log("[NextAuth][event][session]", { hasUser: Boolean(session?.user), userEmail: session?.user?.email ?? null });
+      } catch {}
     },
   },
 
