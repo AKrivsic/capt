@@ -98,6 +98,10 @@ export const authOptions: NextAuthOptions = {
         const base = new URL(baseUrl);
         const u = new URL(url, baseUrl);
 
+        if (u.pathname.startsWith("/api/aut/callback/")) {
+          return `${base.origin}/?consent=1`;
+        }
+
         const cbRaw = u.searchParams.get("callbackUrl");
         if (cbRaw) {
           // jednorázově decode → validní absolutní URL v rámci stejného originu

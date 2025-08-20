@@ -15,7 +15,7 @@ export default function HeaderAuth() {
       <button
         onClick={() => {
           trackSignupStart("header");
-          void signIn(undefined, { callbackUrl: "/?consent=1" });
+          void signIn(undefined);
         }}
         className={styles.btnSign}
         aria-label="Sign in"
