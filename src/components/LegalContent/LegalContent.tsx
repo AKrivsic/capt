@@ -171,3 +171,40 @@ export function PrivacyContent() {
     </div>
   );
 }
+
+export function AboutContent() {
+  return (
+    <div>
+      <h3>About Captioni</h3>
+      <p>
+        Captioni was born with a simple mission: to make content creation effortless, fun, and inspiring.
+      </p>
+      <p>
+        We know how much time creators spend thinking of the perfect caption, bio, or hashtag. That’s why we built
+        Captioni — your AI-powered sidekick that helps you shine on Instagram, TikTok, and OnlyFans.
+      </p>
+      <p>
+        Whether you’re a growing influencer, a content pro, or just starting out, Captioni gives you scroll-stopping ideas
+        in seconds. No more blank screens, no more stress. Just creativity, boosted.
+      </p>
+      <ul>
+        <li>✨ Our vibe: playful, pastel, and creator-first.</li>
+        <li>💎 Our goal: help you grow your audience and turn followers into fans.</li>
+        <li>⚡ Our promise: fast, fun, and always on-brand.</li>
+      </ul>
+    </div>
+  );
+}
+
+export function ContactContent() {
+  return (
+    <div>
+      <h3>Contact Captioni</h3>
+      <p>We’d love to hear from you. Questions, feedback, or just want to say hi? Our support team is here for you.</p>
+      <p>
+        <a href="mailto:support@captioni.com">📩 Email: support@captioni.com</a>
+      </p>
+      <p>We usually reply within 24 hours.</p>
+    </div>
+  );
+}

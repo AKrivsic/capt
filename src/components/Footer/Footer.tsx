@@ -15,8 +15,16 @@ const PrivacyContent = dynamic(
   () => import("@/components/LegalContent/LegalContent").then(m => m.PrivacyContent),
   { ssr: false }
 );
+const AboutContent = dynamic(
+  () => import("@/components/LegalContent/LegalContent").then(m => m.AboutContent),
+  { ssr: false }
+);
+const ContactContent = dynamic(
+  () => import("@/components/LegalContent/LegalContent").then(m => m.ContactContent),
+  { ssr: false }
+);
 
-type LegalType = null | "terms" | "privacy";
+type LegalType = null | "terms" | "privacy" | "about" | "contact";
 
 export default function Footer() {
   const [open, setOpen] = useState<LegalType>(null);
@@ -32,9 +40,9 @@ export default function Footer() {
       <footer className={styles.footer}>
         <p className={styles.text}>
           © 2025 <Link href="/" className={styles.brand}>Captioni</Link> ·{" "}
-          <Link href="/about" className={styles.link}>About</Link> ·{" "}
+          <a href="/about" className={styles.link} onClick={(e) => openModal(e, "about")}>About</a> ·{" "}
           <Link href="/#faq" className={styles.link}>FAQ</Link> ·{" "}
-          <Link href="/contact" className={styles.link}>Contact</Link> ·{" "}
+          <a href="/contact" className={styles.link} onClick={(e) => openModal(e, "contact")}>Contact</a> ·{" "}
           <a href="/terms" className={styles.link} onClick={(e) => openModal(e, "terms")}>Terms</a> ·{" "}
           <a href="/privacy" className={styles.link} onClick={(e) => openModal(e, "privacy")}>Privacy</a>
         </p>
@@ -56,6 +64,22 @@ export default function Footer() {
       >
         {/* obsah v angličtině (vendor-neutral) */}
         <PrivacyContent />
+      </Modal>
+
+      <Modal
+        isOpen={open === "about"}
+        onClose={() => setOpen(null)}
+        title="About Captioni"
+      >
+        <AboutContent />
+      </Modal>
+
+      <Modal
+        isOpen={open === "contact"}
+        onClose={() => setOpen(null)}
+        title="Contact Captioni"
+      >
+        <ContactContent />
       </Modal>
     </>
   );
