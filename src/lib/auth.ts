@@ -275,23 +275,48 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async session({ session, user }) {
-      if (session.user) {
-        type SessUser = typeof session.user & { id: string; plan: PlanEnum | null };
-        const su = session.user as SessUser;
-        su.id = user.id;
+      if (!session.user) return session;
+
+      type SessUser = typeof session.user & { id: string; plan: PlanEnum | null; marketingConsent: boolean | null };
+      const su = session.user as SessUser;
+
+      // If NextAuth provided the DB user (usually on initial sign-in), use it.
+      if (user && (user as { id?: string }).id) {
+        su.id = (user as { id: string }).id;
         su.plan = (user as { plan?: PlanEnum | null }).plan ?? null;
+        su.marketingConsent = (user as { marketingConsent?: boolean | null }).marketingConsent ?? null;
+        return session;
       }
+
+      // Otherwise, fetch from DB by email to enrich the session consistently on subsequent fetches
+      try {
+        const db = await prisma.user.findFirst({
+          where: { email: { equals: session.user.email ?? undefined, mode: "insensitive" } },
+          select: { id: true, plan: true, marketingConsent: true },
+        });
+        if (db) {
+          su.id = db.id;
+          su.plan = (db.plan as PlanEnum | null) ?? null;
+          su.marketingConsent = (db.marketingConsent as boolean | null) ?? null;
+        } else {
+          su.plan = su.plan ?? null;
+          su.marketingConsent = su.marketingConsent ?? null;
+        }
+      } catch {
+        // leave session as-is on error
+      }
+
       return session;
     },
 
-    // Centrální redirect – po úspěšném callbacku vždy na "/?consent=1"
+    // Centrální redirect – po úspěšném callbacku zpět na homepage
     async redirect({ url, baseUrl }) {
       try {
         const base = new URL(baseUrl);
         const u = new URL(url, baseUrl);
 
         if (u.pathname.startsWith("/api/auth/callback/")) {
-          return `${base.origin}/?consent=1`;
+          return base.origin;
         }
 
         if (u.origin === base.origin) return u.toString();
