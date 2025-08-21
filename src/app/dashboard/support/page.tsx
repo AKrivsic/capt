@@ -10,7 +10,7 @@ export default async function SupportPage() {
     <div className="space-y-3">
       <h1 className="text-2xl font-semibold">Support</h1>
       <p className="text-sm text-gray-600">
-        Need help? Reach us at <a className="link" href="mailto:support@captioni.ai">support@captioni.ai</a>
+        Need help? Reach us at <a className="link" href="mailto:support@captioni.com">support@captioni.com</a>
       </p>
       <ul className="list-disc pl-5 text-sm">
         <li><a className="link" href="#faq">FAQ</a></li>

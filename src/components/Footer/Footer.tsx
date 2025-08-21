@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, MouseEvent } from "react";
+import Link from "next/link";
 import styles from "./Footer.module.css";
 import dynamic from "next/dynamic";
 
@@ -30,10 +31,10 @@ export default function Footer() {
     <>
       <footer className={styles.footer}>
         <p className={styles.text}>
-          © 2025 <span className={styles.brand}>Captioni</span> ·{" "}
-          <a href="/about" className={styles.link}>About</a> ·{" "}
-          <a href="#faq" className={styles.link}>FAQ</a> ·{" "}
-          <a href="mailto:hello@captioni.ai" className={styles.link}>Contact</a> ·{" "}
+          © 2025 <Link href="/" className={styles.brand}>Captioni</Link> ·{" "}
+          <Link href="/about" className={styles.link}>About</Link> ·{" "}
+          <Link href="/#faq" className={styles.link}>FAQ</Link> ·{" "}
+          <Link href="/contact" className={styles.link}>Contact</Link> ·{" "}
           <a href="/terms" className={styles.link} onClick={(e) => openModal(e, "terms")}>Terms</a> ·{" "}
           <a href="/privacy" className={styles.link} onClick={(e) => openModal(e, "privacy")}>Privacy</a>
         </p>

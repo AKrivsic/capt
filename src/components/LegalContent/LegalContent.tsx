@@ -15,7 +15,7 @@ export function TermsContent() {
         Captioni is operated by:<br />
         <strong>LucyTo Trade s.r.o.</strong><br />
         <strong>Address: Halkova 1639/4, Prague, 120 00</strong> [Full Business Address]<br />
-        <strong>Email: support@captioni.com</strong> <a href="mailto:hello@captioni.ai">support@captioni.com</a>
+        <strong>Email: support@captioni.com</strong> <a href="mailto:hello@captioni.com">support@captioni.com</a>
       </p>
 
       <h3>3. Legal Capacity</h3>
