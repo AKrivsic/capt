@@ -154,6 +154,7 @@ export async function mlUpsertSubscriber(p: UpsertParams): Promise<void> {
 /** Bezpečné „přidej do skupin“ (aditivní), neodstraňuje z jiných skupin. */
 export async function mlAddToGroups(email: string, groupIds: GroupId[]): Promise<void> {
   if (groupIds.length === 0) return;
+  mlLog("addToGroups", { email, groupIds });
   await mlUpsertSubscriber({ email, groups: groupIds });
 }
 
