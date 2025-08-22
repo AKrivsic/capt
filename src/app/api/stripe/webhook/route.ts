@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { mlSetPlanGroup } from "@/lib/mailerlite";
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, whSecret);
+    event = getStripe().webhooks.constructEvent(rawBody, sig, whSecret);
   } catch (err) {
     console.error("[stripe/webhook] signature error", err);
     return NextResponse.json({ ok: false }, { status: 400 });
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = (sub.customer as string) ?? undefined;
         if (!customerId) break;
-        const customer = await stripe.customers.retrieve(customerId).catch(() => null);
+        const customer = await getStripe().customers.retrieve(customerId).catch(() => null);
         const email = (customer && "email" in customer ? (customer as Stripe.Customer).email : null) || undefined;
         if (!email) break;
         // Determine status and keep plan PRO when active, else downgrade FREE
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as Stripe.Subscription;
         const customerId = (sub.customer as string) ?? undefined;
         if (!customerId) break;
-        const customer = await stripe.customers.retrieve(customerId).catch(() => null);
+        const customer = await getStripe().customers.retrieve(customerId).catch(() => null);
         const email = (customer && "email" in customer ? (customer as Stripe.Customer).email : null) || undefined;
         if (!email) break;
         const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });

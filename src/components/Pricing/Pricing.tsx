@@ -3,20 +3,31 @@
 import styles from "./Pricing.module.css";
 import { trackSignupStart, trackCheckoutStart } from "@/utils/tracking";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 export default function Pricing() {
   const [busy, setBusy] = useState<null | "STARTER" | "PRO" | "PREMIUM">(null);
+  const { status } = useSession();
 
   async function startCheckout(plan: "STARTER" | "PRO" | "PREMIUM") {
     try {
       setBusy(plan);
       trackCheckoutStart(plan);
+      if (status !== "authenticated") {
+        window.location.href = "/api/auth/signin?callbackUrl=/#pricing";
+        return;
+      }
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        window.location.href = "/api/auth/signin?callbackUrl=/#pricing";
+        return;
+      }
       if (data?.url) {
         window.location.href = data.url as string;
         return;

@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { stripe, requiredEnv } from "@/lib/stripe";
+import { getStripe, requiredEnv } from "@/lib/stripe";
 import type Stripe from "stripe";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         : { invoice_creation: { enabled: true, invoice_data: { metadata: { plan } } } }),
     };
 
-    const s = await stripe.checkout.sessions.create(params);
+    const s = await getStripe().checkout.sessions.create(params);
 
     return NextResponse.json({ ok: true, id: s.id, url: s.url }, { status: 200 });
   } catch (e) {
