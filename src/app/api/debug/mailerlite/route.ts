@@ -42,9 +42,14 @@ export async function GET() {
     let bodyText = "";
     let groups: Array<{ id: string; name?: string | null }> | null = null;
     try {
-      const parsed = (await res.json()) as Array<{ id: string; name?: string | null }>;
+      const parsed = (await res.json()) as
+        | Array<{ id: string; name?: string | null }>
+        | { data?: Array<{ id: string; name?: string | null }> };
+
       if (Array.isArray(parsed)) {
         groups = parsed.map((g) => ({ id: String(g?.id), name: g?.name ?? null }));
+      } else if (parsed && Array.isArray(parsed.data)) {
+        groups = parsed.data.map((g) => ({ id: String(g?.id), name: g?.name ?? null }));
       }
     } catch {
       try { bodyText = await res.text(); } catch { bodyText = ""; }
