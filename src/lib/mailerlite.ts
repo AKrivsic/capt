@@ -76,7 +76,10 @@ export async function mlAddToGroups(email: string, groupIds: GroupId[]): Promise
 export async function mlEnsureUsersGroup(email: string, name?: string | null): Promise<void> {
   const usersId = process.env.ML_GROUP_USERS;
   if (!usersId) return;
-  await mlUpsertSubscriber({ email, name: name ?? null, groups: [usersId] });
+  const freeId = process.env.ML_GROUP_PLAN_FREE;
+  const groups: string[] = [usersId];
+  if (freeId) groups.push(freeId);
+  await mlUpsertSubscriber({ email, name: name ?? null, groups });
 }
 
 /**
