@@ -12,6 +12,7 @@ import { styleMeta } from "@/constants/styleMeta";
 import { platformMeta } from "@/constants/platformMeta";
 import { normalizePlatform } from "@/utils/normalizePlatform";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 // ✅ tracking
 import {
@@ -366,13 +367,13 @@ export default function Generator() {
                 unlimited magic ✨
               </p>
               <div>
-                <a
+                <Link
                   className={styles.limitButton}
-                  href="/signup"
+                  href="/api/auth/signin?callbackUrl=/"
                   onClick={() => trackSignupStart("generator")}
                 >
                   Create free account
-                </a>
+                </Link>
                 <a
                   className={styles.limitButton}
                   href="#pricing"
