@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import styles from "./DemoModal.module.css";
 import { getUsage, incUsage } from "@/utils/usage";
+import Link from "next/link";
 import { trackGenerationComplete, trackPricingClick, trackSignupStart } from "@/utils/tracking";
 
 type Props = {
@@ -149,13 +150,13 @@ export default function DemoModal({ onClose }: Props) {
               Unlock more styles, vibes, and outputs with our plans.
             </p>
             <div className={styles.buttonGroup}>
-              <a
+              <Link
                 className={styles.btn}
-                href="/signup"
+                href="/api/auth/signin?callbackUrl=/"
                 onClick={() => trackSignupStart("demoModal")}
               >
                 ✨ Create free account
-              </a>
+              </Link>
               <button className={styles.btn} onClick={handleGoToPricing}>
                 See pricing
               </button>
@@ -212,13 +213,13 @@ export default function DemoModal({ onClose }: Props) {
                   You’ve used {DEMO_LIMIT} demo generations today.
                 </p>
                 <div className={styles.ctaBtns}>
-                  <a
+                  <Link
                     className={styles.primary}
-                    href="/signup"
+                    href="/api/auth/signin?callbackUrl=/"
                     onClick={() => trackSignupStart("demoModal")}
                   >
                     Create free account
-                  </a>
+                  </Link>
                   <a
                     className={styles.secondary}
                     href="#pricing"
