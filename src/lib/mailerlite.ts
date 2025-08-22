@@ -33,6 +33,38 @@ async function mlFetch(path: string, init: RequestInit & { body?: string }): Pro
   });
 }
 
+async function findSubscriberIdByEmail(email: string): Promise<string | null> {
+  const res = await mlFetch(`/subscribers?filter[email]=${encodeURIComponent(email)}`, {
+    method: "GET",
+    body: undefined as unknown as string,
+  });
+  if (!res.ok) return null;
+  try {
+    const json = (await res.json()) as
+      | { data?: Array<{ id?: string | number }> }
+      | { data?: { id?: string | number }[] };
+    const first = Array.isArray((json as { data?: unknown }).data)
+      ? ((json as { data?: Array<{ id?: string | number }> }).data ?? [])[0]
+      : undefined;
+    const id = first?.id;
+    return id != null ? String(id) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function assignSubscriberToGroup(subscriberId: string, groupId: string): Promise<void> {
+  // According to docs: POST /subscribers/{subscriber_id}/groups/{group_id}
+  const res = await mlFetch(`/subscribers/${subscriberId}/groups/${groupId}`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  if (!res.ok && res.status !== 200 && res.status !== 201 && res.status !== 204) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Assign to group failed: ${res.status} ${t}`);
+  }
+}
+
 // ===== API funkce =====
 
 /**
@@ -45,9 +77,7 @@ export async function mlUpsertSubscriber(p: UpsertParams): Promise<void> {
   if (p.name) {
     body.fields = { name: p.name };
   }
-  if (p.groups && p.groups.length > 0) {
-    body.groups = p.groups;
-  }
+  // Groups will be assigned explicitly after upsert (Connect API assigns via dedicated endpoint)
   if (p.resubscribe) {
     body.resubscribe = true;
   }
@@ -60,6 +90,33 @@ export async function mlUpsertSubscriber(p: UpsertParams): Promise<void> {
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`MailerLite upsert failed: ${res.status} ${t}`);
+  }
+
+  // Assign groups explicitly if requested
+  if (p.groups && p.groups.length > 0) {
+    let subscriberId: string | null = null;
+    try {
+      const json = (await res.json()) as
+        | { data?: { id?: string | number } }
+        | { id?: string | number };
+      const id = (json as { data?: { id?: string | number } })?.data?.id ?? (json as { id?: string | number })?.id;
+      subscriberId = id != null ? String(id) : null;
+    } catch {
+      subscriberId = null;
+    }
+    if (!subscriberId) {
+      subscriberId = await findSubscriberIdByEmail(p.email);
+    }
+    if (subscriberId) {
+      for (const gid of p.groups) {
+        try {
+          await assignSubscriberToGroup(subscriberId, gid);
+        } catch (e) {
+          // Log and continue with other groups
+          console.error("[MailerLite] assign group error", { email: p.email, groupId: gid, error: e });
+        }
+      }
+    }
   }
 }
 
