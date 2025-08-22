@@ -15,6 +15,18 @@ type UpsertParams = {
 };
 
 // ===== Helpers =====
+function mlDebugEnabled(): boolean {
+  return process.env.ML_DEBUG === "1" || process.env.NODE_ENV === "development";
+}
+
+function mlLog(label: string, payload?: unknown): void {
+  if (!mlDebugEnabled()) return;
+  try { console.debug(`[ML] ${label}`, payload ?? ""); } catch {}
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 function apiKey(): string {
   const k = process.env.MAILERLITE_API_KEY;
   if (!k) throw new Error("Missing MAILERLITE_API_KEY");
@@ -22,6 +34,7 @@ function apiKey(): string {
 }
 
 async function mlFetch(path: string, init: RequestInit & { body?: string }): Promise<Response> {
+  mlLog("fetch", { path, method: init.method });
   return fetch(`${ML_BASE}${path}`, {
     ...init,
     headers: {
@@ -34,35 +47,46 @@ async function mlFetch(path: string, init: RequestInit & { body?: string }): Pro
 }
 
 async function findSubscriberIdByEmail(email: string): Promise<string | null> {
-  const res = await mlFetch(`/subscribers?filter[email]=${encodeURIComponent(email)}`, {
-    method: "GET",
-    body: undefined as unknown as string,
-  });
-  if (!res.ok) return null;
-  try {
-    const json = (await res.json()) as
-      | { data?: Array<{ id?: string | number }> }
-      | { data?: { id?: string | number }[] };
-    const first = Array.isArray((json as { data?: unknown }).data)
-      ? ((json as { data?: Array<{ id?: string | number }> }).data ?? [])[0]
-      : undefined;
-    const id = first?.id;
-    return id != null ? String(id) : null;
-  } catch {
-    return null;
+  const url = `/subscribers?filter[email]=${encodeURIComponent(email)}`;
+  // Retry a few times in case of eventual consistency (202 Accepted on upsert)
+  const delays = [0, 200, 400, 800, 1200, 1600];
+  for (let attempt = 0; attempt < delays.length; attempt++) {
+    if (delays[attempt] > 0) await sleep(delays[attempt]);
+    const res = await mlFetch(url, { method: "GET", body: undefined as unknown as string });
+    mlLog("findSubscriberIdByEmail.status", { status: res.status, attempt });
+    if (!res.ok) continue;
+    try {
+      const json = (await res.json()) as { data?: Array<{ id?: string | number; email?: string }> };
+      const list = Array.isArray(json?.data) ? json.data : [];
+      const found = list.find((s) => (s?.email ?? "").toLowerCase() === email.toLowerCase()) || list[0];
+      const id = found?.id;
+      if (id != null) return String(id);
+    } catch (e) {
+      mlLog("findSubscriberIdByEmail.jsonError", String(e));
+    }
   }
+  return null;
 }
 
 async function assignSubscriberToGroup(subscriberId: string, groupId: string): Promise<void> {
-  // According to docs: POST /subscribers/{subscriber_id}/groups/{group_id}
-  const res = await mlFetch(`/subscribers/${subscriberId}/groups/${groupId}`, {
+  // Primary path per docs: POST /subscribers/{subscriber_id}/groups/{group_id}
+  let res = await mlFetch(`/subscribers/${subscriberId}/groups/${groupId}`, {
     method: "POST",
     body: JSON.stringify({}),
   });
-  if (!res.ok && res.status !== 200 && res.status !== 201 && res.status !== 204) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`Assign to group failed: ${res.status} ${t}`);
-  }
+  mlLog("assignGroup.primary", { status: res.status, subscriberId, groupId });
+  if (res.ok || [200, 201, 204].includes(res.status)) return;
+  const primaryErr = await res.text().catch(() => "");
+
+  // Fallback path some accounts expose: POST /groups/{group_id}/subscribers/{subscriber_id}
+  res = await mlFetch(`/groups/${groupId}/subscribers/${subscriberId}`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  mlLog("assignGroup.fallback", { status: res.status, subscriberId, groupId });
+  if (res.ok || [200, 201, 204].includes(res.status)) return;
+  const fallbackErr = await res.text().catch(() => "");
+  throw new Error(`Assign group failed: primary=${primaryErr} fallback=${fallbackErr}`);
 }
 
 // ===== API funkce =====
@@ -87,8 +111,10 @@ export async function mlUpsertSubscriber(p: UpsertParams): Promise<void> {
     body: JSON.stringify(body),
   });
 
+  mlLog("upsert.status", { status: res.status });
   if (!res.ok) {
     const t = await res.text();
+    mlLog("upsert.error", t);
     throw new Error(`MailerLite upsert failed: ${res.status} ${t}`);
   }
 
@@ -101,21 +127,26 @@ export async function mlUpsertSubscriber(p: UpsertParams): Promise<void> {
         | { id?: string | number };
       const id = (json as { data?: { id?: string | number } })?.data?.id ?? (json as { id?: string | number })?.id;
       subscriberId = id != null ? String(id) : null;
+      mlLog("upsert.jsonId", { subscriberId });
     } catch {
       subscriberId = null;
     }
     if (!subscriberId) {
       subscriberId = await findSubscriberIdByEmail(p.email);
+      mlLog("upsert.lookupId", { subscriberId });
     }
     if (subscriberId) {
       for (const gid of p.groups) {
         try {
           await assignSubscriberToGroup(subscriberId, gid);
+          mlLog("assignGroup.ok", { subscriberId, groupId: gid });
         } catch (e) {
           // Log and continue with other groups
           console.error("[MailerLite] assign group error", { email: p.email, groupId: gid, error: e });
         }
       }
+    } else {
+      mlLog("assignGroup.noSubscriberId", { email: p.email, groups: p.groups });
     }
   }
 }
@@ -136,6 +167,7 @@ export async function mlEnsureUsersGroup(email: string, name?: string | null): P
   const freeId = process.env.ML_GROUP_PLAN_FREE;
   const groups: string[] = [usersId];
   if (freeId) groups.push(freeId);
+  mlLog("ensureUsersGroup", { email, groups });
   await mlUpsertSubscriber({ email, name: name ?? null, groups });
 }
 
@@ -155,6 +187,7 @@ export async function mlSetPlanGroup(email: string, plan: PlanSlug): Promise<voi
 
   const usersId = process.env.ML_GROUP_USERS;
   const groups: string[] = usersId ? [id, usersId] : [id];
+  mlLog("setPlanGroup", { email, plan, groups });
   await mlAddToGroups(email, groups);
 }
 
