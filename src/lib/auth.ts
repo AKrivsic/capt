@@ -332,6 +332,13 @@ export const authOptions: NextAuthOptions = {
       try {
         if (user?.email) {
           await mlEnsureUsersGroup(user.email, user.name ?? null);
+          // Also mark Free plan group on first creation
+          try {
+            const { mlSetPlanGroup } = await import("@/lib/mailerlite");
+            await mlSetPlanGroup(user.email, "free");
+          } catch (e) {
+            console.error("[ML createUser][setPlanFree]", e);
+          }
         }
       } catch (e) {
         console.error("[ML createUser]", e);

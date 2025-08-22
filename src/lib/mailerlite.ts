@@ -89,11 +89,7 @@ export async function mlSetPlanGroup(email: string, plan: PlanSlug): Promise<voi
   }[plan];
   if (!id) throw new Error(`Missing ML_GROUP for plan=${plan}`);
 
-  const usersId = process.env.ML_GROUP_USERS;
-  const groups: string[] = [id];
-  if (usersId) groups.push(usersId);
-
-  await mlAddToGroups(email, groups);
+  await mlAddToGroups(email, [id]);
 }
 
 /**

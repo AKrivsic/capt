@@ -1,12 +1,33 @@
 // src/components/Pricing/Pricing.tsx
 "use client";
 import styles from "./Pricing.module.css";
-import {
-  trackSignupStart,
-  trackCheckoutStart,
-} from "@/utils/tracking";
+import { trackSignupStart, trackCheckoutStart } from "@/utils/tracking";
+import { useState } from "react";
 
 export default function Pricing() {
+  const [busy, setBusy] = useState<null | "STARTER" | "PRO" | "PREMIUM">(null);
+
+  async function startCheckout(plan: "STARTER" | "PRO" | "PREMIUM") {
+    try {
+      setBusy(plan);
+      trackCheckoutStart(plan);
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url as string;
+        return;
+      }
+      alert("Checkout failed.");
+    } catch {
+      alert("Checkout error.");
+    } finally {
+      setBusy(null);
+    }
+  }
   return (
     <section className={styles.pricing} id="pricing">
       <h2 className={styles.heading}>Choose your plan</h2>
@@ -40,11 +61,12 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => trackCheckoutStart("STARTER")}
+            onClick={() => startCheckout("STARTER")}
             aria-label="Unlock Starter plan"
             data-testid="btn-pricing-starter"
+            disabled={busy !== null}
           >
-            Unlock Access
+            {busy === "STARTER" ? "Loading..." : "Unlock Access"}
           </button>
         </div>
 
@@ -60,11 +82,12 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => trackCheckoutStart("PRO")}
+            onClick={() => startCheckout("PRO")}
             aria-label="Go Pro plan"
             data-testid="btn-pricing-pro"
+            disabled={busy !== null}
           >
-            Go Pro
+            {busy === "PRO" ? "Loading..." : "Go Pro"}
           </button>
         </div>
 
@@ -79,11 +102,12 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => trackCheckoutStart("PREMIUM")}
+            onClick={() => startCheckout("PREMIUM")}
             aria-label="Get Premium plan"
             data-testid="btn-pricing-premium"
+            disabled={busy !== null}
           >
-            Get Premium
+            {busy === "PREMIUM" ? "Loading..." : "Get Premium"}
           </button>
         </div>
 

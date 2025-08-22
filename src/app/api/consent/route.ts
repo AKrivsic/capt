@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { espSubscribe, espUnsubscribe } from "@/lib/esp";
+import { mlUpsertSubscriber } from "@/lib/mailerlite";
 
 type ConsentBody = {
   marketing: boolean;
@@ -33,6 +34,16 @@ export async function POST(req: Request) {
       await espSubscribe({ email, name, source: sourceUrl });
     } else {
       await espUnsubscribe(email);
+    }
+
+    // Přímý zápis do MailerLite (pokud je ML nakonfigurován). Přidáme do marketingové skupiny, když je k dispozici.
+    try {
+      const marketingGroup = process.env.ML_GROUP_MARKETING;
+      if (marketing && marketingGroup) {
+        await mlUpsertSubscriber({ email, name, groups: [marketingGroup] });
+      }
+    } catch (e) {
+      console.error("[ML consent]", e);
     }
 
     // zápis consentu a audit log
