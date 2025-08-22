@@ -54,11 +54,16 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => trackSignupStart("pricing")}
+            onClick={() => {
+              trackSignupStart("pricing");
+              if (status === "authenticated") {
+                window.location.href = "/#generator";
+              } else {
+                window.location.href = "/api/auth/signin?callbackUrl=/#pricing";
+              }
+            }}
             aria-label="Start free plan"
             data-testid="btn-pricing-free"
-            onMouseDown={(e) => e.preventDefault()}
-            onClickCapture={() => { window.location.href = "/api/auth/signin?callbackUrl=/"; }}
           >
             Start Free
           </button>
