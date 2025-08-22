@@ -13,29 +13,29 @@
 .plans {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 2rem;
-    justify-items: center;
+    gap: 1.25rem;
+    justify-items: stretch;
 }
 
 @media (min-width: 768px) {
     .plans {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        justify-items: center;
     }
 }
 
 @media (min-width: 1024px) {
     .plans {
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     }
 }
 
 .plan {
     background: #ffffff;
     border-radius: 16px;
-    padding: 2rem;
-    flex: 1 1 260px;
-    min-width: 260px;
-    max-width: 300px;
+    padding: 1.25rem;
+    width: 100%;
+    max-width: 520px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     position: relative;
     display: flex;
@@ -60,7 +60,7 @@
 }
 
 .price {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: bold;
     margin: 1rem 0;
     color: #4b5563;
@@ -68,7 +68,7 @@
 
 .btn {
     margin-top: auto;
-    padding: 0.75rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     background: linear-gradient(135deg, #8b5cf6, #ec4899);
     /* fialová */
     color: white;
@@ -138,15 +138,22 @@
 }
 
 .badge {
-    right: 22px;
+    right: 12px;
     background-color: #f97316;
     color: white;
 }
 
 .badgeBestValue {
-    left: 22px;
+    left: 12px;
     background-color: #10b981;
     color: white;
+}
+
+@media (max-width: 380px) {
+    .heading { font-size: 1.5rem; }
+    .plan { padding: 1rem; border-radius: 12px; }
+    .price { font-size: 1.2rem; }
+    .btn { font-size: 0.95rem; padding: 0.65rem 1rem; border-radius: 10px; }
 }
 
 .badge:hover,

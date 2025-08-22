@@ -19,7 +19,19 @@ body {
     font-family: var(--font-nunito, "Nunito"), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: var(--bg);
     color: var(--text);
+    overflow-x: hidden;
 }
+
+html { overflow-x: hidden; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+img, svg, video, canvas { max-width: 100%; height: auto; }
+
+/* Prevent long content from causing horizontal scroll */
+pre, code { white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; }
+
+header, main, footer, section, div { max-width: 100%; }
 
 .hero {
     background-color: var(--pink);
