@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./DashboardNav.module.css";
+import { signOut } from "next-auth/react";
 
 const tabs = [
   { href: "/dashboard", label: "Overview" },
@@ -33,6 +34,19 @@ export default function DashboardNav({
           </Link>
         );
       })}
+      {stack && (
+        <button
+          className={styles.link}
+          onClick={() => {
+            void signOut({ callbackUrl: "/?signed_out=1" });
+            if (onNavigate) onNavigate();
+          }}
+          aria-label="Sign out"
+          data-testid="btn-dashboard-signout"
+        >
+          Sign out
+        </button>
+      )}
     </nav>
   );
 }
