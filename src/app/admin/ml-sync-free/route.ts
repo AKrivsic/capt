@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
-import { mlEnsureUsersGroup } from "@/lib/mailerlite";
+import { mlEnsureUsersGroup, mlSetPlanGroup } from "@/lib/mailerlite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +18,7 @@ export async function POST() {
     try {
       if (!u.email) continue;
       await mlEnsureUsersGroup(u.email, u.name ?? null);
+      try { await mlSetPlanGroup(u.email, "free"); } catch {}
       ok++;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
