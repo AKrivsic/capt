@@ -32,7 +32,9 @@ export async function POST(req: NextRequest) {
     // PRO and PREMIUM are recurring subscriptions; STARTER is one-time
     const mode: "payment" | "subscription" = plan === "STARTER" ? "payment" : "subscription";
 
-    const params: Stripe.Checkout.SessionCreateParams = {
+    const paramsBase: Omit<Stripe.Checkout.SessionCreateParams,
+      "subscription_data" | "invoice_creation" | "customer_creation"
+    > = {
       mode,
       payment_method_types: ["card"],
       line_items: [
@@ -48,12 +50,20 @@ export async function POST(req: NextRequest) {
       allow_promotion_codes: true,
       billing_address_collection: "required",
       tax_id_collection: { enabled: true },
-      customer_creation: "always",
       metadata: { plan },
-      ...(mode === "subscription"
-        ? { subscription_data: { metadata: { plan } } }
-        : { invoice_creation: { enabled: true, invoice_data: { metadata: { plan } } } }),
     };
+
+    const params: Stripe.Checkout.SessionCreateParams =
+      mode === "subscription"
+        ? {
+            ...paramsBase,
+            subscription_data: { metadata: { plan } },
+          }
+        : {
+            ...paramsBase,
+            customer_creation: "always",
+            invoice_creation: { enabled: true, invoice_data: { metadata: { plan } } },
+          };
 
     const s = await getStripe().checkout.sessions.create(params);
 
