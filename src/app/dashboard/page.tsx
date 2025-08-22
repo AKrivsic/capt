@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Header from "@/components/Header/Header";
-import Footer from "@/components/Footer/Footer";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -21,7 +19,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <Header />
       {planSuccess && (
         <div style={{ background: BRAND.colors.bg, borderBottom: `1px solid ${BRAND.colors.border}` }}>
           <div style={{ maxWidth: 960, margin: "0 auto", padding: "12px 16px", color: BRAND.colors.sub }}>
@@ -37,7 +34,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Link href="/" style={{ textDecoration: "underline" }}>Go to generator</Link>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
