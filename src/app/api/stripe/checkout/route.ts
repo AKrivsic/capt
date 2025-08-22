@@ -49,7 +49,6 @@ export async function POST(req: NextRequest) {
       billing_address_collection: "required",
       tax_id_collection: { enabled: true },
       customer_creation: "always",
-      customer_update: { address: "auto", name: "auto" },
       metadata: { plan },
       ...(mode === "subscription"
         ? { subscription_data: { metadata: { plan } } }
