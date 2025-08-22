@@ -11,6 +11,7 @@ type UpsertParams = {
   email: string;
   name?: string | null;
   groups?: GroupId[];
+  resubscribe?: boolean;
 };
 
 // ===== Helpers =====
@@ -46,6 +47,9 @@ export async function mlUpsertSubscriber(p: UpsertParams): Promise<void> {
   }
   if (p.groups && p.groups.length > 0) {
     body.groups = p.groups;
+  }
+  if (p.resubscribe) {
+    body.resubscribe = true;
   }
 
   const res = await mlFetch("/subscribers", {

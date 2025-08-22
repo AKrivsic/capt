@@ -36,11 +36,13 @@ export async function POST(req: Request) {
       await espUnsubscribe(email);
     }
 
-    // Přímý zápis do MailerLite (pokud je ML nakonfigurován). Přidáme do marketingové skupiny, když je k dispozici.
+    // Přímý zápis do MailerLite (pokud je ML nakonfigurován). Přidáme do marketingové skupiny + USERS, když jsou k dispozici.
     try {
       const marketingGroup = process.env.ML_GROUP_MARKETING;
-      if (marketing && marketingGroup) {
-        await mlUpsertSubscriber({ email, name, groups: [marketingGroup] });
+      const usersGroup = process.env.ML_GROUP_USERS;
+      if (marketing && (marketingGroup || usersGroup)) {
+        const groups = [marketingGroup, usersGroup].filter(Boolean) as string[];
+        await mlUpsertSubscriber({ email, name, groups, resubscribe: true });
       }
     } catch (e) {
       console.error("[ML consent]", e);
