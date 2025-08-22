@@ -13,6 +13,7 @@ export async function GET() {
   const key = process.env.MAILERLITE_API_KEY || null;
   const usersGroup = process.env.ML_GROUP_USERS || null;
   const marketingGroup = process.env.ML_GROUP_MARKETING || null;
+  const freeGroup = process.env.ML_GROUP_PLAN_FREE || null;
 
   if (!key) {
     return NextResponse.json(
@@ -51,6 +52,7 @@ export async function GET() {
 
     const usersConfigured = usersGroup ? Boolean(groups?.some((g) => g.id === usersGroup)) : null;
     const marketingConfigured = marketingGroup ? Boolean(groups?.some((g) => g.id === marketingGroup)) : null;
+    const freeConfigured = freeGroup ? Boolean(groups?.some((g) => g.id === freeGroup)) : null;
 
     return NextResponse.json(
       {
@@ -63,6 +65,8 @@ export async function GET() {
         usersConfigured,
         marketingGroup,
         marketingConfigured,
+        freeGroup,
+        freeConfigured,
         raw: groups ?? bodyText,
       },
       { status: 200 }
