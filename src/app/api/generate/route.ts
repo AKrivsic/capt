@@ -81,19 +81,19 @@ function platformNote(p: Input["platform"]): string {
 function targetByType(t: OutputType): string {
   switch (t) {
     case "caption":
-      return "Write a social caption (1–3 short lines). Include fitting emojis if natural. Return only the caption, no quotes.";
+      return "Write a social caption (1–3 short lines). Include fitting emojis if natural. Return only the caption, no quotes. Each variant MUST be meaningfully different in tone/wording/structure.";
     case "bio":
-      return "Write a short account bio (platform limits apply). Return only the bio text, no quotes.";
+      return "Write a short account bio (platform limits apply). Return only the bio text, no quotes. Each variant MUST be distinct.";
     case "hashtags":
-      return "Return ONLY 20–30 relevant hashtags as a SINGLE space-separated line. No numbers, no commentary, no bullets, no intro.";
+      return "Return ONLY 20–30 relevant hashtags as a SINGLE space-separated line. No numbers, commentary, bullets, or intro. Each variant MUST use a different set/mix of tags.";
     case "dm":
-      return "Write a short, friendly DM opener (2–4 lines) to start a conversation. No links unless explicitly requested. No personal data requests.";
+      return "Write a short, friendly DM opener (2–4 lines). No links unless explicitly requested. No personal data requests. Each variant MUST be clearly different (opening hook, angle, emojis).";
     case "comments":
-      return "Write 5 short, natural comments users might post. One per line. Return only the 5 lines.";
+      return "Write 5 short, natural comments users might post. One per line. Return only the 5 lines. All 5 lines MUST be unique. If multiple variants are requested, each variant MUST differ.";
     case "story":
-      return "Write a 2–3 slide story script (max 3). Each slide on a new line with a short headline. Return only these lines.";
+      return "Write a 2–3 slide story script (max 3). Each slide on a new line with a short headline. Return only these lines. Slides MUST be unique. If multiple variants are requested, each variant MUST differ.";
     case "hook":
-      return "Write 5 scroll-stopping hooks. One per line, punchy. Return only the 5 lines.";
+      return "Write 5 scroll-stopping hooks. One per line. Return only the 5 lines. All 5 hooks MUST be unique. If multiple variants are requested, each variant MUST differ.";
   }
 }
 
@@ -187,6 +187,7 @@ function buildMessages(
       targetByType(type),
       "Avoid NSFW. Keep it brand-safe.",
       "Return only the requested format. Never wrap the whole output in quotes.",
+      "Every choice you generate MUST be semantically distinct. Vary structure, vocabulary, and emoji usage.",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -236,23 +237,32 @@ function firstPublicIp(h: Headers): string {
   return pub || h.get("x-real-ip") || "unknown";
 }
 
-// ====== genParamsFor (tvá verze) ======
-function genParamsFor(type: OutputType) {
+// ====== sampling parametry ======
+type GenParams = {
+  n: number;
+  temperature: number;
+  max_tokens: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
+};
+
+function genParamsFor(type: OutputType): GenParams {
   switch (type) {
     case "hashtags":
-      return { n: 1, temperature: 0.4, max_tokens: 120 };
+      return { n: 1, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
     case "bio":
-      return { n: 3, temperature: 0.6, max_tokens: 120 };
+      return { n: 3, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
     case "comments":
-      return { n: 5, temperature: 0.7, max_tokens: 180 };
+      return { n: 5, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
     case "story":
-      return { n: 2, temperature: 0.8, max_tokens: 250 };
+      return { n: 2, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
     case "hook":
-      return { n: 5, temperature: 0.95, max_tokens: 200 };
+      return { n: 5, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
     case "dm":
-      return { n: 2, temperature: 0.9, max_tokens: 220 };
+      return { n: 3, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
     default:
-      return { n: 3, temperature: 0.9, max_tokens: 200 }; // captions
+      // captions
+      return { n: 3, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
   }
 }
 
@@ -261,6 +271,205 @@ type ChatCompletionChoice = { message?: { content?: string } };
 type ChatCompletionResponse = {
   choices?: ChatCompletionChoice[];
 };
+
+// ====== deduplikace & fallbacky ======
+function normalizeForCompare(s: string): string {
+  return s
+    .toLowerCase()
+    // odebrat emoji (UAX #51 rozsahy)
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function ensureUniqueVariants(
+  texts: string[],
+  needed: number,
+  type: OutputType,
+  input: Input
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const t of texts) {
+    const key = normalizeForCompare(t);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(t);
+      if (out.length === needed) break;
+    }
+  }
+
+  // doplnit unikátní fallbacky
+  let salt = 0;
+  while (out.length < needed) {
+    const fb = simpleFallback(type, input, salt++);
+    const key = normalizeForCompare(fb);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(fb);
+    }
+  }
+  return out;
+}
+
+// ====== helpers pro fallbacky/hashtagy ======
+const STOPWORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "this",
+  "that",
+  "from",
+  "your",
+  "you",
+  "about",
+  "just",
+  "have",
+  "will",
+  "into",
+  "what",
+  "when",
+  "where",
+  "which",
+  "how",
+  "why",
+  "are",
+  "was",
+  "were",
+  "been",
+  "more",
+  "less",
+  "very",
+]);
+
+const BANNED_TAGS = new Set([
+  "trending",
+  "viral",
+  "explore",
+  "inspo",
+  "creator",
+  "follow",
+  "f4f",
+  "l4l",
+  "likeforlike",
+  "like4like",
+]);
+
+function truncate(s: string, max = 140): string {
+  return s.length <= max ? s : s.slice(0, max - 1).trimEnd() + "…";
+}
+
+function pickEmoji(style: Input["style"]): string {
+  switch (style) {
+    case "Barbie":
+      return "💖";
+    case "Edgy":
+      return "⚡";
+    case "Glamour":
+      return "✨";
+    case "Baddie":
+      return "💅";
+    case "Innocent":
+      return "🌸";
+    case "Funny":
+      return "😜";
+  }
+}
+
+function keywordify(vibe: string): string[] {
+  const words = vibe
+    .toLowerCase()
+    .replace(/[#@]/g, " ")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+  const seen = new Set<string>();
+  const uniq: string[] = [];
+  for (const w of words) {
+    if (!seen.has(w)) {
+      seen.add(w);
+      uniq.push(w);
+    }
+  }
+  return uniq;
+}
+
+function sanitizeHashtags(line: string): string {
+  const tags = line
+    .trim()
+    .split(/\s+/)
+    .map((t) => (t.startsWith("#") ? t : `#${t}`))
+    .map((t) => t.replace(/[^#a-z0-9_]/gi, ""))
+    .filter((t) => t.length >= 3 && !BANNED_TAGS.has(t.slice(1).toLowerCase()))
+    .slice(0, 30);
+  if (tags.length === 0)
+    return "#content #post #daily #community #share #create #story #vibes";
+  return tags.join(" ");
+}
+
+function toHashtags(vibe: string, count = 18): string {
+  const kws = keywordify(vibe)
+    .filter((w) => !BANNED_TAGS.has(w))
+    .slice(0, count + 4);
+  const tags = kws
+    .map((w) => `#${w.replace(/-+/g, "").slice(0, 28)}`)
+    .filter((t) => t.length >= 3);
+  if (tags.length === 0)
+    return "#content #post #daily #community #share #create #story #vibes";
+  return tags.slice(0, count).join(" ");
+}
+
+// --- fallback generator s variací (salt) ---
+function simpleFallback(type: OutputType, i: Input, salt = 0): string {
+  const e = pickEmoji(i.style);
+  const t = truncate(i.vibe + (salt % 3 === 0 ? " ✦" : salt % 3 === 1 ? " — let’s go" : " •"), 160);
+
+  switch (type) {
+    case "caption":
+      return salt % 2 === 0 ? `${e} ${t}` : `${t} ${e}`;
+    case "bio":
+      return salt % 2 === 0 ? `${truncate(i.vibe, 120)} | ${e}` : `${e} ${truncate(i.vibe, 118)}`;
+    case "hashtags":
+      return toHashtags(i.vibe + (salt === 0 ? "" : ` ${salt}`), 22);
+    case "dm":
+      return salt % 2 === 0
+        ? `Hey! ${truncate(i.vibe, 90)} — had to share this vibe. Up for it?`
+        : `Hi! ${truncate(i.vibe, 90)}. Wanna try something fun together? ${e}`;
+    case "comments":
+      if (salt % 2 === 0) {
+        return ["Obsessed 🤍", "Instant save!", "So clean 😍", "Mood.", `Iconic ${e}`].join("\n");
+      }
+      return ["This slaps 🔥", "Chef’s kiss", "Need more!", "Okayyyy 😮‍💨", `Serving looks ${e}`].join("\n");
+    case "story":
+      if (salt % 2 === 0) {
+        return `Slide 1: ${truncate(i.vibe, 60)}
+Slide 2: Behind the magic
+Slide 3: Tap for the reveal`;
+      }
+      return `Slide 1: ${truncate(i.vibe, 60)}
+Slide 2: Quick tip you’ll use
+Slide 3: Swipe up for more`;
+    case "hook":
+      if (salt % 2 === 0) {
+        return [
+          `${t}?`,
+          `POV: ${truncate(i.vibe, 70)}`,
+          `Low effort, high payoff: ${truncate(i.vibe, 55)}`,
+          `No one tells you this about ${truncate(i.vibe, 40)}`,
+          `Hot take: ${truncate(i.vibe, 60)}`,
+        ].join("\n");
+      }
+      return [
+        `Real talk: ${truncate(i.vibe, 70)}`,
+        `Before you scroll — ${truncate(i.vibe, 60)}`,
+        `Try this if you ${truncate(i.vibe, 45)}`,
+        `I did ${truncate(i.vibe, 50)} so you don’t have to`,
+        `The fastest way to ${truncate(i.vibe, 40)}`,
+      ].join("\n");
+  }
+}
 
 // ====== POST handler ======
 export async function POST(req: NextRequest) {
@@ -431,7 +640,13 @@ export async function POST(req: NextRequest) {
 
   try {
     for (const type of input.outputs) {
-      const { n, temperature, max_tokens } = genParamsFor(type);
+      const {
+        n,
+        temperature,
+        max_tokens,
+        presence_penalty,
+        frequency_penalty,
+      } = genParamsFor(type);
       const variants = input.variants ?? n;
 
       try {
@@ -445,6 +660,8 @@ export async function POST(req: NextRequest) {
             temperature,
             max_tokens,
             n: variants,
+            presence_penalty,
+            frequency_penalty,
           }),
         });
 
@@ -459,20 +676,19 @@ export async function POST(req: NextRequest) {
               .filter((t): t is string => typeof t === "string" && t.length > 0)
           : [];
 
-        while (texts.length < variants) {
-          texts.push(simpleFallback(type, input));
-        }
-
-        out[type] = type === "hashtags" ? texts.map(sanitizeHashtags) : texts;
+        // ✅ deduplikace + doplnění variabilními fallbacky
+        const unique = ensureUniqueVariants(texts, variants, type, input);
+        out[type] = type === "hashtags" ? unique.map(sanitizeHashtags) : unique;
       } catch {
-        const arr = Array.from({ length: variants }, () =>
-          simpleFallback(type, input)
+        // ✅ variabilní fallbacky při chybě LLM
+        const arr = Array.from({ length: variants }, (_, idx) =>
+          simpleFallback(type, input, idx)
         );
         out[type] = type === "hashtags" ? arr.map(sanitizeHashtags) : arr;
       }
     }
 
-        return NextResponse.json(
+    return NextResponse.json(
       {
         ok: true,
         data: out,
@@ -493,149 +709,3 @@ export async function POST(req: NextRequest) {
     clearTimeout(timeout);
   }
 }
-
-// ====== helpers pro fallbacky/hashtagy ======
-const STOPWORDS = new Set([
-  "the",
-  "and",
-  "for",
-  "with",
-  "this",
-  "that",
-  "from",
-  "your",
-  "you",
-  "about",
-  "just",
-  "have",
-  "will",
-  "into",
-  "what",
-  "when",
-  "where",
-  "which",
-  "how",
-  "why",
-  "are",
-  "was",
-  "were",
-  "been",
-  "more",
-  "less",
-  "very",
-]);
-
-const BANNED_TAGS = new Set([
-  "trending",
-  "viral",
-  "explore",
-  "inspo",
-  "creator",
-  "follow",
-  "f4f",
-  "l4l",
-  "likeforlike",
-  "like4like",
-]);
-
-function truncate(s: string, max = 140): string {
-  return s.length <= max ? s : s.slice(0, max - 1).trimEnd() + "…";
-}
-
-function pickEmoji(style: Input["style"]): string {
-  switch (style) {
-    case "Barbie":
-      return "💖";
-    case "Edgy":
-      return "⚡";
-    case "Glamour":
-      return "✨";
-    case "Baddie":
-      return "💅";
-    case "Innocent":
-      return "🌸";
-    case "Funny":
-      return "😜";
-  }
-}
-
-function keywordify(vibe: string): string[] {
-  const words = vibe
-    .toLowerCase()
-    .replace(/[#@]/g, " ")
-    .replace(/[^a-z0-9\s-]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
-  const seen = new Set<string>();
-  const uniq: string[] = [];
-  for (const w of words) {
-    if (!seen.has(w)) {
-      seen.add(w);
-      uniq.push(w);
-    }
-  }
-  return uniq;
-}
-
-function sanitizeHashtags(line: string): string {
-  const tags = line
-    .trim()
-    .split(/\s+/)
-    .map((t) => (t.startsWith("#") ? t : `#${t}`))
-    .map((t) => t.replace(/[^#a-z0-9_]/gi, ""))
-    .filter((t) => t.length >= 3 && !BANNED_TAGS.has(t.slice(1).toLowerCase()))
-    .slice(0, 30);
-  if (tags.length === 0)
-    return "#content #post #daily #community #share #create #story #vibes";
-  return tags.join(" ");
-}
-
-function toHashtags(vibe: string, count = 18): string {
-  const kws = keywordify(vibe)
-    .filter((w) => !BANNED_TAGS.has(w))
-    .slice(0, count + 4);
-  const tags = kws
-    .map((w) => `#${w.replace(/-+/g, "").slice(0, 28)}`)
-    .filter((t) => t.length >= 3);
-  if (tags.length === 0)
-    return "#content #post #daily #community #share #create #story #vibes";
-  return tags.slice(0, count).join(" ");
-}
-
-// --- fallback generator ---
-function simpleFallback(type: OutputType, i: Input): string {
-  const e = pickEmoji(i.style);
-  const t = truncate(i.vibe, 160);
-
-  switch (type) {
-    case "caption":
-      return `${e} ${t}`;
-    case "bio":
-      return `${truncate(i.vibe, 120)}`;
-    case "hashtags":
-      return toHashtags(i.vibe, 22);
-    case "dm":
-      return `Hey! ${truncate(i.vibe, 90)} — thought this might be your vibe. Want a peek?`;
-    case "comments":
-      return [
-        "Love this! 🔥",
-        "So good! 🙌",
-        "Saved for later 👀",
-        "Vibes ✨",
-        `Need more like this ${e}`,
-      ].join("\n");
-    case "story":
-      return `Slide 1: ${truncate(i.vibe, 60)}
-Slide 2: Behind the scenes
-Slide 3: Tap for more`;
-    case "hook":
-      return [
-        `${t}?`,
-        `Wait—${truncate(i.vibe, 70)}.`,
-        `Before you scroll: ${truncate(i.vibe, 60)}`,
-        `Real talk: ${truncate(i.vibe, 70)}`,
-        `If you care about ${truncate(i.vibe, 40)}, read this.`,
-      ].join("\n");
-  }
-}
-
