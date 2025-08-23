@@ -48,6 +48,33 @@ export function useUsageInfo() {
   const used = plan === "Starter" ? used3 : usedToday;
   const left = limit === null ? null : Math.max((limit ?? 0) - used, 0);
 
+  // Reset localStorage při změně plánu (aby se nepočítaly staré generace)
+  useEffect(() => {
+    const lastPlan = localStorage.getItem("captioni_last_plan");
+    const currentPlan = plan;
+    
+    if (lastPlan && lastPlan !== currentPlan) {
+      // Plán se změnil - resetuj localStorage usage
+      const today = new Date();
+      const todayKey = `gen:${today.toISOString().slice(0, 10)}`;
+      localStorage.removeItem(todayKey);
+      
+      // Resetuj i předchozí dny pro STARTER plán
+      if (currentPlan === "Starter") {
+        for (let i = 1; i < 3; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+          const dateKey = `gen:${date.toISOString().slice(0, 10)}`;
+          localStorage.removeItem(dateKey);
+        }
+      }
+      
+      localStorage.setItem("captioni_last_plan", currentPlan);
+    } else if (!lastPlan) {
+      localStorage.setItem("captioni_last_plan", currentPlan);
+    }
+  }, [plan]);
+
   // countdown to local midnight
   const [msLeft, setMsLeft] = useState(msUntilLocalMidnight());
   useEffect(() => {

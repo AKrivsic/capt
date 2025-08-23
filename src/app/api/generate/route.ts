@@ -9,6 +9,7 @@ import {
   planDailyLimit,
   getAndIncUsageForUser,
   getAndIncUsageForIp,
+  getUsageForUserLastNDays,
 } from "@/lib/limits";
 import { assertSameOrigin } from "@/lib/origin";
 import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
@@ -246,23 +247,47 @@ type GenParams = {
   frequency_penalty?: number;
 };
 
+// Defaultní počty variant pro každý typ
+const DEFAULT_VARIANTS: Record<OutputType, number> = {
+  caption: 3,
+  bio: 3,
+  hashtags: 1,
+  dm: 3,
+  comments: 5,
+  story: 2,
+  hook: 5,
+};
+
+// Typy, u kterých se počet variant NEPŘEPISUJE přes input.variants
+const FIXED_VARIANTS: ReadonlySet<OutputType> = new Set<OutputType>([
+  "hashtags", // 1 řádek se 20–30 tagy
+  "comments", // 5 řádků (v jedné variantě)
+  "hook",     // 5 řádků (v jedné variantě)
+]);
+
+function resolveVariants(type: OutputType, requested?: number): number {
+  const base = DEFAULT_VARIANTS[type];
+  if (requested == null) return base;
+  if (FIXED_VARIANTS.has(type)) return base; // ignoruj přepis
+  return Math.min(5, Math.max(1, requested));
+}
+
 function genParamsFor(type: OutputType): GenParams {
   switch (type) {
     case "hashtags":
-      return { n: 1, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
+      return { n: DEFAULT_VARIANTS.hashtags, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
     case "bio":
-      return { n: 3, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
+      return { n: DEFAULT_VARIANTS.bio, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
     case "comments":
-      return { n: 5, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
+      return { n: DEFAULT_VARIANTS.comments, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
     case "story":
-      return { n: 2, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
+      return { n: DEFAULT_VARIANTS.story, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
     case "hook":
-      return { n: 5, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
+      return { n: DEFAULT_VARIANTS.hook, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
     case "dm":
-      return { n: 3, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
+      return { n: DEFAULT_VARIANTS.dm, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
     default:
-      // captions
-      return { n: 3, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
+      return { n: DEFAULT_VARIANTS.caption, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
   }
 }
 
@@ -276,7 +301,6 @@ type ChatCompletionResponse = {
 function normalizeForCompare(s: string): string {
   return s
     .toLowerCase()
-    // odebrat emoji (UAX #51 rozsahy)
     .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -471,6 +495,30 @@ Slide 3: Swipe up for more`;
   }
 }
 
+// ====== CTA injektor (jemné CTA pro caption/story) ======
+function injectCTA(type: OutputType, variants: string[]): string[] {
+  if (type !== "caption" && type !== "story") return variants;
+
+  return variants.map((v, idx) => {
+    if (idx !== 0) return v; // CTA jen do první varianty
+
+    if (type === "caption") {
+      return v + "\n👉 Don’t miss out — follow for more fun!";
+    }
+
+    // STORY: přidej CTA na konec posledního slidu (posledního neprázdného řádku)
+    const lines = v.split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const L = lines[i].trim();
+      if (L.length > 0) {
+        lines[i] = L + " — Swipe up and join the party 🎉";
+        return lines.join("\n");
+      }
+    }
+    return v + "\nSwipe up and join the party 🎉";
+  });
+}
+
 // ====== POST handler ======
 export async function POST(req: NextRequest) {
   if (!assertSameOrigin(req)) {
@@ -563,20 +611,39 @@ export async function POST(req: NextRequest) {
   } else {
     if (limit !== null) {
       if (typeof getAndIncUsageForUser === "function") {
-        const count = await getAndIncUsageForUser(userId!, "GENERATION");
-        if (count > limit) {
-          if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
-          return NextResponse.json(
-            {
-              ok: false,
-              error: "LIMIT",
-              message: "Daily limit reached.",
-              meta: { remainingToday: 0, plan },
-            },
-            { status: 429 }
-          );
+        // Pro STARTER plán použij 3-denní okno
+        if (planFromSession === "STARTER") {
+          const count3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
+          if (count3Days >= limit) {
+            if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "LIMIT",
+                message: "3-day limit reached.",
+                meta: { remainingToday: 0, plan },
+              },
+              { status: 429 }
+            );
+          }
+          remainingToday = Math.max(0, limit - count3Days);
+        } else {
+          // Pro FREE plán použij denní limit
+          const count = await getAndIncUsageForUser(userId!, "GENERATION");
+          if (count > limit) {
+            if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+            return NextResponse.json(
+              {
+                ok: false,
+                error: "LIMIT",
+                message: "Daily limit reached.",
+                meta: { remainingToday: 0, plan },
+              },
+              { status: 429 }
+            );
+          }
+          remainingToday = Math.max(0, limit - count);
         }
-        remainingToday = Math.max(0, limit - count);
       }
     }
     if (
@@ -647,7 +714,7 @@ export async function POST(req: NextRequest) {
         presence_penalty,
         frequency_penalty,
       } = genParamsFor(type);
-      const variants = input.variants ?? n;
+      const variants = resolveVariants(type, input.variants);
 
       try {
         const res = await fetch(OPENAI_PROXY_URL, {
@@ -676,15 +743,25 @@ export async function POST(req: NextRequest) {
               .filter((t): t is string => typeof t === "string" && t.length > 0)
           : [];
 
-        // ✅ deduplikace + doplnění variabilními fallbacky
-        const unique = ensureUniqueVariants(texts, variants, type, input);
-        out[type] = type === "hashtags" ? unique.map(sanitizeHashtags) : unique;
+        // ✅ deduplikace + CTA + (u hashtags) sanitizace
+        let unique = ensureUniqueVariants(texts, variants, type, input);
+        if (type === "hashtags") {
+          unique = unique.map(sanitizeHashtags);
+        } else {
+          unique = injectCTA(type, unique);
+        }
+        out[type] = unique;
       } catch {
-        // ✅ variabilní fallbacky při chybě LLM
-        const arr = Array.from({ length: variants }, (_, idx) =>
+        // ✅ fallbacky + CTA + (u hashtags) sanitizace
+        let arr = Array.from({ length: variants }, (_, idx) =>
           simpleFallback(type, input, idx)
         );
-        out[type] = type === "hashtags" ? arr.map(sanitizeHashtags) : arr;
+        if (type === "hashtags") {
+          arr = arr.map(sanitizeHashtags);
+        } else {
+          arr = injectCTA(type, arr);
+        }
+        out[type] = arr;
       }
     }
 

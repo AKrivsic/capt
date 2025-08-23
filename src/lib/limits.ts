@@ -11,7 +11,7 @@ export function planDailyLimit(plan: PlanType): number | null {
     case "FREE":
       return 3;
     case "STARTER":
-      return 15;
+      return 15; // 15 generací v 3-denním okně (ne denní limit)
     case "PRO":
     case "PREMIUM":
       return null; // neomezené
@@ -29,7 +29,7 @@ const STORE_PLAINTEXT_IP = process.env.STORE_PLAINTEXT_IP === "1";
 
 /**
  * Inkrementuje usage pro uživatele a vrátí aktuální count po inkrementu.
- * Používej count pro porovnání s limitem (žádné peek-then-inc).
+ * Pro STARTER plán počítá 3-denní okno místo denního limitu.
  */
 export async function getAndIncUsageForUser(
   userId: string,
@@ -56,6 +56,33 @@ export async function peekUsageForUser(
     select: { count: true },
   });
   return row?.count ?? 0;
+}
+
+/**
+ * Získá celkový počet generací za posledních N dní pro uživatele.
+ * Používá se pro STARTER plán (3-denní okno).
+ */
+export async function getUsageForUserLastNDays(
+  userId: string,
+  kind: "GENERATION",
+  days: number
+): Promise<number> {
+  const today = new Date();
+  let total = 0;
+  
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    const dateKey = date.toISOString().slice(0, 10);
+    
+    const row = await prisma.usage.findUnique({
+      where: { userId_date_kind: { userId, date: dateKey, kind } },
+      select: { count: true },
+    });
+    total += row?.count ?? 0;
+  }
+  
+  return total;
 }
 
 /**

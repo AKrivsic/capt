@@ -2,7 +2,7 @@
 "use client";
 
 import { getUsage, incUsage } from "@/utils/usage";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Tippy from "@tippyjs/react";
 import "tippy.js/dist/tippy.css";
 import styles from "./Generator.module.css";
@@ -82,8 +82,17 @@ export default function Generator() {
   const [loading, setLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // TODO: hook up real plan after auth/billing
-  const [userPlan] = useState<Plan>("free");
+  // Získej skutečný plán ze session
+  const userPlan = useMemo(() => {
+    if (!session?.user) return "free";
+    const plan = session.user.plan;
+    if (plan === "FREE") return "free";
+    if (plan === "STARTER") return "starter";
+    if (plan === "PRO") return "pro";
+    if (plan === "PREMIUM") return "premium";
+    return "free";
+  }, [session?.user?.plan, session?.user]);
+
   const [usageCount, setUsageCount] = useState(0);
 
   // RL UI flags
@@ -226,7 +235,7 @@ export default function Generator() {
           outputs: selectedOutputs,
           vibe,
           variants: VARIANTS_PER_OUTPUT,
-          demo: userPlan === "free",
+          demo: !authed, // demo pouze pro neautentifikované uživatele
         }),
       });
 

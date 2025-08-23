@@ -46,6 +46,16 @@ export async function POST(req: NextRequest) {
           } catch (e) {
             console.error("[ML set plan]", e);
           }
+          
+          // Reset usage při změně plánu
+          try {
+            await fetch(`${process.env.NEXTAUTH_URL}/api/user/reset-usage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (e) {
+            console.error("[reset usage]", e);
+          }
         }
         break;
       }
@@ -71,6 +81,16 @@ export async function POST(req: NextRequest) {
           await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE" } });
           try { await mlSetPlanGroup(email, "free"); } catch {}
         }
+        
+        // Reset usage při změně plánu
+        try {
+          await fetch(`${process.env.NEXTAUTH_URL}/api/user/reset-usage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error("[reset usage]", e);
+        }
         break;
       }
       case "customer.subscription.deleted": {
@@ -88,6 +108,16 @@ export async function POST(req: NextRequest) {
             await mlSetPlanGroup(email, "free");
           } catch (e) {
             console.error("[ML downgrade free]", e);
+          }
+          
+          // Reset usage při změně plánu
+          try {
+            await fetch(`${process.env.NEXTAUTH_URL}/api/user/reset-usage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (e) {
+            console.error("[reset usage]", e);
           }
         }
         break;
