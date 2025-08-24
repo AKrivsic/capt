@@ -1,36 +1,67 @@
 // src/app/dashboard/billing/page.tsx
 import { getSessionServer } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { getStripe } from "@/lib/stripe";
+import { prisma } from "@/lib/prisma";
+import BillingClient from "./BillingClient";
+import type Stripe from "stripe";
 
 export default async function BillingPage() {
   const session = await getSessionServer();
   if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard/billing");
 
-  // MVP: dummy invoices/links – později napojíme na Stripe
-  const invoices = [
-    { id: "inv_001", date: "2025-08-01", amount: "$9.00", url: "#" },
-    { id: "inv_000", date: "2025-07-01", amount: "$0.00", url: "#" },
-  ];
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, email: true, plan: true, createdAt: true }
+  });
+
+  if (!user || !user.email) redirect("/api/auth/signin?callbackUrl=/dashboard/billing");
+
+  // Získej Stripe customer data
+  let customer: Stripe.Customer | null = null;
+  let subscription: Stripe.Subscription | null = null;
+  let invoices: Stripe.Invoice[] = [];
+
+  try {
+    const stripe = getStripe();
+    
+    // Najdi customer podle emailu
+    const customers = await stripe.customers.list({
+      email: user.email,
+      limit: 1
+    });
+
+    if (customers.data.length > 0) {
+      customer = customers.data[0];
+      
+      // Najdi aktivní předplatné
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: 'active',
+        limit: 1
+      });
+
+      if (subscriptions.data.length > 0) {
+        subscription = subscriptions.data[0];
+      }
+
+      // Získej poslední faktury
+      const invoiceList = await stripe.invoices.list({
+        customer: customer.id,
+        limit: 5
+      });
+      invoices = invoiceList.data;
+    }
+  } catch (error) {
+    console.error("Error fetching Stripe data:", error);
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Plan & Billing</h1>
-        <a href="#pricing" className="btn">Upgrade plan</a>
-      </div>
-
-      <div className="rounded-xl border p-4">
-        <h2 className="font-medium mb-3">Invoices</h2>
-        <ul className="space-y-2">
-          {invoices.map(inv => (
-            <li key={inv.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <span>{inv.date}</span>
-              <span className="opacity-70">{inv.amount}</span>
-              <a className="link" href={inv.url} target="_blank">View</a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <BillingClient 
+      user={user}
+      customer={customer}
+      subscription={subscription}
+      invoices={invoices}
+    />
   );
 }

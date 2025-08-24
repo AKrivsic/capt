@@ -69,7 +69,6 @@ export default function DemoModal({ onClose }: Props) {
           platform: toEnum(platform),     // "instagram" | "tiktok" | "x" | "onlyfans"
           outputs: ["caption"],           // demo: one output
           vibe,                           // user input
-          variants: 3,                    // 3 variants
           demo: true,                     // demo mode
         }),
       });

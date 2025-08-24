@@ -10,6 +10,7 @@ export type Source =
   | "generator"
   | "pricing"
   | "dashboard"
+  | "billing"
   | "goToGenerator"
   | "demoModal"
   | "header"

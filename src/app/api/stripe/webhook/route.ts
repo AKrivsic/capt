@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         const metaPlan = planFromMeta(md.plan);
         if (!customerEmail || !metaPlan) break;
 
-        // set plan in DB (simplified: map PRO subscription, others payment)
+        // set plan in DB
         const user = await prisma.user.findFirst({ where: { email: { equals: customerEmail as string, mode: "insensitive" } } });
         if (user) {
           await prisma.user.update({ where: { id: user.id }, data: { plan: metaPlan } });
@@ -70,13 +70,24 @@ export async function POST(req: NextRequest) {
         const customer = await getStripe().customers.retrieve(customerId).catch(() => null);
         const email = (customer && "email" in customer ? (customer as Stripe.Customer).email : null) || undefined;
         if (!email) break;
-        // Determine status and keep plan PRO when active, else downgrade FREE
+        
+        // Determine status and plan
         const status: Stripe.Subscription.Status | undefined = sub?.status;
+        const cancelAtPeriodEnd = sub?.cancel_at_period_end;
+        const metaPlan = planFromMeta(sub.metadata?.plan);
         const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
         if (!user) break;
+        
         if (status && ["active", "trialing", "past_due"].includes(status)) {
-          await prisma.user.update({ where: { id: user.id }, data: { plan: "PRO" } });
-          try { await mlSetPlanGroup(email, "pro"); } catch {}
+          // Pokud se předplatné ruší, ale je stále aktivní, ponech aktuální plán
+          // Plán se změní na FREE až když předplatné skutečně skončí
+          if (!cancelAtPeriodEnd && metaPlan) {
+            await prisma.user.update({ where: { id: user.id }, data: { plan: metaPlan } });
+            try { 
+              const slug = metaPlan === "STARTER" ? "starter" : metaPlan === "PRO" ? "pro" : "premium";
+              await mlSetPlanGroup(email, slug); 
+            } catch {}
+          }
         } else {
           await prisma.user.update({ where: { id: user.id }, data: { plan: "FREE" } });
           try { await mlSetPlanGroup(email, "free"); } catch {}

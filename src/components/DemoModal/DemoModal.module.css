@@ -6,6 +6,7 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 1rem;
 }
 
 .modal {
@@ -14,11 +15,14 @@
     padding: 2rem;
     max-width: 400px;
     width: 90%;
+    max-height: 90vh;
     position: relative;
     text-align: center;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
     animation: fadeIn 0.3s ease-in-out;
     animation: popIn 0.25s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .closeBtn {
@@ -69,6 +73,27 @@
     color: #065f46;
     border: 1px solid #34d399;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.result h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.result pre {
+    margin: 0.5rem 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(52, 211, 153, 0.3);
 }
 
 .blocked {
@@ -136,5 +161,32 @@
     to {
         transform: scale(1);
         opacity: 1;
+    }
+}
+
+/* Mobilní optimalizace */
+@media (max-height: 600px) {
+    .modal {
+        max-height: 95vh;
+        padding: 1.5rem;
+    }
+    
+    .result {
+        max-height: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .overlay {
+        padding: 0.5rem;
+    }
+    
+    .modal {
+        padding: 1.5rem;
+        width: 95%;
+    }
+    
+    .result {
+        max-height: 250px;
     }
 }

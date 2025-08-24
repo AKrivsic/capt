@@ -714,7 +714,6 @@ export async function POST(req: NextRequest) {
         presence_penalty,
         frequency_penalty,
       } = genParamsFor(type);
-      const variants = resolveVariants(type, input.variants);
 
       try {
         const res = await fetch(OPENAI_PROXY_URL, {
@@ -726,7 +725,7 @@ export async function POST(req: NextRequest) {
             messages: buildMessages(input, type, prefs),
             temperature,
             max_tokens,
-            n: variants,
+            n: n, // Použij n z genParamsFor (DEFAULT_VARIANTS)
             presence_penalty,
             frequency_penalty,
           }),
@@ -744,7 +743,7 @@ export async function POST(req: NextRequest) {
           : [];
 
         // ✅ deduplikace + CTA + (u hashtags) sanitizace
-        let unique = ensureUniqueVariants(texts, variants, type, input);
+        let unique = ensureUniqueVariants(texts, n, type, input);
         if (type === "hashtags") {
           unique = unique.map(sanitizeHashtags);
         } else {
@@ -753,7 +752,7 @@ export async function POST(req: NextRequest) {
         out[type] = unique;
       } catch {
         // ✅ fallbacky + CTA + (u hashtags) sanitizace
-        let arr = Array.from({ length: variants }, (_, idx) =>
+        let arr = Array.from({ length: n }, (_, idx) =>
           simpleFallback(type, input, idx)
         );
         if (type === "hashtags") {

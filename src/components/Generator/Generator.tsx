@@ -91,7 +91,7 @@ export default function Generator() {
     if (plan === "PRO") return "pro";
     if (plan === "PREMIUM") return "premium";
     return "free";
-  }, [session?.user?.plan, session?.user]);
+  }, [session?.user?.plan]);
 
   const [usageCount, setUsageCount] = useState(0);
 
@@ -260,6 +260,35 @@ export default function Generator() {
 
       // ✅ track: úspěšné vygenerování
       trackGenerationComplete(planToTracking[userPlan]);
+
+      // ✅ Automaticky ulož do history pro všechny plány
+      if (payload.data) {
+        for (const [type, variants] of Object.entries(payload.data)) {
+          if (Array.isArray(variants)) {
+            for (let i = 0; i < variants.length; i++) {
+              const text = variants[i];
+              if (typeof text === "string" && text.trim()) {
+                try {
+                  await fetch("/api/history/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      platform: normalizePlatform(platform),
+                      style,
+                      type,
+                      index: i,
+                      text,
+                      feedback: null, // žádný feedback při automatickém uložení
+                    }),
+                  });
+                } catch {
+                  // ignoruj chyby při ukládání history
+                }
+              }
+            }
+          }
+        }
+      }
 
       // local UX counter (non-authoritative)
       const next = incUsage("gen");
