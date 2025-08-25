@@ -97,6 +97,7 @@ export const authOptions: NextAuthOptions = {
   trustHost: true,
 
   pages: {
+    signIn: "/auth/signin",
     verifyRequest: "/verify-request",
   },
 
