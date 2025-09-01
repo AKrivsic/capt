@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import styles from './affiliate.module.css';
 
 // TODO: Replace with actual affiliate program URL
-const AFFILIATE_JOIN_URL = "https://app.rewardful.com/join/7f3325";
+const AFFILIATE_JOIN_URL = "https://lucyto-trade.getrewardful.com/signup";
 
 export const metadata: Metadata = {
   title: 'Become a Captioni Affiliate | Earn Up to 40% Commission',
