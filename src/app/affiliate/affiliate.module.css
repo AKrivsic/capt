@@ -1,0 +1,475 @@
+/* Base container */
+.container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  color: #1f2937;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Hero Section */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 1rem 6rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroContent {
+  max-width: 800px;
+  z-index: 2;
+}
+
+.heroTitle {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+}
+
+.highlight {
+  background: linear-gradient(135deg, #34D399 0%, #8B5CF6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.heroSubtitle {
+  font-size: clamp(1.125rem, 3vw, 1.25rem);
+  line-height: 1.6;
+  color: #6b7280;
+  margin-bottom: 2.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.primaryCTA {
+  display: inline-block;
+  background: linear-gradient(135deg, #34D399 0%, #8B5CF6 100%);
+  color: white;
+  padding: 1rem 2.5rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+}
+
+.primaryCTA:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(52, 211, 153, 0.4);
+}
+
+.heroImage {
+  margin-top: 3rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.imagePlaceholder {
+  background: #e5e7eb;
+  border: 2px dashed #d1d5db;
+  border-radius: 1rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Section Headers */
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sectionTitle {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.sectionSubtitle {
+  font-size: 1.125rem;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* How It Works Section */
+.howItWorks {
+  padding: 6rem 1rem;
+  background: white;
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.step {
+  text-align: center;
+  padding: 2rem;
+  background: #f9fafb;
+  border-radius: 1.5rem;
+  border: 1px solid #e5e7eb;
+  transition: transform 0.3s ease;
+}
+
+.step:hover {
+  transform: translateY(-4px);
+}
+
+.stepNumber {
+  width: 3rem;
+  height: 3rem;
+  background: linear-gradient(135deg, #34D399 0%, #8B5CF6 100%);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin: 0 auto 1.5rem;
+}
+
+.stepTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.stepDescription {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* Commission Plan Section */
+.commissionPlan {
+  padding: 6rem 1rem;
+  background: #f9fafb;
+}
+
+.commissionGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 800px;
+  margin: 0 auto 3rem;
+}
+
+.commissionCard {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 1.5rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.commissionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.commissionRate {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #34D399 0%, #8B5CF6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.commissionDescription {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.commissionDetails {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.detailsList {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.detailsList li {
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  color: #374151;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+/* Benefits Section */
+.benefits {
+  padding: 6rem 1rem;
+  background: white;
+}
+
+.benefitsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.benefit {
+  padding: 2rem;
+  background: #f9fafb;
+  border-radius: 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.benefitTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.benefitDescription {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* Compliance Section */
+.compliance {
+  padding: 6rem 1rem;
+  background: #f9fafb;
+}
+
+.complianceGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.complianceItem {
+  background: white;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.complianceTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.complianceDescription {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* FAQ Section */
+.faq {
+  padding: 6rem 1rem;
+  background: white;
+}
+
+.faqGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.faqItem {
+  background: #f9fafb;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.faqQuestion {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.faqAnswer {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* Final CTA Section */
+.finalCTA {
+  padding: 6rem 1rem;
+  background: linear-gradient(135deg, #34D399 0%, #8B5CF6 100%);
+  text-align: center;
+}
+
+.finalCTAContent {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.finalCTATitle {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.finalCTASubtitle {
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+}
+
+.finalCTAButton {
+  display: inline-block;
+  background: white;
+  color: #1f2937;
+  padding: 1rem 2.5rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.125rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.finalCTAButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+}
+
+/* Footer */
+.footer {
+  padding: 3rem 1rem;
+  background: #1f2937;
+  text-align: center;
+}
+
+.footerContent {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.footerText {
+  color: #9ca3af;
+  line-height: 1.6;
+}
+
+.footerLink {
+  color: #34D399;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footerLink:hover {
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .hero {
+    flex-direction: row;
+    text-align: left;
+    padding: 6rem 2rem 8rem;
+  }
+  
+  .heroContent {
+    flex: 1;
+    margin-right: 3rem;
+  }
+  
+  .heroImage {
+    flex: 1;
+    margin-top: 0;
+  }
+  
+  .stepsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .commissionGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .benefitsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .complianceGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .faqGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .detailsList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    padding: 8rem 4rem 10rem;
+  }
+  
+  .howItWorks,
+  .commissionPlan,
+  .benefits,
+  .compliance,
+  .faq,
+  .finalCTA {
+    padding: 8rem 2rem;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 1280px) {
+  .hero {
+    padding: 10rem 6rem 12rem;
+  }
+  
+  .howItWorks,
+  .commissionPlan,
+  .benefits,
+  .compliance,
+  .faq,
+  .finalCTA {
+    padding: 10rem 4rem;
+  }
+}
