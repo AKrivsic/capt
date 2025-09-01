@@ -38,15 +38,8 @@ export function useRewardful() {
     }
   }, []);
 
-  const trackEvent = (eventName: string, properties?: Record<string, unknown>) => {
-    if (typeof window !== 'undefined' && window.rewardful) {
-      window.rewardful('track', eventName, properties);
-    }
-  };
-
   return {
     referral,
     isReady,
-    trackEvent,
   };
 }
