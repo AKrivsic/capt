@@ -3,7 +3,6 @@ import { PrismaClient } from "@prisma/client";
 
 // Typově čistý singleton pro Next.js (zabraňuje vícenásobným instancím v dev HMR)
 declare global {
-  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 

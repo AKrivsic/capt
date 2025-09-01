@@ -168,13 +168,13 @@ export default function AffiliatePage() {
           <div className={styles.complianceItem}>
             <h3 className={styles.complianceTitle}>No Brand Bidding</h3>
             <p className={styles.complianceDescription}>
-              Don't bid on "Captioni" or similar branded keywords in paid advertising
+              Don&apos;t bid on &quot;Captioni&quot; or similar branded keywords in paid advertising
             </p>
           </div>
           <div className={styles.complianceItem}>
             <h3 className={styles.complianceTitle}>No Spam or DMs</h3>
             <p className={styles.complianceDescription}>
-              Respect users' privacy - no unsolicited messages or aggressive outreach
+              Respect users&apos; privacy - no unsolicited messages or aggressive outreach
             </p>
           </div>
           <div className={styles.complianceItem}>
@@ -209,7 +209,7 @@ export default function AffiliatePage() {
             </p>
           </div>
           <div className={styles.faqItem}>
-            <h3 className={styles.faqQuestion}>What's the minimum payout?</h3>
+            <h3 className={styles.faqQuestion}>What&apos;s the minimum payout?</h3>
             <p className={styles.faqAnswer}>
               The minimum payout threshold is $25. Any amount below this will roll over to the next month.
             </p>
@@ -224,7 +224,7 @@ export default function AffiliatePage() {
             <h3 className={styles.faqQuestion}>How long is the cookie window?</h3>
             <p className={styles.faqAnswer}>
               Our cookie window is 30 days. If a customer makes a purchase within 30 days of clicking your link, 
-              you'll earn the commission.
+              you&apos;ll earn the commission.
             </p>
           </div>
         </div>

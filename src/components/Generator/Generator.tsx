@@ -91,7 +91,7 @@ export default function Generator() {
     if (plan === "PRO") return "pro";
     if (plan === "PREMIUM") return "premium";
     return "free";
-  }, [session?.user?.plan]);
+  }, [session?.user]);
 
   const [usageCount, setUsageCount] = useState(0);
 

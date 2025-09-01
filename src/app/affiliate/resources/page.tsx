@@ -18,8 +18,8 @@ export default function AffiliateResourcesPage() {
         <div className={styles.welcome}>
           <h1 className={styles.title}>Welcome to Captioni Affiliates!</h1>
           <p className={styles.subtitle}>
-            Thank you for joining our affiliate program. You're now part of a community helping creators 
-            discover the #1 AI caption generator. Let's get you set up for success.
+            Thank you for joining our affiliate program. You&apos;re now part of a community helping creators 
+            discover the #1 AI caption generator. Let&apos;s get you set up for success.
           </p>
           <div className={styles.note}>
             <a href="/affiliate" className={styles.backLink}>
@@ -52,9 +52,9 @@ export default function AffiliateResourcesPage() {
             <h3 className={styles.cardTitle}>FTC Disclosure Required</h3>
             <p className={styles.cardSubtitle}>Always disclose your affiliate relationship</p>
             <div className={styles.examples}>
-              <p><strong>Example 1:</strong> "I earn a commission if you sign up through my link"</p>
-              <p><strong>Example 2:</strong> "Affiliate link - I may earn from qualifying purchases"</p>
-              <p><strong>Example 3:</strong> "Sponsored/affiliate content"</p>
+              <p><strong>Example 1:</strong> &quot;I earn a commission if you sign up through my link&quot;</p>
+              <p><strong>Example 2:</strong> &quot;Affiliate link - I may earn from qualifying purchases&quot;</p>
+              <p><strong>Example 3:</strong> &quot;Sponsored/affiliate content&quot;</p>
             </div>
           </div>
 
@@ -130,16 +130,16 @@ export default function AffiliateResourcesPage() {
             <h3 className={styles.cardTitle}>Ready-to-Use Captions</h3>
             <div className={styles.captionExamples}>
               <p className={styles.caption}>
-                "Stop spending hours writing captions! This AI tool generates viral Instagram captions in seconds. 
-                Game changer for creators! 🔥"
+                &quot;Stop spending hours writing captions! This AI tool generates viral Instagram captions in seconds. 
+                Game changer for creators! 🔥&quot;
               </p>
               <p className={styles.caption}>
-                "Just discovered the best AI caption generator. My engagement went up 40% since I started using it. 
-                Seriously obsessed! ✨"
+                &quot;Just discovered the best AI caption generator. My engagement went up 40% since I started using it. 
+                Seriously obsessed! ✨&quot;
               </p>
               <p className={styles.caption}>
-                "If you're a content creator, you need this AI caption tool. Saves me 2+ hours every day. 
-                Link in bio! 💯"
+                              &quot;If you&apos;re a content creator, you need this AI caption tool. Saves me 2+ hours every day. 
+              Link in bio! 💯&quot;
               </p>
             </div>
             <div className={styles.hashtags}>
@@ -151,9 +151,9 @@ export default function AffiliateResourcesPage() {
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>Reels/TikTok Script</h3>
             <div className={styles.script}>
-              <p><strong>Hook (0-3s):</strong> "Stop writing captions manually!"</p>
+              <p><strong>Hook (0-3s):</strong> &quot;Stop writing captions manually!&quot;</p>
               <p><strong>Demo (3-12s):</strong> Show app generating captions quickly</p>
-              <p><strong>CTA (12-15s):</strong> "Link in bio - try it free!"</p>
+              <p><strong>CTA (12-15s):</strong> &quot;Link in bio - try it free!&quot;</p>
             </div>
           </div>
         </div>
@@ -177,9 +177,9 @@ export default function AffiliateResourcesPage() {
             <h3 className={styles.cardTitle}>Discord & Communities</h3>
             <div className={styles.template}>
               <p><strong>Template:</strong></p>
-              <p>"Hey creators! I found this amazing AI tool that generates Instagram captions in seconds. 
-              It's been a game changer for my content. If anyone wants to try it, I can share my link. 
-              No pressure, just genuinely helpful! 🚀"</p>
+              <p>&quot;Hey creators! I found this amazing AI tool that generates Instagram captions in seconds. 
+              It&apos;s been a game changer for my content. If anyone wants to try it, I can share my link. 
+              No pressure, just genuinely helpful! 🚀&quot;</p>
             </div>
           </div>
 

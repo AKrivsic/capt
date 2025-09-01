@@ -265,12 +265,7 @@ const FIXED_VARIANTS: ReadonlySet<OutputType> = new Set<OutputType>([
   "hook",     // 5 řádků (v jedné variantě)
 ]);
 
-function resolveVariants(type: OutputType, requested?: number): number {
-  const base = DEFAULT_VARIANTS[type];
-  if (requested == null) return base;
-  if (FIXED_VARIANTS.has(type)) return base; // ignoruj přepis
-  return Math.min(5, Math.max(1, requested));
-}
+
 
 function genParamsFor(type: OutputType): GenParams {
   switch (type) {

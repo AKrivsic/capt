@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 
 declare global {
   interface Window {
-    rewardful: (event: string, callback?: () => void) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rewardful: any;
     Rewardful: {
       referral: string | null;
     };
@@ -37,7 +38,7 @@ export function useRewardful() {
     }
   }, []);
 
-  const trackEvent = (eventName: string, properties?: Record<string, any>) => {
+  const trackEvent = (eventName: string, properties?: Record<string, unknown>) => {
     if (typeof window !== 'undefined' && window.rewardful) {
       window.rewardful('track', eventName, properties);
     }
