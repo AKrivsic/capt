@@ -45,12 +45,16 @@ export default function AffiliatePage() {
             Join Now
           </a>
         </div>
-        {/* TODO: Add hero image/illustration here */}
-        <div className={styles.heroImage}>
-          <div className={styles.imagePlaceholder}>
-            TODO: Add hero illustration showing affiliate success
-          </div>
-        </div>
+        <picture>
+  <source srcSet="/affiliate-hero.webp" type="image/webp" />
+  <img
+    src="/illustrations/affiliate-hero.png"
+    alt="Affiliate success illustration"
+    className={styles.heroIllustration}
+  />
+</picture>
+        
+
       </section>
 
       {/* How It Works Section */}
@@ -117,6 +121,53 @@ export default function AffiliatePage() {
             <li>Monthly payments via PayPal or bank transfer</li>
             <li>No cap on earnings - scale as much as you want</li>
           </ul>
+        </div>
+      </section>
+
+      {/* Five-Step Flow Section */}
+      <section className={styles.flow}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Your Path to Earning</h2>
+          <p className={styles.sectionSubtitle}>
+            From signup to monthly payouts — here’s the entire process at a glance
+          </p>
+        </div>
+        <div className={styles.flowGrid}>
+          <div className={styles.flowItem}>
+            <div className={styles.flowIcon} aria-hidden>📝</div>
+            <h3 className={styles.flowTitle}>Join</h3>
+            <p className={styles.flowText}>
+              Sign up for free via Rewardful. Manual approval for quality & safety.
+            </p>
+          </div>
+          <div className={styles.flowItem}>
+            <div className={styles.flowIcon} aria-hidden>🔗</div>
+            <h3 className={styles.flowTitle}>Get Your Link</h3>
+            <p className={styles.flowText}>
+              Your personal affiliate link lives in the dashboard. Add UTM to track.
+            </p>
+          </div>
+          <div className={styles.flowItem}>
+            <div className={styles.flowIcon} aria-hidden>📦</div>
+            <h3 className={styles.flowTitle}>Use Resources</h3>
+            <p className={styles.flowText}>
+              Grab captions, hashtags, scripts & brand kit — plug & play.
+            </p>
+          </div>
+          <div className={styles.flowItem}>
+            <div className={styles.flowIcon} aria-hidden>📲</div>
+            <h3 className={styles.flowTitle}>Share Content</h3>
+            <p className={styles.flowText}>
+              Reels/TikTok/Shorts or community posts. CTA: Story link / pinned comment.
+            </p>
+          </div>
+          <div className={styles.flowItem}>
+            <div className={styles.flowIcon} aria-hidden>💵</div>
+            <h3 className={styles.flowTitle}>Earn Monthly</h3>
+            <p className={styles.flowText}>
+              40% first payment, 30% for 11 months. Paid on the 1st (30-day lock).
+            </p>
+          </div>
         </div>
       </section>
 

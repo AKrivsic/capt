@@ -473,3 +473,115 @@
     padding: 10rem 4rem;
   }
 }
+
+
+
+/* Five-Step Flow */
+.flow {
+  padding: 6rem 1rem;
+  background: #ffffff;
+  
+}
+
+.flowGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  
+}
+
+.flowItem {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.25rem;
+  padding: 1.75rem;
+  text-align: center;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  
+}
+
+.flowItem:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  
+}
+
+.flowIcon {
+  font-size: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  margin: 0 auto 0.75rem;
+  background: linear-gradient(135deg, #34D399 0%, #8B5CF6 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.18);
+  
+}
+
+.flowTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+  
+}
+
+.flowText {
+  font-size: 0.98rem;
+  color: #6b7280;
+  line-height: 1.6;
+  
+}
+
+@media (min-width: 768px) {
+  .flowGrid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    
+  }
+
+  .flowItem {
+    padding: 1.5rem;
+    
+  }
+
+  .flowIcon {
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.5rem;
+    
+  }
+
+  .flowTitle {
+    font-size: 1.05rem;
+    
+  }
+
+  .flowText {
+    font-size: 0.95rem;
+    
+  }
+
+  
+}
+
+@media (min-width: 1024px) {
+  .flow {
+  padding: 8rem 2rem;
+    
+  }
+
+  
+}
+
+.heroIllustration {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: block;
+}
