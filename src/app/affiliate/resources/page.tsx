@@ -1,5 +1,7 @@
 import styles from './page.module.css';
 
+const AFF_HELP_EMAIL = 'affiliates@captioni.com';
+
 // Helpers
 const addUTMParams = (
   base: string,
@@ -49,15 +51,31 @@ export default function AffiliateResourcesPage() {
         <h2 className={styles.sectionTitle}>Quick Start (3 steps)</h2>
         <div className={styles.card}>
           <ul className={styles.list}>
-            <li><strong>1)</strong> Grab your <strong>personal affiliate link</strong> in your Rewardful dashboard (Links).</li>
-            <li><strong>2)</strong> Create a <strong>short-form video</strong> (Reels/TikTok) using our B-roll & overlays + clear CTA.</li>
-            <li><strong>3)</strong> Add <strong>UTM parameters</strong> to track your campaigns (examples below).</li>
+            <li>
+              <strong>1)</strong> Grab your <strong>personal affiliate link</strong> in your
+              Rewardful dashboard (Links).
+            </li>
+            <li>
+              <strong>2)</strong> Create a <strong>short-form video</strong> (Reels/TikTok) using our
+              B-roll & overlays + clear CTA.
+            </li>
+            <li>
+              <strong>3)</strong> Add <strong>UTM parameters</strong> to track your campaigns
+              (examples below).
+            </li>
           </ul>
           <div className={styles.trackingLink} style={{ marginTop: '1rem' }}>
-            <p><strong>Your link:</strong> use your **personal** Rewardful link (do not share generic links).</p>
-            <p style={{ marginTop: '.5rem' }}><strong>UTM examples:</strong></p>
+            <p>
+              <strong>Your link:</strong> use your <strong>personal</strong> Rewardful link (do not
+              share generic links).
+            </p>
+            <p style={{ marginTop: '.5rem' }}>
+              <strong>UTM examples:</strong>
+            </p>
             {utmExamples.map((u) => (
-              <code className={styles.code} key={u}>{u}</code>
+              <code className={styles.code} key={u}>
+                {u}
+              </code>
             ))}
           </div>
         </div>
@@ -68,15 +86,29 @@ export default function AffiliateResourcesPage() {
         <h2 className={styles.sectionTitle}>Commission Details</h2>
         <div className={styles.card}>
           <ul className={styles.list}>
-            <li><strong>40% commission</strong> on the <strong>first payment</strong> from each new customer</li>
-            <li><strong>30% recurring</strong> for the next <strong>11 billing cycles</strong></li>
-            <li><strong>$25 minimum payout</strong> threshold</li>
-            <li><strong>30-day lock</strong> period for new conversions</li>
-            <li><strong>Monthly payouts</strong> processed on the 1st of each month</li>
-            <li><strong>Payment methods:</strong> PayPal, Wise (bank transfer)</li>
+            <li>
+              <strong>40% commission</strong> on the <strong>first payment</strong> from each new
+              customer
+            </li>
+            <li>
+              <strong>30% recurring</strong> for the next <strong>11 billing cycles</strong>
+            </li>
+            <li>
+              <strong>$25 minimum payout</strong> threshold
+            </li>
+            <li>
+              <strong>30-day lock</strong> period for new conversions
+            </li>
+            <li>
+              <strong>Monthly payouts</strong> processed on the 1st of each month
+            </li>
+            <li>
+              <strong>Payment methods:</strong> PayPal, Wise (bank transfer)
+            </li>
           </ul>
           <p className={styles.cardSubtitle} style={{ marginTop: '0.75rem' }}>
-            Note: First-payment 40% bonus is honored in payouts; Rewardful UI may show the 30% baseline.
+            Note: First-payment 40% bonus is honored in payouts; Rewardful UI may show the 30%
+            baseline.
           </p>
         </div>
       </section>
@@ -89,9 +121,17 @@ export default function AffiliateResourcesPage() {
             <h3 className={styles.cardTitle}>FTC Disclosure Required</h3>
             <p className={styles.cardSubtitle}>Always disclose your affiliate relationship</p>
             <div className={styles.examples}>
-              <p><strong>Example 1:</strong> “I may earn a commission if you sign up through my link.”</p>
-              <p><strong>Example 2:</strong> “#ad #affiliate — I earn from qualifying purchases.”</p>
-              <p><strong>Example 3:</strong> “Affiliate partner — I receive a commission at no extra cost to you.”</p>
+              <p>
+                <strong>Example 1:</strong> “I may earn a commission if you sign up through my
+                link.”
+              </p>
+              <p>
+                <strong>Example 2:</strong> “#ad #affiliate — I earn from qualifying purchases.”
+              </p>
+              <p>
+                <strong>Example 3:</strong> “Affiliate partner — I receive a commission at no extra
+                cost to you.”
+              </p>
             </div>
           </div>
 
@@ -143,6 +183,7 @@ export default function AffiliateResourcesPage() {
                   data-cta-name="brand_kit"
                   data-cta-location="promo_kit"
                   rel="noopener noreferrer"
+                  download
                 >
                   📦 Brand Kit (logos, colors, screenshots)
                 </a>
@@ -155,6 +196,7 @@ export default function AffiliateResourcesPage() {
                   data-cta-name="broll_pack"
                   data-cta-location="promo_kit"
                   rel="noopener noreferrer"
+                  download
                 >
                   🎥 B-roll Pack (typing, posting, analytics spike, POV shots)
                 </a>
@@ -167,13 +209,14 @@ export default function AffiliateResourcesPage() {
                   data-cta-name="screenshot_pack"
                   data-cta-location="promo_kit"
                   rel="noopener noreferrer"
+                  download
                 >
                   🖼️ Screenshot Pack (static UI, overlays)
                 </a>
               </li>
               <li>
                 <a
-                  href="/demo-clip.mp4"
+                  href="/overlay-pack.zip"
                   className={styles.downloadLink}
                   data-event="download"
                   data-cta-name="demo_clip"
@@ -190,13 +233,16 @@ export default function AffiliateResourcesPage() {
             <h3 className={styles.cardTitle}>Ready-to-Use Captions</h3>
             <div className={styles.captionExamples}>
               <p className={styles.caption}>
-                “Stop wasting hours writing captions. This AI writes scroll-stoppers in seconds. Total game-changer. Try it 👇”
+                “Stop wasting hours writing captions. This AI writes scroll-stoppers in seconds.
+                Total game-changer. Try it 👇”
               </p>
               <p className={styles.caption}>
-                “My engagement jumped after switching to AI captions. If you create content, you’ll love this.”
+                “My engagement jumped after switching to AI captions. If you create content, you’ll
+                love this.”
               </p>
               <p className={styles.caption}>
-                “Creators: meet your new caption co-pilot. Faster posts, better hooks, more comments.”
+                “Creators: meet your new caption co-pilot. Faster posts, better hooks, more
+                comments.”
               </p>
               <p className={styles.caption}>
                 “Batch 10 posts in 5 minutes? Yep. This AI caption tool is <i>that</i> good.”
@@ -206,30 +252,62 @@ export default function AffiliateResourcesPage() {
               </p>
             </div>
             <div className={styles.hashtags}>
-              <p><strong>Suggested hashtags:</strong></p>
-              <p>#AICaptions #ContentCreator #CreatorTools #InstagramTips #ReelsTips #SocialMedia #MadeWithAI #ViralCaptions #ContentWorkflow #CreatorLife</p>
+              <p>
+                <strong>Suggested hashtags:</strong>
+              </p>
+              <p>
+                #AICaptions #ContentCreator #CreatorTools #InstagramTips #ReelsTips #SocialMedia
+                #MadeWithAI #ViralCaptions #ContentWorkflow #CreatorLife
+              </p>
             </div>
           </div>
 
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>Reels/TikTok Scripts (15s, no app access needed)</h3>
             <div className={styles.script}>
-              <p><strong>V1 – Problem → Solution (voiceover)</strong></p>
-              <p><strong>0–3s:</strong> “Still stuck writing captions?”</p>
-              <p><strong>3–12s:</strong> B-roll: typing, notes, time pressure → relief shot.</p>
-              <p><strong>12–15s:</strong> “CTA: IG → link ve Story (sticker) nebo připnutý komentář • TikTok → připnutý komentář • YouTube → link v popisku/pinned comment.”</p>
+              <p>
+                <strong>V1 – Problem → Solution (voiceover)</strong>
+              </p>
+              <p>
+                <strong>0–3s:</strong> “Still stuck writing captions?”
+              </p>
+              <p>
+                <strong>3–12s:</strong> B-roll: typing, notes, time pressure → relief shot.
+              </p>
+              <p>
+                <strong>12–15s:</strong> CTA: IG → story link (sticker) / pinned comment • TikTok →
+                pinned comment • YouTube → description / pinned comment.
+              </p>
             </div>
             <div className={styles.script} style={{ marginTop: '0.75rem' }}>
-              <p><strong>V2 – Before/After (text overlay)</strong></p>
-              <p><strong>0–4s:</strong> “Before: 20 min per caption → After: 20 seconds.”</p>
-              <p><strong>4–12s:</strong> Show planning sheet, overlay results text (no UI needed).</p>
-              <p><strong>12–15s:</strong> “Creators save hours. CTA: připnutý komentář nebo link ve Story/popisku.”</p>
+              <p>
+                <strong>V2 – Before/After (text overlay)</strong>
+              </p>
+              <p>
+                <strong>0–4s:</strong> “Before: 20 min per caption → After: 20 seconds.”
+              </p>
+              <p> 
+                <strong>4–12s:</strong> Show planning sheet, overlay results text (no UI needed).
+              </p>
+              <p>
+                <strong>12–15s:</strong> “Creators save hours. CTA: pinned comment or story/desc
+                link.”
+              </p>
             </div>
             <div className={styles.script} style={{ marginTop: '0.75rem' }}>
-              <p><strong>V3 – Hook Carousel (educational)</strong></p>
-              <p><strong>0–3s:</strong> “Hooks that stop the scroll.”</p>
-              <p><strong>3–12s:</strong> Show 3 hook examples as on-screen text.</p>
-              <p><strong>12–15s:</strong> “Grab yours — CTA: Story link, pinned comment, or video description.”</p>
+              <p>
+                <strong>V3 – Hook Carousel (educational)</strong>
+              </p>
+              <p>
+                <strong>0–3s:</strong> “Hooks that stop the scroll.”
+              </p>
+              <p>
+                <strong>3–12s:</strong> Show 3 hook examples as on-screen text.
+              </p>
+              <p>
+                <strong>12–15s:</strong> “Grab yours — CTA: story link, pinned comment, or video
+                description.”
+              </p>
             </div>
           </div>
         </div>
@@ -242,20 +320,32 @@ export default function AffiliateResourcesPage() {
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>Instagram Reels & TikTok</h3>
             <ul className={styles.list}>
-              <li><strong>Pain first:</strong> Lead with a time/creativity problem.</li>
-              <li><strong>Realistic assets:</strong> Use our B-roll + overlay demo instead of screen recording.</li>
-              <li><strong>CTA:</strong> “Link in bio / in comments.”</li>
-              <li><strong>Boost:</strong> Use trending sounds, add on-screen text, keep cuts snappy.</li>
+              <li>
+                <strong>Pain first:</strong> Lead with a time/creativity problem.
+              </li>
+              <li>
+                <strong>Realistic assets:</strong> Use our B-roll + overlay demo instead of raw
+                screen recording.
+              </li>
+              <li>
+                <strong>CTA:</strong> “Link in bio / in comments.”
+              </li>
+              <li>
+                <strong>Boost:</strong> Use trending sounds, add on-screen text, keep cuts snappy.
+              </li>
             </ul>
           </div>
 
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>Discord & Communities</h3>
             <div className={styles.template}>
-              <p><strong>Template:</strong></p>
               <p>
-                “Found an AI tool that generates captions in seconds. It’s saving me hours each week — happy to share my link if anyone wants to try.
-                No pressure, just sharing what works. 🚀”
+                <strong>Template:</strong>
+              </p>
+              <p>
+                “Found an AI tool that generates captions in seconds. It’s saving me hours each week
+                — happy to share my link if anyone wants to try. No pressure, just sharing what
+                works. 🚀”
               </p>
             </div>
           </div>
@@ -272,39 +362,36 @@ export default function AffiliateResourcesPage() {
               <li>
                 <strong>Email:</strong>{' '}
                 <a
-                  href="mailto:affiliates@captioni.com"
+                  href={`mailto:${AFF_HELP_EMAIL}`}
                   className={styles.link}
                   data-event="contact"
                   data-cta-name="email_support"
                   data-cta-location="support"
                 >
-                  affiliates@captioni.com
+                  {AFF_HELP_EMAIL}
                 </a>
               </li>
-              {/* <li>
-                <strong>Discord:</strong>{' '}
-                <a
-                  href="https://discord.gg/example"
-                  className={styles.link}
-                  data-event="join_community"
-                  data-cta-name="discord_invite"
-                  data-cta-location="support"
-                  rel="noopener noreferrer"
-                >
-                  TODO: Add Discord invite link
-                </a>
-              </li> */}
-              <li><strong>Response time:</strong> Within 24 hours</li>
+              <li>
+                <strong>Response time:</strong> Within 24 hours
+              </li>
             </ul>
           </div>
 
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>Payout Schedule</h3>
             <ul className={styles.list}>
-              <li><strong>Processing:</strong> Monthly on the 1st</li>
-              <li><strong>Minimum:</strong> $25 payout threshold</li>
-              <li><strong>Methods:</strong> PayPal, Wise (bank transfer)</li>
-              <li><strong>Timing:</strong> 3–5 business days after processing</li>
+              <li>
+                <strong>Processing:</strong> Monthly on the 1st
+              </li>
+              <li>
+                <strong>Minimum:</strong> $25 payout threshold
+              </li>
+              <li>
+                <strong>Methods:</strong> PayPal, Wise (bank transfer)
+              </li>
+              <li>
+                <strong>Timing:</strong> 3–5 business days after processing
+              </li>
             </ul>
           </div>
         </div>
@@ -316,13 +403,13 @@ export default function AffiliateResourcesPage() {
           <p className={styles.footerText}>
             Need help? Contact{' '}
             <a
-              href="mailto:affiliates@captioni.com"
+              href={`mailto:${AFF_HELP_EMAIL}`}
               className={styles.footerLink}
               data-event="contact"
               data-cta-name="footer_email"
               data-cta-location="footer"
             >
-              affiliates@captioni.com
+              {AFF_HELP_EMAIL}
             </a>
           </p>
         </div>
@@ -330,4 +417,3 @@ export default function AffiliateResourcesPage() {
     </div>
   );
 }
-

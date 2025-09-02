@@ -291,28 +291,28 @@
   .container {
     padding: 0 2rem;
   }
-  
+
   .section {
     padding: 4rem 0;
   }
-  
+
   .section:first-child {
     padding-top: 3rem;
   }
-  
+
   .grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 2rem;
   }
-  
+
   .welcome {
     padding: 3rem;
   }
-  
+
   .title {
     font-size: 2.5rem;
   }
-  
+
   .card {
     padding: 2rem;
   }
@@ -322,20 +322,20 @@
   .container {
     padding: 0 3rem;
   }
-  
+
   .section {
     padding: 5rem 0;
   }
-  
+
   .grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 2.5rem;
   }
-  
+
   .welcome {
     padding: 4rem;
   }
-  
+
   .title {
     font-size: 3rem;
   }
@@ -345,11 +345,11 @@
   .container {
     padding: 0 4rem;
   }
-  
+
   .section {
     padding: 6rem 0;
   }
-  
+
   .grid {
     gap: 3rem;
   }
