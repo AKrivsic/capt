@@ -3,8 +3,6 @@ import { PrismaClient } from "@prisma/client";
 
 // Connection pool configuration
 const POOL_SIZE = 10;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
 
 class DatabasePool {
   private pool: PrismaClient[] = [];

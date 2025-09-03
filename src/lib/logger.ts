@@ -17,7 +17,7 @@ export interface LogContext {
   ip?: string;
   endpoint?: string;
   duration?: number;
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | undefined | string[];
 }
 
 // Log entry interface
@@ -34,7 +34,10 @@ class StructuredLogger {
   private isDevelopment: boolean;
 
   constructor() {
-    this.logLevel = (process.env.LOG_LEVEL as LogLevel) || LogLevel.INFO;
+    const logLevelStr = process.env.LOG_LEVEL;
+    this.logLevel = logLevelStr && Object.values(LogLevel).includes(Number(logLevelStr)) 
+      ? Number(logLevelStr) as LogLevel 
+      : LogLevel.INFO;
     this.isDevelopment = process.env.NODE_ENV === "development";
   }
 
@@ -172,7 +175,7 @@ class StructuredLogger {
   ) {
     this.info("Content generation started", {
       ...context,
-      userId,
+      userId: userId || undefined,
       plan,
       platform,
       outputs,
@@ -189,7 +192,7 @@ class StructuredLogger {
   ) {
     this.warn("Usage limit reached", {
       ...context,
-      userId,
+      userId: userId || undefined,
       plan,
       limit,
       current,
@@ -253,5 +256,4 @@ export function createRequestContext(
   };
 }
 
-// Export types
-export type { LogContext, LogEntry };
+

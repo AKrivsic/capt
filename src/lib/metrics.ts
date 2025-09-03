@@ -88,7 +88,16 @@ class MetricsCollector {
       return this.metrics.get(endpoint);
     }
 
-    const result: Record<string, any> = {};
+    const result: Record<string, {
+      count: number;
+      avgTime: number;
+      minTime: number;
+      maxTime: number;
+      p50: number;
+      p95: number;
+      p99: number;
+      lastReset: string;
+    }> = {};
     
     for (const [key, metric] of this.metrics) {
       const sortedTimes = [...metric.times].sort((a, b) => a - b);
@@ -147,7 +156,7 @@ class MetricsCollector {
 
   // Middleware function for automatic metrics collection
   middleware(endpoint: string) {
-    return async (fn: () => Promise<any>) => {
+    return async <T>(fn: () => Promise<T>) => {
       const start = Date.now();
       try {
         const result = await fn();
