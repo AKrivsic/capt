@@ -2,16 +2,14 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { checkDatabaseHealth } from "@/lib/db-pool";
 
 export async function GET() {
   const startTime = Date.now();
   
   try {
     // ✅ Database health check
-    const dbHealth = await prisma.$queryRaw`SELECT 1 as health`
-      .then(() => ({ ok: true, latency: Date.now() - startTime }))
-      .catch(() => ({ ok: false, error: "Database connection failed" }));
+    const dbHealth = await checkDatabaseHealth();
     
     // ✅ OpenAI health check (basic)
     const openaiHealth = { ok: true, apiKey: !!process.env.OPENAI_API_KEY };
@@ -34,7 +32,7 @@ export async function GET() {
     
     return NextResponse.json({
       ok: allHealthy,
-      version: process.env.VERCEL_GIT_COMMIT_SHA || process.env.npm_package_version || "dev",
+      version: process.env.VERCEL_GIT_COMMIT_SHA || "0.1.0",
       time: new Date().toISOString(),
       responseTime: `${responseTime}ms`,
       checks,
@@ -50,7 +48,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json({
       ok: false,
-      version: process.env.VERCEL_GIT_COMMIT_SHA || "dev",
+      version: process.env.VERCEL_GIT_COMMIT_SHA || "0.1.0",
       time: new Date().toISOString(),
       error: error instanceof Error ? error.message : "Unknown error",
       responseTime: `${Date.now() - startTime}ms`,

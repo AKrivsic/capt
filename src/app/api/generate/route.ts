@@ -16,6 +16,9 @@ import { assertSameOrigin } from "@/lib/origin";
 import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
 import { mlMarkEvent } from "@/lib/mailerlite";
 import { openaiWithRetry } from "@/lib/retry";
+import { withMetrics } from "@/lib/metrics";
+import { validateCaptcha, requireCaptcha } from "@/lib/captcha";
+import { logger, createRequestContext } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { utcDateKey } from "@/lib/date";
 
@@ -520,9 +523,17 @@ function injectCTA(type: OutputType, variants: string[]): string[] {
 
 // ====== POST handler ======
 export async function POST(req: NextRequest) {
-  if (!assertSameOrigin(req)) {
-    return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
-  }
+  return withMetrics("/api/generate", async () => {
+    const startTime = Date.now();
+    const requestId = crypto.randomUUID();
+    
+    // Create logging context
+    const logContext = createRequestContext(requestId, undefined, undefined, undefined, undefined);
+    
+    if (!assertSameOrigin(req)) {
+      logger.warn("Bad origin request", { ...logContext, ip: req.headers.get("x-forwarded-for") || undefined });
+      return NextResponse.json({ ok: false, error: "Bad origin" }, { status: 403 });
+    }
 
   // --- identify client ---
   const h = await headers();
@@ -548,6 +559,11 @@ export async function POST(req: NextRequest) {
     ? (cookiePlan.toUpperCase() as PlanUpper)
     : "FREE";
 
+  // Update logging context with user info
+  logContext.userId = userId || undefined;
+  logContext.plan = plan;
+  logContext.ip = ip;
+
   // --- input ---
   const raw = await req.json().catch(() => null);
   const parsed = InputSchema.safeParse(raw);
@@ -558,6 +574,41 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  // --- CAPTCHA validation for FREE tier ---
+  if (requireCaptcha(planFromSession || null)) {
+    logger.info("CAPTCHA validation required", { ...logContext, plan });
+    
+    const captchaResult = await validateCaptcha(req, ip);
+    if (!captchaResult.success) {
+      if (captchaResult.rateLimited) {
+        logger.warn("CAPTCHA rate limited", { ...logContext, ip, error: captchaResult.error });
+        return NextResponse.json(
+          { 
+            ok: false, 
+            error: "CAPTCHA_RATE_LIMITED",
+            message: "Too many CAPTCHA failures. Try again in 1 hour.",
+            retryAfter: 3600
+          },
+          { status: 429, headers: { "Retry-After": "3600" } }
+        );
+      }
+      
+      logger.warn("CAPTCHA validation failed", { ...logContext, ip, error: captchaResult.error });
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: "CAPTCHA_REQUIRED",
+          message: captchaResult.error === "CAPTCHA_TOKEN_MISSING" 
+            ? "CAPTCHA token required for free tier" 
+            : "CAPTCHA validation failed"
+        },
+        { status: 403 }
+      );
+    }
+    
+    logger.info("CAPTCHA validation successful", { ...logContext, plan });
+  }
 
   // --- quotas ---
   let limit: number | null;
@@ -773,6 +824,9 @@ export async function POST(req: NextRequest) {
   };
 
   try {
+    // Log generation start
+    logger.logGeneration(userId, plan, input.platform, input.outputs, logContext);
+    
     for (const type of input.outputs) {
       const {
         n,
@@ -833,6 +887,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const duration = Date.now() - startTime;
+    logger.logRequestComplete("/api/generate", "POST", duration, 200, logContext);
+    
     return NextResponse.json(
       {
         ok: true,
@@ -842,15 +899,21 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (err) {
+    const duration = Date.now() - startTime;
+    const error = err instanceof Error ? err : new Error("Unknown error");
+    
+    logger.logError("/api/generate", "POST", error, logContext);
+    
     return NextResponse.json(
       {
         ok: false,
         error: "INTERNAL_ERROR",
-        detail: err instanceof Error ? err.message : "Unexpected error",
+        detail: error.message,
       },
       { status: 500 }
     );
   } finally {
     clearTimeout(timeout);
   }
+  });
 }
