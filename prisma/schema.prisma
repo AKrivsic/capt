@@ -32,6 +32,14 @@ model User {
 
   deletedAt DateTime?
 
+  // ✅ UTM & Affiliate tracking
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmContent   String?
+  affiliateId  String?
+  referralCode String?
+
   accounts  Account[]
   sessions  Session[]
   histories History[]
@@ -153,4 +161,15 @@ model LoginDevice {
 
   @@unique([userId, fingerprint])
   @@index([userId, lastSeen])
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  source    String   // "stripe" | "mailerlite" | "rewardful"
+  eventId   String   // provider's event ID
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  @@unique([source, eventId])
+  @@index([source, createdAt])
 }

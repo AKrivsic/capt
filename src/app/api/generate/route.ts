@@ -10,10 +10,14 @@ import {
   getAndIncUsageForUser,
   getAndIncUsageForIp,
   getUsageForUserLastNDays,
+  peekUsageForUser,
 } from "@/lib/limits";
 import { assertSameOrigin } from "@/lib/origin";
 import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
 import { mlMarkEvent } from "@/lib/mailerlite";
+import { openaiWithRetry } from "@/lib/retry";
+import { prisma } from "@/lib/prisma";
+import { utcDateKey } from "@/lib/date";
 
 // ====== enums & vstup ======
 const OutputEnum = z.enum([
@@ -54,7 +58,7 @@ const OPENAI_PROXY_URL =
   process.env.OPENAI_PROXY_URL ||
   "https://api.openai.com/v1/chat/completions";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 12_000);
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 9_000);
 
 // ====== style notes & platformy ======
 const styleNotes: Record<Input["style"], string> = {
@@ -605,40 +609,108 @@ export async function POST(req: NextRequest) {
     input.demo = true;
   } else {
     if (limit !== null) {
-      if (typeof getAndIncUsageForUser === "function") {
-        // Pro STARTER plán použij 3-denní okno
-        if (planFromSession === "STARTER") {
-          const count3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
-          if (count3Days >= limit) {
-            if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
-            return NextResponse.json(
-              {
-                ok: false,
-                error: "LIMIT",
-                message: "3-day limit reached.",
-                meta: { remainingToday: 0, plan },
-              },
-              { status: 429 }
-            );
-          }
-          remainingToday = Math.max(0, limit - count3Days);
-        } else {
-          // Pro FREE plán použij denní limit
-          const count = await getAndIncUsageForUser(userId!, "GENERATION");
-          if (count > limit) {
-            if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
-            return NextResponse.json(
-              {
-                ok: false,
-                error: "LIMIT",
-                message: "Daily limit reached.",
-                meta: { remainingToday: 0, plan },
-              },
-              { status: 429 }
-            );
-          }
-          remainingToday = Math.max(0, limit - count);
+      // Pro STARTER plán použij OR logiku: 15 pokusů NEBO 3 dny (co nastane dříve)
+      if (planFromSession === "STARTER") {
+        // ✅ 1. Kontrola dnešního limitu (15 pokusů)
+        const todayCount = await peekUsageForUser(userId!, "GENERATION");
+        if (todayCount >= limit) {
+          if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: "Daily limit reached (15 generations).",
+              meta: { remainingToday: 0, plan },
+            },
+            { status: 429 }
+          );
         }
+        
+        // ✅ 2. Kontrola 3-denního okna (pokud by někdo dělal 5 pokusů denně)
+        const count3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
+        if (count3Days >= limit) {
+          if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: "3-day limit reached (15 generations total).",
+              meta: { remainingToday: 0, plan },
+            },
+            { status: 429 }
+          );
+        }
+        
+        // ✅ 3. Inkrementace dnešního usage
+        const newTodayCount = await getAndIncUsageForUser(userId!, "GENERATION");
+        
+        // ✅ 4. Znovu kontrola obou limitů po inkrementaci
+        const newCount3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
+        
+        // Kontrola dnešního limitu
+        if (newTodayCount > limit) {
+          // Reset dnešního usage
+          await prisma.usage.update({
+            where: { userId_date_kind: { userId: userId!, date: utcDateKey(), kind: "GENERATION" } },
+            data: { count: { decrement: 1 } },
+          });
+          
+          if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: "Daily limit reached (15 generations).",
+              meta: { remainingToday: 0, plan },
+            },
+            { status: 429 }
+          );
+        }
+        
+        // Kontrola 3-denního limitu
+        if (newCount3Days > limit) {
+          // Reset dnešního usage
+          await prisma.usage.update({
+            where: { userId_date_kind: { userId: userId!, date: utcDateKey(), kind: "GENERATION" } },
+            data: { count: { decrement: 1 } },
+          });
+          
+          if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: "3-day limit reached (15 generations total).",
+              meta: { remainingToday: 0, plan },
+            },
+            { status: 429 }
+          );
+        }
+        
+        // ✅ 5. Výpočet zbývajících pokusů (minimum z obou limitů)
+        const remainingTodayDaily = Math.max(0, limit - newTodayCount);
+        const remaining3Days = Math.max(0, limit - newCount3Days);
+        remainingToday = Math.min(remainingTodayDaily, remaining3Days);
+      } else {
+        // Pro FREE plán použij denní limit
+        // ✅ Nejdříve zkontroluj dnešní limit
+        const todayCount = await peekUsageForUser(userId!, "GENERATION");
+        if (todayCount >= limit) {
+          if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: "Daily limit reached.",
+              meta: { remainingToday: 0, plan },
+            },
+            { status: 429 }
+          );
+        }
+        
+        // ✅ Pak inkrementuj usage
+        const newCount = await getAndIncUsageForUser(userId!, "GENERATION");
+        remainingToday = Math.max(0, limit - newCount);
       }
     }
     if (
@@ -711,20 +783,22 @@ export async function POST(req: NextRequest) {
       } = genParamsFor(type);
 
       try {
-        const res = await fetch(OPENAI_PROXY_URL, {
-          method: "POST",
-          headers: reqHeaders,
-          signal: controller.signal,
-          body: JSON.stringify({
-            model: MODEL,
-            messages: buildMessages(input, type, prefs),
-            temperature,
-            max_tokens,
-            n: n, // Použij n z genParamsFor (DEFAULT_VARIANTS)
-            presence_penalty,
-            frequency_penalty,
-          }),
-        });
+        const res = await openaiWithRetry(async () => 
+          fetch(OPENAI_PROXY_URL, {
+            method: "POST",
+            headers: reqHeaders,
+            signal: controller.signal,
+            body: JSON.stringify({
+              model: MODEL,
+              messages: buildMessages(input, type, prefs),
+              temperature,
+              max_tokens,
+              n: n, // Použij n z genParamsFor (DEFAULT_VARIANTS)
+              presence_penalty,
+              frequency_penalty,
+            }),
+          })
+        );
 
         if (!res.ok) throw new Error(`LLM_${res.status}`);
 

@@ -351,6 +351,16 @@ export const authOptions: NextAuthOptions = {
       try {
         const u = message.user as { id?: string; email?: string | null };
         console.log("[NextAuth][event][signIn]", { userId: u?.id, email: u?.email, account: message.account?.provider });
+        
+        // ✅ UTM & Affiliate tracking při sign-in
+        if (u?.id) {
+          try {
+            const { updateUserUTM } = await import("@/lib/utm-tracking");
+            await updateUserUTM(u.id);
+          } catch (e) {
+            console.error("[NextAuth][signIn][UTM tracking]", e);
+          }
+        }
       } catch {}
     },
     session: async ({ session }) => {

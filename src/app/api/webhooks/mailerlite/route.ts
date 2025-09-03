@@ -88,6 +88,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
   }
 
+  // ✅ IDEMPOTENCE: Kontrola, zda už event zpracováváme
+  try {
+    await prisma.webhookEvent.create({
+      data: {
+        source: "mailerlite",
+        eventId: `${body.type}-${Date.now()}`, // ML nemá event ID, použijeme timestamp
+        processed: false,
+      },
+    });
+  } catch (error: unknown) {
+    // Duplicitní event - ignorujeme
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === "P2002") {
+      console.log("[mailerlite/webhook] Duplicate event ignored:", body.type);
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+    throw error;
+  }
+
   const email = extractEmail(body.data);
   const action = mapAction(body.type, body.data);
 
