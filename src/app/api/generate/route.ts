@@ -884,6 +884,7 @@ export async function POST(req: NextRequest) {
 
     const duration = Date.now() - startTime;
     logger.logRequestComplete("/api/generate", "POST", duration, 200, logContext);
+    // duration se používá v logger.logRequestComplete
     
     return NextResponse.json(
       {
@@ -898,6 +899,7 @@ export async function POST(req: NextRequest) {
     const error = err instanceof Error ? err : new Error("Unknown error");
     
     logger.logError("/api/generate", "POST", error, logContext);
+    // duration se používá v logger.logError
     
     return NextResponse.json(
       {

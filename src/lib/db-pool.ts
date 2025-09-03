@@ -8,13 +8,9 @@ class DatabasePool {
   private pool: PrismaClient[] = [];
   private available: PrismaClient[] = [];
   private inUse: Set<PrismaClient> = new Set();
-  private isPooler: boolean = false;
+
 
   constructor() {
-    // Detekuj, jestli používáme pooler
-    this.isPooler = process.env.DATABASE_URL?.includes('pooler.supabase.com') || false;
-    console.log(`Database pool initialized with ${this.isPooler ? 'pooler' : 'direct'} connection`);
-    
     this.initializePool();
   }
 
@@ -28,36 +24,6 @@ class DatabasePool {
         },
         // Connection pool settings
         log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-        // Přidej pooler kompatibilitu
-        __internal: {
-          engine: {
-            enableEngineDebugMode: false,
-            enableQueryEngineQueryLogging: false,
-            // Přidej pooler-specific nastavení
-            enableEngineQueryLogging: false,
-            // Vypni prepared statement cache pro pooler
-            enablePreparedStatementCache: false,
-          },
-        },
-        // Přidej connection pooling nastavení
-        datasourceUrl: process.env.DATABASE_URL,
-        // Přidej pooler kompatibilitu
-        clientExtensions: {
-          query: {
-            // Vypni prepared statements pro pooler
-            usePreparedStatements: false,
-          },
-        },
-        // Přidej pooler-specific nastavení
-        ...(this.isPooler && {
-          // Pro pooler: vypni prepared statements úplně
-          __internal: {
-            engine: {
-              enablePreparedStatementCache: false,
-              enableEngineQueryLogging: false,
-            },
-          },
-        }),
       });
       
       this.pool.push(client);
@@ -97,42 +63,16 @@ class DatabasePool {
   async healthCheck(): Promise<boolean> {
     try {
       const client = await this.getClient();
-      
-      // Použij nejjednodušší query pro pooler kompatibilitu
-      // Vypni prepared statements úplně
-      await client.$queryRawUnsafe('SELECT 1');
-      
+      await client.$queryRaw`SELECT 1`;
       this.releaseClient(client);
       return true;
     } catch (error) {
       console.error("Database health check failed:", error);
-      
-      // Pokud je to prepared statement error, zkus reconnect
-      if (error?.code === 'P2010' || 
-          error?.message?.includes('prepared statement') ||
-          error?.message?.includes('statement "s0"')) {
-        console.warn("Prepared statement error detected, attempting reconnect...");
-        await this.reconnectPool();
-        return this.healthCheck();
-      }
-      
       return false;
     }
   }
 
-  private async reconnectPool() {
-    try {
-      // Zavři všechny klienty
-      await this.close();
-      
-      // Vytvoř nový pool
-      this.initializePool();
-      
-      console.log("Database pool reconnected successfully");
-    } catch (error) {
-      console.error("Failed to reconnect database pool:", error);
-    }
-  }
+
 
   async close() {
     for (const client of this.pool) {
@@ -160,7 +100,7 @@ export async function checkDatabaseHealth(): Promise<{ ok: boolean; error?: stri
   } catch (error) {
     // Přidej detailní error logging
     const errorMessage = error instanceof Error ? error.message : "Unknown database error";
-    const errorCode = (error as any)?.code;
+    const errorCode = (error as { code?: string })?.code;
     
     console.error("Database health check error:", {
       message: errorMessage,
