@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { GoogleReCaptchaProvider, useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { BRAND } from "@/lib/email/branding";
 
@@ -11,6 +12,8 @@ function SignInForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const { executeRecaptcha } = useGoogleReCaptcha();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +49,7 @@ function SignInForm() {
       const result = await signIn("email", {
         email,
         redirect: false,
-        callbackUrl: "/",
+        callbackUrl: callbackUrl,
       });
 
       if (result?.error) {
@@ -110,7 +113,7 @@ function SignInForm() {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 12, color: BRAND.colors.sub, marginBottom: 16 }}>Or sign in with</div>
           <button
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={() => signIn("google", { callbackUrl: callbackUrl })}
             style={{ width: "100%", padding: "12px 16px", borderRadius: 8, background: "#fff", color: BRAND.colors.text, border: `1px solid ${BRAND.colors.border}`, fontSize: 16, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -141,7 +144,9 @@ export default function SignInPage() {
 
   return (
     <GoogleReCaptchaProvider reCaptchaKey={recaptchaSiteKey}>
-      <SignInForm />
+      <Suspense fallback={<div style={{ padding: 24, textAlign: "center" }}>Loading...</div>}>
+        <SignInForm />
+      </Suspense>
     </GoogleReCaptchaProvider>
   );
 }

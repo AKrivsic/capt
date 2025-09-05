@@ -60,7 +60,7 @@ export async function peekUsageForUser(
 
 /**
  * Získá celkový počet generací za posledních N dní pro uživatele.
- * Používá se pro STARTER plán (3-denní okno).
+ * Používá se pro STARTER plán (3-denní okno od nákupu).
  */
 export async function getUsageForUserLastNDays(
   userId: string,
@@ -83,6 +83,70 @@ export async function getUsageForUserLastNDays(
   }
   
   return total;
+}
+
+/**
+ * Získá celkový počet generací pro STARTER plán od data nákupu.
+ * Používá se pro správné počítání 3-denní lhůty od nákupu.
+ */
+export async function getUsageForStarterPlan(
+  userId: string,
+  kind: "GENERATION"
+): Promise<number> {
+  // Získej datum nákupu STARTER plánu
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { starterPurchasedAt: true },
+  });
+  
+  if (!user?.starterPurchasedAt) {
+    return 0; // Pokud není datum nákupu, vrať 0
+  }
+  
+  const purchaseDate = new Date(user.starterPurchasedAt);
+  const today = new Date();
+  
+  // Zkontroluj, jestli neuplynulo 3 dny od nákupu
+  const daysSincePurchase = Math.floor((today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysSincePurchase >= 3) {
+    return 15; // Po 3 dnech je limit vyčerpán
+  }
+  
+  // Počítej generace od data nákupu
+  let total = 0;
+  for (let i = 0; i <= daysSincePurchase; i++) {
+    const date = new Date(purchaseDate);
+    date.setDate(purchaseDate.getDate() + i);
+    const dateKey = date.toISOString().slice(0, 10);
+    
+    const row = await prisma.usage.findUnique({
+      where: { userId_date_kind: { userId, date: dateKey, kind } },
+      select: { count: true },
+    });
+    total += row?.count ?? 0;
+  }
+  
+  return total;
+}
+
+/**
+ * Zkontroluje, jestli je STARTER plán stále platný (neuplynulo 3 dny od nákupu).
+ */
+export async function isStarterPlanValid(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { starterPurchasedAt: true },
+  });
+  
+  if (!user?.starterPurchasedAt) {
+    return false;
+  }
+  
+  const purchaseDate = new Date(user.starterPurchasedAt);
+  const today = new Date();
+  const daysSincePurchase = Math.floor((today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  return daysSincePurchase < 3;
 }
 
 /**

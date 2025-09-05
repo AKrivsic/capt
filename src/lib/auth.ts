@@ -148,14 +148,17 @@ export const authOptions: NextAuthOptions = {
           const email = u.searchParams.get("email");
           const origin = `${u.protocol}//${u.host}`;
 
-          // (callbackUrl případně zahodíme – redirect řešíme v NextAuth callbacks.redirect)
-          u.searchParams.delete("callbackUrl");
+          // Zachováme callbackUrl pro pozdější použití
+          const callbackUrl = u.searchParams.get("callbackUrl");
 
           // 2) Sestavíme odkaz na interstitial stránku, která provede POST na NextAuth callback
           if (token && email) {
             const interstitial = new URL("/auth/magic", origin);
             interstitial.searchParams.set("token", token);
             interstitial.searchParams.set("email", email);
+            if (callbackUrl) {
+              interstitial.searchParams.set("callbackUrl", callbackUrl);
+            }
             safeUrl = interstitial.toString();
           } else {
             // fallback: pošleme původní url (nemělo by nastat)
@@ -310,16 +313,29 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    // Centrální redirect – po úspěšném callbacku zpět na homepage
+    // Centrální redirect – respektuje callbackUrl parametr
     async redirect({ url, baseUrl }) {
       try {
         const base = new URL(baseUrl);
         const u = new URL(url, baseUrl);
 
+        // Pokud je to callback, zkontroluj callbackUrl parametr
         if (u.pathname.startsWith("/api/auth/callback/")) {
+          const callbackUrl = u.searchParams.get("callbackUrl");
+          if (callbackUrl) {
+            try {
+              const callback = new URL(callbackUrl, baseUrl);
+              if (callback.origin === base.origin) {
+                return callback.toString();
+              }
+            } catch {
+              // Pokud callbackUrl není validní, pokračuj na homepage
+            }
+          }
           return base.origin;
         }
 
+        // Jinak použij původní URL nebo homepage
         if (u.origin === base.origin) return u.toString();
         return base.origin;
       } catch {

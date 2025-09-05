@@ -91,7 +91,13 @@ export async function POST(req: NextRequest) {
         // set plan in DB
         const user = await prisma.user.findFirst({ where: { email: { equals: customerEmail as string, mode: "insensitive" } } });
         if (user) {
-          await prisma.user.update({ where: { id: user.id }, data: { plan: metaPlan } });
+          // Pro STARTER plán ukládáme datum nákupu
+          const updateData: { plan: "FREE" | "STARTER" | "PRO" | "PREMIUM"; starterPurchasedAt?: Date } = { plan: metaPlan };
+          if (metaPlan === "STARTER") {
+            updateData.starterPurchasedAt = new Date();
+          }
+          
+          await prisma.user.update({ where: { id: user.id }, data: updateData });
           try {
             const slug = metaPlan === "STARTER" ? "starter" : metaPlan === "PRO" ? "pro" : "premium";
             await mlSetPlanGroup(customerEmail, slug);

@@ -10,6 +10,7 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const token = typeof sp?.token === "string" ? sp?.token : Array.isArray(sp?.token) ? (sp?.token as string[])[0] : null;
   const emailRaw = typeof sp?.email === "string" ? sp?.email : Array.isArray(sp?.email) ? (sp?.email as string[])[0] : null;
+  const callbackUrl = typeof sp?.callbackUrl === "string" ? sp?.callbackUrl : Array.isArray(sp?.callbackUrl) ? (sp?.callbackUrl as string[])[0] : null;
 
   // Robustní dekódování e-mailu (zvládne email=%40 i email=%2540)
   const email = (() => {
@@ -83,7 +84,10 @@ export default async function MagicAuthPage({ searchParams }: { searchParams: Pr
   const proto = hdrs.get("x-forwarded-proto") ?? "https";
   const host = hdrs.get("host") ?? "captioni.com";
   const origin = `${proto}://${host}`;
-  const action = `${origin}/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  let action = `${origin}/api/auth/callback/email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  if (callbackUrl) {
+    action += `&callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  }
 
   return (
     <div

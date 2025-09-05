@@ -9,7 +9,8 @@ import {
   planDailyLimit,
   getAndIncUsageForUser,
   getAndIncUsageForIp,
-  getUsageForUserLastNDays,
+  getUsageForStarterPlan,
+  isStarterPlanValid,
   peekUsageForUser,
 } from "@/lib/limits";
 import { assertSameOrigin } from "@/lib/origin";
@@ -655,32 +656,32 @@ export async function POST(req: NextRequest) {
     input.demo = true;
   } else {
     if (limit !== null) {
-      // Pro STARTER plán použij OR logiku: 15 pokusů NEBO 3 dny (co nastane dříve)
+      // Pro STARTER plán použij logiku: 15 pokusů za 3 dny od nákupu
       if (planFromSession === "STARTER") {
-        // ✅ 1. Kontrola dnešního limitu (15 pokusů)
-        const todayCount = await peekUsageForUser(userId!, "GENERATION");
-        if (todayCount >= limit) {
+        // ✅ 1. Kontrola, jestli je STARTER plán stále platný (neuplynulo 3 dny)
+        const isValid = await isStarterPlanValid(userId!);
+        if (!isValid) {
           if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
           return NextResponse.json(
             {
               ok: false,
               error: "LIMIT",
-              message: "Daily limit reached (15 generations).",
+              message: "Starter plan expired (3 days from purchase).",
               meta: { remainingToday: 0, plan },
             },
             { status: 429 }
           );
         }
         
-        // ✅ 2. Kontrola 3-denního okna (pokud by někdo dělal 5 pokusů denně)
-        const count3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
-        if (count3Days >= limit) {
+        // ✅ 2. Kontrola počtu generací od nákupu
+        const usedSincePurchase = await getUsageForStarterPlan(userId!, "GENERATION");
+        if (usedSincePurchase >= limit) {
           if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
           return NextResponse.json(
             {
               ok: false,
               error: "LIMIT",
-              message: "3-day limit reached (15 generations total).",
+              message: "Starter plan limit reached (15 generations in 3 days).",
               meta: { remainingToday: 0, plan },
             },
             { status: 429 }
@@ -688,13 +689,13 @@ export async function POST(req: NextRequest) {
         }
         
         // ✅ 3. Inkrementace dnešního usage
-        const newTodayCount = await getAndIncUsageForUser(userId!, "GENERATION");
+        await getAndIncUsageForUser(userId!, "GENERATION");
         
-        // ✅ 4. Znovu kontrola obou limitů po inkrementaci
-        const newCount3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
+        // ✅ 4. Znovu kontrola po inkrementaci
+        const newUsedSincePurchase = await getUsageForStarterPlan(userId!, "GENERATION");
         
-        // Kontrola dnešního limitu
-        if (newTodayCount > limit) {
+        // Kontrola limitu po inkrementaci
+        if (newUsedSincePurchase > limit) {
           // Reset dnešního usage
           await prisma.usage.update({
             where: { userId_date_kind: { userId: userId!, date: utcDateKey(), kind: "GENERATION" } },
@@ -713,8 +714,8 @@ export async function POST(req: NextRequest) {
           );
         }
         
-        // Kontrola 3-denního limitu
-        if (newCount3Days > limit) {
+        // Kontrola limitu po inkrementaci
+        if (newUsedSincePurchase > limit) {
           // Reset dnešního usage
           await prisma.usage.update({
             where: { userId_date_kind: { userId: userId!, date: utcDateKey(), kind: "GENERATION" } },
@@ -726,17 +727,15 @@ export async function POST(req: NextRequest) {
             {
               ok: false,
               error: "LIMIT",
-              message: "3-day limit reached (15 generations total).",
+              message: "Starter plan limit reached (15 generations in 3 days).",
               meta: { remainingToday: 0, plan },
             },
             { status: 429 }
           );
         }
         
-        // ✅ 5. Výpočet zbývajících pokusů (minimum z obou limitů)
-        const remainingTodayDaily = Math.max(0, limit - newTodayCount);
-        const remaining3Days = Math.max(0, limit - newCount3Days);
-        remainingToday = Math.min(remainingTodayDaily, remaining3Days);
+        // ✅ 5. Výpočet zbývajících pokusů
+        remainingToday = Math.max(0, limit - newUsedSincePurchase);
       } else {
         // Pro FREE plán použij denní limit
         // ✅ Nejdříve zkontroluj dnešní limit

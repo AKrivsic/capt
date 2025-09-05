@@ -40,6 +40,9 @@ model User {
   affiliateId  String?
   referralCode String?
 
+  // ✅ STARTER plan tracking
+  starterPurchasedAt DateTime? // Kdy byl zakoupen STARTER plán (pro 3-denní lhůtu)
+
   accounts  Account[]
   sessions  Session[]
   histories History[]
