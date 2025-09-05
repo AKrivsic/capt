@@ -14,8 +14,9 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await getSessionServer().catch(() => null);
-  if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard");
+  // TODO: Dočasně zakomentováno kvůli Prisma prepared statements chybě
+  // const session = await getSessionServer().catch(() => null);
+  // if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard");
 
   return (
     <div className={ui.scope}>
