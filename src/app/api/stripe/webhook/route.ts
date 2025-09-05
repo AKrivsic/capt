@@ -92,7 +92,10 @@ export async function POST(req: NextRequest) {
         const user = await prisma.user.findFirst({ where: { email: { equals: customerEmail as string, mode: "insensitive" } } });
         if (user) {
           // Pro STARTER plán ukládáme datum nákupu
-          const updateData: { plan: "FREE" | "STARTER" | "PRO" | "PREMIUM"; starterPurchasedAt?: Date } = { plan: metaPlan };
+          const updateData: { plan: "FREE" | "STARTER" | "PRO" | "PREMIUM"; starterPurchasedAt?: Date } = {
+            plan: metaPlan,
+          };
+
           if (metaPlan === "STARTER") {
             updateData.starterPurchasedAt = new Date();
           }
