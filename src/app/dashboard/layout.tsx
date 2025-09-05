@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await getSessionServer();
+  const session = await getSessionServer().catch(() => null);
   if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard");
 
   return (

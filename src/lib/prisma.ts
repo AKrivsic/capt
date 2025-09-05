@@ -13,6 +13,12 @@ export const prisma: PrismaClient =
       process.env.NODE_ENV === "development"
         ? (["warn", "error"] as const)
         : (["error"] as const),
+    // Oprava pro prepared statements chybu
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL + "?connection_limit=1&pool_timeout=20&prepared_statements=false"
+      }
+    }
   });
 
 if (process.env.NODE_ENV !== "production") {
