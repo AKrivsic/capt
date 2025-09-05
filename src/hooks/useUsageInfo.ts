@@ -9,6 +9,15 @@ const USAGE_PREFIX = "gen"; // musí odpovídat prefixu v Generatoru
 
 type PlanName = "Free" | "Starter" | "Pro" | "Premium";
 
+type UsageStatus = {
+  plan: string;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  isUnlimited: boolean;
+  windowType: string;
+};
+
 function getPlanFromSession(session: unknown): PlanName {
   if (!session || typeof session !== "object") return "Free";
   const u = (session as Record<string, unknown>).user;
@@ -35,21 +44,71 @@ function sumLastNDays(prefix: string, days: number) {
 }
 
 export function useUsageInfo() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const plan = getPlanFromSession(session);
+  const [serverUsage, setServerUsage] = useState<UsageStatus | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // counters
+  // Pro STARTER plán načítáme data ze serveru
+  const shouldUseServerData = plan === "Starter" && status === "authenticated";
+
+  // Načtení server dat pro STARTER plán
+  useEffect(() => {
+    if (!shouldUseServerData) return;
+
+    const fetchUsageStatus = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/usage/status");
+        const data = await response.json();
+        if (data.ok) {
+          setServerUsage(data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch usage status:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsageStatus();
+    
+    // Refresh každých 30 sekund pro aktuální stav
+    const interval = setInterval(fetchUsageStatus, 30000);
+    return () => clearInterval(interval);
+  }, [shouldUseServerData]);
+
+  // Fallback na localStorage pro FREE plán
   const usedToday = getUsage(USAGE_PREFIX);
   const used3 = sumLastNDays(USAGE_PREFIX, 3);
 
-  // limits
-  const isUnlimited = plan === "Pro" || plan === "Premium";
-  const limit: number | null = isUnlimited ? null : plan === "Starter" ? 15 : 3;
-  const used = plan === "Starter" ? used3 : usedToday;
-  const left = limit === null ? null : Math.max((limit ?? 0) - used, 0);
+  // Výpočet limitů a použití
+  let limit: number | null;
+  let used: number;
+  let left: number | null;
+  let isUnlimited: boolean;
+  let windowType: string;
 
-  // Reset localStorage při změně plánu (aby se nepočítaly staré generace)
+  if (shouldUseServerData && serverUsage) {
+    // Použij server data pro STARTER
+    limit = serverUsage.limit;
+    used = serverUsage.used;
+    left = serverUsage.remaining;
+    isUnlimited = serverUsage.isUnlimited;
+    windowType = serverUsage.windowType;
+  } else {
+    // Fallback na localStorage pro FREE plán
+    isUnlimited = plan === "Pro" || plan === "Premium";
+    limit = isUnlimited ? null : plan === "Starter" ? 15 : 3;
+    used = plan === "Starter" ? used3 : usedToday;
+    left = limit === null ? null : Math.max((limit ?? 0) - used, 0);
+    windowType = isUnlimited ? "unlimited" : plan === "Starter" ? "3-day window" : "today";
+  }
+
+  // Reset localStorage při změně plánu (pouze pro FREE plán)
   useEffect(() => {
+    if (plan === "Starter") return; // Pro STARTER nepoužíváme localStorage
+
     const lastPlan = localStorage.getItem("captioni_last_plan");
     const currentPlan = plan;
     
@@ -59,39 +118,47 @@ export function useUsageInfo() {
       const todayKey = `gen:${today.toISOString().slice(0, 10)}`;
       localStorage.removeItem(todayKey);
       
-      // Resetuj i předchozí dny pro STARTER plán
-      if (currentPlan === "Starter") {
-        for (let i = 1; i < 3; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() - i);
-          const dateKey = `gen:${date.toISOString().slice(0, 10)}`;
-          localStorage.removeItem(dateKey);
-        }
-      }
-      
       localStorage.setItem("captioni_last_plan", currentPlan);
     } else if (!lastPlan) {
       localStorage.setItem("captioni_last_plan", currentPlan);
     }
   }, [plan]);
 
-  // countdown to local midnight
+  // countdown to local midnight (pouze pro FREE plán)
   const [msLeft, setMsLeft] = useState(msUntilLocalMidnight());
   useEffect(() => {
+    if (plan === "Starter") return; // Pro STARTER nepotřebujeme countdown
+    
     const t = setInterval(() => setMsLeft(msUntilLocalMidnight()), 30_000);
     return () => clearInterval(t);
-  }, []);
-  const countdown = isUnlimited ? "" : formatHm(msLeft);
+  }, [plan]);
+  
+  const countdown = isUnlimited || plan === "Starter" ? "" : formatHm(msLeft);
 
-  // labels
-  const windowLabel = isUnlimited ? "unlimited" : plan === "Starter" ? "3-day window" : "today";
+  // labels - zkrácené pro lepší UX
+  const windowLabel = windowType;
   const leftLabel = isUnlimited
     ? "Unlimited"
     : plan === "Starter"
-      ? `${left}/${limit} left`
+      ? `${left}/${limit} left` // Zkráceno z "0/15 left (3 days from purchase)"
       : `${left}/${limit} left today`;
 
-  const resetHint = isUnlimited ? "" : (plan === "Starter" ? `· updates in ${countdown}` : `· resets in ${countdown}`);
+  const resetHint = isUnlimited 
+    ? "" 
+    : plan === "Starter" 
+      ? "· 3 days from purchase" // Zkráceno
+      : `· resets in ${countdown}`;
 
-  return { plan, limit, usedToday, used3, left, leftLabel, windowLabel, resetHint };
+  return { 
+    plan, 
+    limit, 
+    usedToday, 
+    used3, 
+    used: shouldUseServerData ? (serverUsage?.used ?? 0) : used,
+    left, 
+    leftLabel, 
+    windowLabel, 
+    resetHint,
+    loading: shouldUseServerData ? loading : false
+  };
 }

@@ -5,7 +5,7 @@ import { useUsageInfo } from "@/hooks/useUsageInfo";
 import { trackUpgradeClick } from "@/utils/tracking";
 
 export default function UsageCard() {
-  const { plan, leftLabel, resetHint } = useUsageInfo();
+  const { plan, leftLabel, resetHint, loading } = useUsageInfo();
 
   return (
     <div className={ui.card}>
@@ -15,7 +15,7 @@ export default function UsageCard() {
             Current plan: {String(plan)}
           </h3>
           <p style={{ opacity: 0.7, fontSize: ".9rem" }}>
-            {leftLabel} {resetHint}
+            {loading ? "Loading..." : `${leftLabel} ${resetHint}`}
           </p>
         </div>
 

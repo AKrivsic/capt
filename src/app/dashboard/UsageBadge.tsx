@@ -4,8 +4,8 @@ import ui from "@/components/ui/Ui.module.css";
 import { useUsageInfo } from "@/hooks/useUsageInfo";
 
 export default function UsageBadge() {
-  const { leftLabel, resetHint, limit } = useUsageInfo();
-  const label = limit === null ? "Unlimited" : leftLabel; // např. "2/3 left today"
+  const { leftLabel, resetHint, limit, loading } = useUsageInfo();
+  const label = limit === null ? "Unlimited" : loading ? "Loading..." : leftLabel; // např. "2/3 left today"
   const title = limit === null ? "Unlimited" : `${leftLabel} ${resetHint}`;
 
   return (
