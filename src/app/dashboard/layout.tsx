@@ -15,7 +15,11 @@ export const metadata: Metadata = {
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getSessionServer();
-  if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard");
+  
+  // If session is null (error occurred) or user is not authenticated, redirect to signin
+  if (!session?.user) {
+    redirect("/api/auth/signin?callbackUrl=/dashboard");
+  }
 
   return (
     <div className={ui.scope}>
