@@ -44,7 +44,8 @@ export default function Footer() {
           <Link href="/#faq" className={styles.link}>FAQ</Link> ·{" "}
           <a href="/contact" className={styles.link} onClick={(e) => openModal(e, "contact")}>Contact</a> ·{" "}
           <a href="/terms" className={styles.link} onClick={(e) => openModal(e, "terms")}>Terms</a> ·{" "}
-          <a href="/privacy" className={styles.link} onClick={(e) => openModal(e, "privacy")}>Privacy</a>
+          <a href="/privacy" className={styles.link} onClick={(e) => openModal(e, "privacy")}>Privacy</a> ·{" "}
+          <a href="/affiliate" className={styles.link} >Affiliate</a>
         </p>
       </footer>
 

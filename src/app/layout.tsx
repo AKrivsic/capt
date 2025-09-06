@@ -139,6 +139,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }, { capture: true });
           })();`}
         </Script>
+
+        {/* ✅ Rewardful affiliate tracking */}
+        <Script src="https://r.wdfl.co/rw.js" data-rewardful="7f3325" />
+        <Script id="rewardful-queue" strategy="beforeInteractive">
+          {`(function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');`}
+        </Script>
       </body>
     </html>
   );

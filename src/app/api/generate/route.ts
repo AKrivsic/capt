@@ -9,7 +9,7 @@ import {
   planDailyLimit,
   getAndIncUsageForUser,
   getAndIncUsageForIp,
-  getUsageForUserLastNDays,
+  getTotalUsageForUser,
 } from "@/lib/limits";
 import { assertSameOrigin } from "@/lib/origin";
 import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
@@ -611,22 +611,22 @@ export async function POST(req: NextRequest) {
   } else {
     if (limit !== null) {
       if (typeof getAndIncUsageForUser === "function") {
-        // Pro STARTER plán použij 3-denní okno
+        // Pro STARTER plán použij celkový počet generací
         if (planFromSession === "STARTER") {
-          const count3Days = await getUsageForUserLastNDays(userId!, "GENERATION", 3);
-          if (count3Days >= limit) {
+          const totalCount = await getTotalUsageForUser(userId!, "GENERATION");
+          if (totalCount >= limit) {
             if (userEmail) void mlMarkEvent(userEmail, "LIMIT_REACHED");
             return NextResponse.json(
               {
                 ok: false,
                 error: "LIMIT",
-                message: "3-day limit reached.",
+                message: "Total limit reached.",
                 meta: { remainingToday: 0, plan },
               },
               { status: 429 }
             );
           }
-          remainingToday = Math.max(0, limit - count3Days);
+          remainingToday = Math.max(0, limit - totalCount);
         } else {
           // Pro FREE plán použij denní limit
           const count = await getAndIncUsageForUser(userId!, "GENERATION");
