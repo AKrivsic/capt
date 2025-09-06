@@ -27,11 +27,78 @@ function normalizeId(id: string): string {
   }
 }
 
-// --- Prisma adapter s ochranou na enkódovaný identifier ---
+// --- Prisma adapter s ochranou na enkódovaný identifier a retry logikou ---
 const base = PrismaAdapter(prisma) as Adapter;
+
+// Retry function for database operations
+async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = (error as { code?: string })?.code;
+      
+      const isPreparedStatementError = errorMessage.includes('prepared statement') || 
+                                      errorCode === '42P05';
+      
+      if (isPreparedStatementError && attempt < maxRetries) {
+        console.warn(`[auth][retry] Attempt ${attempt} failed with prepared statement error, retrying...`);
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
 
 const adapter: Adapter = {
   ...base,
+
+  // Override getSessionAndUser with retry logic and fallback
+  getSessionAndUser: async (sessionToken) => {
+    try {
+      return await withRetry(async () => {
+        // @ts-expect-error - accessing internal method
+        return base.getSessionAndUser(sessionToken);
+      });
+    } catch (error: unknown) {
+      console.error("[auth][getSessionAndUser] Failed after retries:", error);
+      
+      // Fallback: try to get session directly from database
+      try {
+        const session = await prisma.session.findUnique({
+          where: { sessionToken },
+          include: { user: true },
+        });
+        
+        if (session && session.expires > new Date()) {
+          return {
+            session: {
+              sessionToken: session.sessionToken,
+              userId: session.userId,
+              expires: session.expires,
+            },
+            user: {
+              id: session.user.id,
+              name: session.user.name,
+              email: session.user.email || "",
+              emailVerified: session.user.emailVerified,
+              image: session.user.image,
+            },
+          } as { session: { sessionToken: string; userId: string; expires: Date }; user: { id: string; name: string | null; email: string; emailVerified: Date | null; image: string | null } };
+        }
+      } catch (fallbackError) {
+        console.error("[auth][getSessionAndUser][fallback] Error:", fallbackError);
+      }
+      
+      // If all else fails, return null to trigger re-authentication
+      return null;
+    }
+  },
 
   // NextAuth si ukládá verifikační token – zajistíme, že identifier je již normalized
   createVerificationToken: async (token) => {
@@ -291,10 +358,13 @@ export const authOptions: NextAuthOptions = {
 
       // Otherwise, fetch from DB by email to enrich the session consistently on subsequent fetches
       try {
-        const db = await prisma.user.findFirst({
-          where: { email: { equals: session.user.email ?? undefined, mode: "insensitive" } },
-          select: { id: true, plan: true, marketingConsent: true },
+        const db = await withRetry(async () => {
+          return await prisma.user.findFirst({
+            where: { email: { equals: session.user.email ?? undefined, mode: "insensitive" } },
+            select: { id: true, plan: true, marketingConsent: true },
+          });
         });
+        
         if (db) {
           su.id = db.id;
           su.plan = (db.plan as PlanEnum | null) ?? null;
@@ -303,7 +373,8 @@ export const authOptions: NextAuthOptions = {
           su.plan = su.plan ?? null;
           su.marketingConsent = su.marketingConsent ?? null;
         }
-      } catch {
+      } catch (error) {
+        console.error("[auth][session][error]", error);
         // leave session as-is on error
       }
 

@@ -1,11 +1,11 @@
 // src/app/api/user/reset-usage/route.ts
 export const runtime = "nodejs";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSessionServer } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   try {
     const session = await getSessionServer();
     if (!session?.user?.id) {

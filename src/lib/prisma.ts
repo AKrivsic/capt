@@ -6,20 +6,29 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma: PrismaClient =
-  global.prisma ??
-  new PrismaClient({
+// Create a more robust Prisma client configuration
+function createPrismaClient(): PrismaClient {
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  // Add connection pooling parameters to prevent prepared statement conflicts
+  const urlWithPooling = databaseUrl?.includes('?') 
+    ? `${databaseUrl}&connection_limit=1&pool_timeout=20&pgbouncer=true`
+    : `${databaseUrl}?connection_limit=1&pool_timeout=20&pgbouncer=true`;
+
+  return new PrismaClient({
     log:
       process.env.NODE_ENV === "development"
         ? (["warn", "error"] as const)
         : (["error"] as const),
-    // Fix for prepared statement conflicts in serverless environments
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: urlWithPooling,
       },
     },
   });
+}
+
+export const prisma: PrismaClient = global.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;

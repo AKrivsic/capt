@@ -15,17 +15,25 @@ The issue is caused by Prisma prepared statement conflicts in serverless environ
 
 ## Solution Applied
 
-### 1. Updated Prisma Configuration
+### 1. Enhanced Prisma Configuration
 
-- Added explicit datasource configuration in `src/lib/prisma.ts`
+- Added connection pooling parameters to prevent prepared statement conflicts
+- Implemented robust Prisma client creation with proper URL handling
 - Added `directUrl` to Prisma schema for proper connection handling
 
-### 2. Enhanced Error Handling
+### 2. Advanced Retry Logic
 
-- Added try-catch blocks in session functions to prevent crashes
-- Improved dashboard layout to handle session errors gracefully
+- Implemented retry mechanism for all database operations
+- Added specific handling for prepared statement errors (code 42P05)
+- Created fallback mechanisms when retries fail
 
-### 3. Environment Variables Setup
+### 3. NextAuth Adapter Improvements
+
+- Overrode `getSessionAndUser` method with retry logic
+- Added direct database fallback when NextAuth adapter fails
+- Enhanced session callback with retry mechanism
+
+### 4. Environment Variables Setup
 
 You need to set up these environment variables:
 
@@ -37,16 +45,25 @@ DATABASE_URL="postgresql://username:password@host:port/database?pgbouncer=true&c
 DIRECT_URL="postgresql://username:password@host:port/database"
 ```
 
-### 4. Key Changes Made
+### 5. Key Changes Made
 
 #### `src/lib/prisma.ts`
 
-- Added explicit datasource configuration
-- Removed unnecessary eslint-disable comment
+- Added connection pooling parameters (`connection_limit=1`, `pool_timeout=20`, `pgbouncer=true`)
+- Implemented robust URL handling for database connections
+- Enhanced Prisma client configuration
+
+#### `src/lib/auth.ts`
+
+- Added retry function with exponential backoff
+- Overrode NextAuth adapter methods with retry logic
+- Implemented fallback mechanism for session retrieval
+- Enhanced session callback with retry mechanism
 
 #### `src/lib/session.ts`
 
-- Added error handling to prevent session crashes
+- Added retry logic to all session operations
+- Implemented specific handling for prepared statement errors
 - Made functions more resilient to database errors
 
 #### `src/app/dashboard/layout.tsx`

@@ -259,18 +259,18 @@ const DEFAULT_VARIANTS: Record<OutputType, number> = {
 };
 
 // Typy, u kterých se počet variant NEPŘEPISUJE přes input.variants
-const FIXED_VARIANTS: ReadonlySet<OutputType> = new Set<OutputType>([
-  "hashtags", // 1 řádek se 20–30 tagy
-  "comments", // 5 řádků (v jedné variantě)
-  "hook",     // 5 řádků (v jedné variantě)
-]);
+// const FIXED_VARIANTS: ReadonlySet<OutputType> = new Set<OutputType>([
+//   "hashtags", // 1 řádek se 20–30 tagy
+//   "comments", // 5 řádků (v jedné variantě)
+//   "hook",     // 5 řádků (v jedné variantě)
+// ]);
 
-function resolveVariants(type: OutputType, requested?: number): number {
-  const base = DEFAULT_VARIANTS[type];
-  if (requested == null) return base;
-  if (FIXED_VARIANTS.has(type)) return base; // ignoruj přepis
-  return Math.min(5, Math.max(1, requested));
-}
+// function resolveVariants(type: OutputType, requested?: number): number {
+//   const base = DEFAULT_VARIANTS[type];
+//   if (requested == null) return base;
+//   if (FIXED_VARIANTS.has(type)) return base; // ignoruj přepis
+//   return Math.min(5, Math.max(1, requested));
+// }
 
 function genParamsFor(type: OutputType): GenParams {
   switch (type) {
