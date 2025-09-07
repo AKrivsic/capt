@@ -249,9 +249,9 @@ export default function AffiliatePage() {
         </div>
         <div className={styles.benefitsGrid}>
           <div className={styles.benefit}>
-            <h3 className={styles.benefitTitle}>Free Pro Account</h3>
+            <h3 className={styles.benefitTitle}>High Conversion Rates</h3>
             <p className={styles.benefitDescription}>
-              Active affiliates get a Pro subscription to test & showcase.
+              Proven tool with strong demand from content creators and influencers.
             </p>
           </div>
           <div className={styles.benefit}>
