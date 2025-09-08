@@ -26,3 +26,4 @@ CREATE UNIQUE INDEX "WebhookEvent_source_eventId_key" ON "WebhookEvent"("source"
 -- Add index for performance
 CREATE INDEX "WebhookEvent_source_createdAt_idx" ON "WebhookEvent"("source", "createdAt");
 
+
