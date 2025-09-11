@@ -11,14 +11,14 @@ type OutputType =
 
 // Treat "starter" as PRO-level access for outputs.
 // If you want stricter gating, I can change this mapping.
-type Plan = "free" | "starter" | "pro" | "premium";
+type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
 
 type OutputOption = {
   key: OutputType;
   label: string;
   description: string;
   emoji: string;
-  tier: Exclude<Plan, "starter">; // visual tier: "free" | "pro" | "premium"
+  tier: "free" | "pro" | "premium"; // visual tier
 };
 
 const OPTIONS: OutputOption[] = [
@@ -39,8 +39,8 @@ type Props = {
 
 export const OutputSelector = ({ selected, onChange, userPlan }: Props) => {
   const isAllowed = (tier: OutputOption["tier"]): boolean => {
-    if (userPlan === "premium") return true;
-    if (userPlan === "pro" || userPlan === "starter") return tier !== "premium";
+    if (userPlan === "VIDEO_PRO" || userPlan === "VIDEO_UNLIMITED") return true;
+    if (userPlan === "TEXT_PRO" || userPlan === "TEXT_STARTER") return tier !== "premium";
     // free plan:
     return tier === "free";
   };
@@ -63,8 +63,8 @@ export const OutputSelector = ({ selected, onChange, userPlan }: Props) => {
       {OPTIONS.map(({ key, label, description, emoji, tier }) => {
         const checked = selected.includes(key);
         const locked =
-          (tier === "pro" && (userPlan === "free")) ||
-          (tier === "premium" && userPlan !== "premium");
+          (tier === "pro" && (userPlan === "FREE")) ||
+          (tier === "premium" && userPlan !== "VIDEO_PRO" && userPlan !== "VIDEO_UNLIMITED");
 
         return (
           <button

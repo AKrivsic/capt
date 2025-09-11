@@ -14,6 +14,44 @@
     /* o chlup tmavší pro :hover, lepší kontrast */
 }
 
+/* Theme presets driven by data-theme on <html> */
+html[data-theme="Barbie"] {
+  --accent: #f9a8d4;
+  --accent-2: #f9a8d4;
+}
+html[data-theme="Edgy"] {
+  --accent: #6b7280;
+  --accent-2: #6b7280;
+}
+html[data-theme="Glamour"] {
+  --accent: #facc15;
+  --accent-2: #facc15;
+}
+html[data-theme="Baddie"] {
+  --accent: #f43f5e;
+  --accent-2: #f43f5e;
+}
+html[data-theme="Innocent"] {
+  --accent: #bae6fd;
+  --accent-2: #bae6fd;
+}
+html[data-theme="Funny"] {
+  --accent: #fcd34d;
+  --accent-2: #fcd34d;
+}
+html[data-theme="Rage"] {
+  --accent: #ef4444;
+  --accent-2: #ef4444;
+}
+html[data-theme="Meme"] {
+  --accent: #f59e0b;
+  --accent-2: #f59e0b;
+}
+html[data-theme="Streamer"] {
+  --accent: #9146FF;
+  --accent-2: #9146FF;
+}
+
 body {
     margin: 0;
     font-family: var(--font-nunito, "Nunito"), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

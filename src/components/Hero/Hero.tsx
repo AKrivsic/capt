@@ -1,23 +1,21 @@
 // src/components/Hero/Hero.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Montserrat } from "next/font/google";
-import DemoModal from "@/components/DemoModal/DemoModal";
 import { goToGenerator } from "@/utils/goToGenerator";
 import styles from "./Hero.module.css";
 import {
   trackDemoClick,
   trackGeneratorAccess,
   trackPricingClick,
-  trackSignupStart,
+  trackVisitTry,
 } from "@/utils/tracking";
 
 const mont = Montserrat({ subsets: ["latin"], weight: ["800", "900"] });
 
 export default function Hero() {
-  const [showDemo, setShowDemo] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session } = useSession();
@@ -26,38 +24,36 @@ export default function Hero() {
   // otevřít při ?demo=true (+ tracking)
   useEffect(() => {
     const isDemo = searchParams.get("demo") === "true";
-    setShowDemo(isDemo);
     if (isDemo) {
       // vstup do dema bez kliku (např. z reklamy / deeplinku)
       trackDemoClick("homepage");
+      // Redirect to /try page instead of showing modal
+      router.push('/try');
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
-  const closeDemo = () => {
-    setShowDemo(false);
-    router.replace("/", { scroll: false }); // vyčisti URL, bez historie
-  };
 
   const primaryLabel = isLoggedIn ? "Generate" : "🎯 Try Demo";
 
   const handlePrimary = () => {
     if (isLoggedIn) {
       trackGeneratorAccess("homepage");
+      goToGenerator(router, isLoggedIn);
     } else {
       trackDemoClick("homepage");
-      trackSignupStart("homepage");
+      trackVisitTry(); // Track visit → try conversion
+      router.push('/try');
     }
-    goToGenerator(router, isLoggedIn);
   };
 
   return (
     <section className={styles.hero}>
       <h1 className={`${styles.title} ${styles.fadeUp} ${styles.delay1} ${mont.className}`}>
-        Create viral captions in seconds
+        AI captions & video subtitles in 30s
       </h1>
 
       <p className={`${styles.subtitle} ${styles.fadeUp} ${styles.delay2}`}>
-        Pick a vibe. Get perfect content.
+        Start free, upgrade anytime for more magic ✨
       </p>
 
       <div className={`${styles.buttonGroup} ${styles.fadeUp} ${styles.delay3}`}>
@@ -74,14 +70,13 @@ export default function Hero() {
           href="#pricing"
           className={styles.btn}
           onClick={() => trackPricingClick("homepage")}
-          aria-label="See pricing plans"
+          aria-label="Try free demo"
           data-testid="hero-pricing"
         >
-          See Plans
+          Try free →
         </a>
       </div>
 
-      {showDemo && <DemoModal onClose={closeDemo} />}
     </section>
   );
 }

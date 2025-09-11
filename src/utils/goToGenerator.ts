@@ -2,14 +2,16 @@
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 export function goToGenerator(router: AppRouterInstance, isLoggedIn: boolean) {
+  const plausible: ((event: string, opts?: { props?: Record<string, unknown> }) => void) | undefined =
+    (window as unknown as { plausible?: (event: string, opts?: { props?: Record<string, unknown> }) => void }).plausible;
   if (!isLoggedIn) {
     // track demo
-    window.plausible?.("Demo click", { props: { source: "goToGenerator" } });
+    plausible?.("Demo_click", { props: { source: "goToGenerator" } });
     router.push("/?demo=true", { scroll: false });
     return;
   }
 
   // track generator access
-  window.plausible?.("Generator access", { props: { source: "goToGenerator" } });
+  plausible?.("Generator_access", { props: { source: "goToGenerator" } });
   router.push("/#generator", { scroll: true });
 }

@@ -6,10 +6,10 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 
 export default function Pricing() {
-  const [busy, setBusy] = useState<null | "STARTER" | "PRO" | "PREMIUM">(null);
+  const [busy, setBusy] = useState<null | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED">(null);
   const { status } = useSession();
 
-  async function startCheckout(plan: "STARTER" | "PRO" | "PREMIUM") {
+  async function startCheckout(plan: "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED") {
     try {
       setBusy(plan);
       trackCheckoutStart(plan);
@@ -79,12 +79,12 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => startCheckout("STARTER")}
+            onClick={() => startCheckout("TEXT_STARTER")}
             aria-label="Unlock Starter plan"
             data-testid="btn-pricing-starter"
             disabled={busy !== null}
           >
-            {busy === "STARTER" ? "Loading..." : "Unlock Access"}
+            {busy === "TEXT_STARTER" ? "Loading..." : "Unlock Access"}
           </button>
         </div>
 
@@ -100,12 +100,12 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => startCheckout("PRO")}
+            onClick={() => startCheckout("TEXT_PRO")}
             aria-label="Go Pro plan"
             data-testid="btn-pricing-pro"
             disabled={busy !== null}
           >
-            {busy === "PRO" ? "Loading..." : "Go Pro"}
+            {busy === "TEXT_PRO" ? "Loading..." : "Go Pro"}
           </button>
         </div>
 
@@ -120,12 +120,12 @@ export default function Pricing() {
           </ul>
           <button
             className={styles.btn}
-            onClick={() => startCheckout("PREMIUM")}
+            onClick={() => startCheckout("VIDEO_PRO")}
             aria-label="Get Premium plan"
             data-testid="btn-pricing-premium"
             disabled={busy !== null}
           >
-            {busy === "PREMIUM" ? "Loading..." : "Get Premium"}
+            {busy === "VIDEO_PRO" ? "Loading..." : "Get Premium"}
           </button>
         </div>
 

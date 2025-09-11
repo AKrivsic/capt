@@ -11,10 +11,20 @@ import { sendTransactionalEmail } from "@/lib/email/sendTransactional";
 import { authMagicLinkHtml, authMagicLinkText } from "@/lib/email/templates/authMagicLink";
 
 // Narrow plan type (bez závislosti na @prisma/client type exportech)
-type PlanEnum = "FREE" | "STARTER" | "PRO" | "PREMIUM";
+type PlanEnum = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
 
 function required(name: string, val: string | undefined | null): string {
-  if (!val) throw new Error(`Missing required env var: ${name}`);
+  if (!val) {
+    if (process.env.NODE_ENV !== "production") {
+      // Provide safe defaults for local builds
+      const defaults: Record<string, string> = {
+        EMAIL_FROM: "Captioni <no-reply@localhost>",
+        NEXTAUTH_SECRET: "dev-secret-please-set",
+      };
+      if (name in defaults) return defaults[name];
+    }
+    throw new Error(`Missing required env var: ${name}`);
+  }
   return val;
 }
 
@@ -152,7 +162,7 @@ const adapter: Adapter = {
   getUserByEmail: async (email) => {
     const norm = normalizeId(email);
     const user = await prisma.user.findFirst({
-      where: { email: { equals: norm, mode: "insensitive" } },
+      where: { email: { equals: norm } },
     });
     return user as unknown as Awaited<ReturnType<NonNullable<typeof base.getUserByEmail>>>;
   },
@@ -302,7 +312,7 @@ export const authOptions: NextAuthOptions = {
           const normalizedEmail = normalizeId(emailFromProfile);
 
           const existingUser = await prisma.user.findFirst({
-            where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+            where: { email: { equals: normalizedEmail } },
           });
 
           if (existingUser) {
@@ -360,7 +370,7 @@ export const authOptions: NextAuthOptions = {
       try {
         const db = await withRetry(async () => {
           return await prisma.user.findFirst({
-            where: { email: { equals: session.user.email ?? undefined, mode: "insensitive" } },
+            where: { email: { equals: session.user.email ?? undefined } },
             select: { id: true, plan: true, marketingConsent: true },
           });
         });

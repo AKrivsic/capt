@@ -1,0 +1,249 @@
+/* MobileUploadCard - mobile-first upload UI */
+
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.uploadArea {
+  background: white;
+  border: 2px dashed #cbd5e1;
+  border-radius: 1rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.uploadArea:hover {
+  border-color: #667eea;
+  background: #f8fafc;
+}
+
+.uploadArea.dragActive {
+  border-color: #667eea;
+  background: #eff6ff;
+  transform: scale(1.02);
+}
+
+.uploadArea.uploading {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+/* Upload icons a texty */
+.uploadIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.uploadTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+}
+
+.uploadDescription {
+  color: #64748b;
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+}
+
+.uploadHint {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* Progress bar */
+.progressContainer {
+  width: 100%;
+  max-width: 300px;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.progressText {
+  color: #059669;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Success state */
+.successIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.successTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #059669;
+  margin: 0 0 0.5rem 0;
+}
+
+.successDescription {
+  color: #64748b;
+  margin: 0;
+}
+
+/* Error state */
+.errorIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.errorTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin: 0 0 0.5rem 0;
+}
+
+.errorDescription {
+  color: #ef4444;
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+}
+
+.retryButton {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: #b91c1c;
+}
+
+/* Hidden input */
+.hiddenInput {
+  display: none;
+}
+
+/* Bottom CTA */
+.bottomCTA {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  z-index: 100;
+  
+  /* Haptic feedback */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.bottomCTA:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+}
+
+.bottomCTA:active {
+  transform: translateX(-50%) translateY(0px);
+}
+
+.ctaIcon {
+  font-size: 1.2rem;
+}
+
+/* Responzivní design */
+@media (min-width: 768px) {
+  .uploadArea {
+    padding: 3rem 2rem;
+    min-height: 250px;
+  }
+  
+  .bottomCTA {
+    position: static;
+    transform: none;
+    margin: 2rem auto 0;
+    width: fit-content;
+    display: inline-flex;
+  }
+  
+  .bottomCTA:hover {
+    transform: translateY(-2px);
+  }
+  
+  .bottomCTA:active {
+    transform: translateY(0px);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .uploadArea {
+    background: #1e293b;
+    border-color: #475569;
+    color: white;
+  }
+  
+  .uploadArea:hover {
+    background: #334155;
+    border-color: #667eea;
+  }
+  
+  .uploadTitle {
+    color: #f1f5f9;
+  }
+  
+  .uploadDescription {
+    color: #94a3b8;
+  }
+  
+  .uploadHint {
+    color: #64748b;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .uploadArea,
+  .bottomCTA,
+  .progressFill {
+    transition: none;
+  }
+  
+  .uploadArea.dragActive {
+    transform: none;
+  }
+}

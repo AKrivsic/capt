@@ -1,5 +1,6 @@
 import { Nunito } from "next/font/google";
 import "../styles/globals.css";
+import "../styles/fonts.css";
 import Providers from "./providers";
 import type { Metadata } from "next";
 import Script from "next/script";
@@ -34,6 +35,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/apple-touch-icon.png" }],
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -55,6 +57,31 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             };
           `}
         </Script>
+
+        {/* PWA Service Worker */}
+        <Script id="sw-register" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                  .then(function(registration) {
+                    console.log('SW registered: ', registration);
+                  })
+                  .catch(function(registrationError) {
+                    console.log('SW registration failed: ', registrationError);
+                  });
+              });
+            }
+          `}
+        </Script>
+
+        {/* PWA meta tags pro iOS */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Captioni" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#667eea" />
       </head>
 
       <body className={nunito.className}>

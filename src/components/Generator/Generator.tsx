@@ -8,6 +8,7 @@ import "tippy.js/dist/tippy.css";
 import styles from "./Generator.module.css";
 
 import { outputMeta } from "@/constants/outputMeta";
+import { PLAN_LIMITS as PLAN_LIMITS_CONST, isUnlimited } from "@/constants/plans";
 import { styleMeta } from "@/constants/styleMeta";
 import { platformMeta } from "@/constants/platformMeta";
 import { normalizePlatform } from "@/utils/normalizePlatform";
@@ -47,22 +48,18 @@ const platformIcon: Record<string, string> = {
 /** ================================
  *  Types
  *  ================================ */
-type Plan = "free" | "starter" | "pro" | "premium";
+// type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
 type ResultsMap = Record<string, string | string[]>;
 type FeedbackState = Record<string, Record<number, "like" | "dislike" | null>>;
 
-// mapování na tracking Plan union ("FREE" | "STARTER" | "PRO" | "PREMIUM")
-const planToTracking: Record<Plan, "FREE" | "STARTER" | "PRO" | "PREMIUM"> = {
-  free: "FREE",
-  starter: "STARTER",
-  pro: "PRO",
-  premium: "PREMIUM",
-};
 
-const PREF_KEY = "captioni_pref_v1";
-const FREE_LIMIT = 3;
-const STARTER_LIMIT = 15;
+// Keys in localStorage
+const STYLE_KEY = "captioni_pref_v1"; // { style: string }
+const LIKES_KEY = "captioni_likes_v1"; // FeedbackState JSON
 const VARIANTS_PER_OUTPUT = 3;
+
+// Limity podle nových plánů
+// Use centralized plan limits (text) from constants
 
 export default function Generator() {
   /** Auth (client) **/
@@ -84,13 +81,8 @@ export default function Generator() {
 
   // Získej skutečný plán ze session
   const userPlan = useMemo(() => {
-    if (!session?.user) return "free";
-    const plan = session.user.plan;
-    if (plan === "FREE") return "free";
-    if (plan === "STARTER") return "starter";
-    if (plan === "PRO") return "pro";
-    if (plan === "PREMIUM") return "premium";
-    return "free";
+    if (!session?.user) return "FREE";
+    return session.user.plan || "FREE";
   }, [session?.user]);
 
   const [usageCount, setUsageCount] = useState(0);
@@ -112,8 +104,22 @@ export default function Generator() {
   useEffect(() => {
     setUsageCount(getUsage("gen")); // purely for UX note
     try {
-      const raw = localStorage.getItem(PREF_KEY);
-      if (raw) setLikes(JSON.parse(raw));
+      // Load persisted style
+      const prefRaw = localStorage.getItem(STYLE_KEY);
+      if (prefRaw) {
+        try {
+          const pref = JSON.parse(prefRaw);
+          if (pref && typeof pref.style === "string" && pref.style) {
+            setStyle(pref.style);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Load likes/feedback
+      const likesRaw = localStorage.getItem(LIKES_KEY);
+      if (likesRaw) setLikes(JSON.parse(likesRaw));
     } catch {
       // ignore
     }
@@ -154,17 +160,37 @@ export default function Generator() {
 
   function persistLikes(next: FeedbackState) {
     try {
-      localStorage.setItem(PREF_KEY, JSON.stringify(next));
+      localStorage.setItem(LIKES_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleSetStyle(nextStyle: string) {
+    setStyle(nextStyle);
+    try {
+      localStorage.setItem(STYLE_KEY, JSON.stringify({ style: nextStyle }));
+    } catch {
+      // ignore
+    }
+
+    // Notify other components immediately
+    try {
+      const evt = new CustomEvent("captioni:style-changed", { detail: { style: nextStyle } });
+      window.dispatchEvent(evt);
     } catch {
       // ignore
     }
   }
 
   function remainingText(): string | null {
-    if (userPlan === "free" && usageCount < FREE_LIMIT)
-      return `${FREE_LIMIT - usageCount} free generations remaining`;
-    if (userPlan === "starter" && usageCount < STARTER_LIMIT)
-      return `${STARTER_LIMIT - usageCount} generations remaining in Starter`;
+    const textLimit = PLAN_LIMITS_CONST[userPlan].text;
+    if (isUnlimited(textLimit)) return null;
+    if (usageCount < textLimit) {
+      const remaining = textLimit - usageCount;
+      if (userPlan === "FREE") return `${remaining} free generations remaining`;
+      return `${remaining} generations remaining in ${userPlan}`;
+    }
     return null;
   }
 
@@ -259,7 +285,7 @@ export default function Generator() {
       setResult(payload.data || {});
 
       // ✅ track: úspěšné vygenerování
-      trackGenerationComplete(planToTracking[userPlan]);
+      trackGenerationComplete(userPlan);
 
       // ✅ Automaticky ulož do history pro všechny plány
       if (payload.data) {
@@ -319,7 +345,7 @@ export default function Generator() {
               <button
                 type="button"
                 className={`${styles.pillBtn} ${style === s ? styles.pillActive : ""}`}
-                onClick={() => setStyle(s)}
+                onClick={() => handleSetStyle(s)}
                 aria-pressed={style === s}
                 aria-label={`${s} style`}
               >
@@ -453,7 +479,7 @@ export default function Generator() {
         )}
 
         {/* Old local limit cards (kept for UX; server is authoritative) */}
-        {authed && userPlan === "free" && usageCount >= FREE_LIMIT && !limitReached && (
+        {authed && userPlan === "FREE" && usageCount >= PLAN_LIMITS_CONST[userPlan].text && !limitReached && (
           <div className={styles.limitCard}>
             <h3 className={styles.limitHeading}>You&apos;ve reached your free limit</h3>
             <p className={styles.limitText}>
@@ -469,7 +495,7 @@ export default function Generator() {
             </a>
           </div>
         )}
-        {authed && userPlan === "starter" && usageCount >= STARTER_LIMIT && (
+        {authed && userPlan === "TEXT_STARTER" && usageCount >= PLAN_LIMITS_CONST[userPlan].text && (
           <div className={styles.limitCard}>
             <h3 className={styles.limitHeading}>Starter limit reached</h3>
             <p className={styles.limitText}>

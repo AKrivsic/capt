@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getSessionServer } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { Plan } from '@prisma/client';
 
 export async function POST() {
   try {
@@ -13,7 +14,7 @@ export async function POST() {
     }
 
     const userId = String(session.user.id);
-    const plan = session.user.plan;
+    const plan = session.user.plan as Plan;
 
     // Reset usage pro aktuální den
     const today = new Date().toISOString().slice(0, 10);
@@ -27,9 +28,10 @@ export async function POST() {
       }
     });
 
-    // Pro STARTER plán smaž i předchozí 2 dny
-    if (plan === "STARTER") {
-      for (let i = 1; i <= 2; i++) {
+    // Pro měsíční plány smaž celý měsíc
+    if (plan === "TEXT_STARTER" || plan === "TEXT_PRO" || plan === "VIDEO_LITE" || plan === "VIDEO_PRO" || plan === "VIDEO_UNLIMITED") {
+      // Smaž všechny usage záznamy za posledních 30 dní
+      for (let i = 1; i <= 30; i++) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const dateKey = date.toISOString().slice(0, 10);

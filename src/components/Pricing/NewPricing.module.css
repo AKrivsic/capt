@@ -1,0 +1,533 @@
+/* NewPricing - Nová pricing sekce */
+
+.pricing {
+  padding: 6rem 1rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: #64748b;
+  margin: 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Error Message */
+.errorMessage {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #dc2626;
+}
+
+.errorMessage p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.errorClose {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s;
+}
+
+.errorClose:hover {
+  background: #fecaca;
+}
+
+/* Plans Grid */
+.plansGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.planCard {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.planCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.planCard.popular {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+  transform: scale(1.05);
+}
+
+.planCard.popular:hover {
+  transform: scale(1.05) translateY(-4px);
+}
+
+/* Badges */
+.popularBadge {
+  position: absolute;
+  top: -0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.priceBadge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #10b981;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Plan Header */
+.planHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.planName {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.planPrice {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.price {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #667eea;
+}
+
+.period {
+  font-size: 1rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.planDescription {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Features */
+.planFeatures {
+  margin-bottom: 2rem;
+}
+
+.feature {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.feature:last-child {
+  border-bottom: none;
+}
+
+/* Plan Button */
+.planButton {
+  width: 100%;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+  padding: 1rem 2rem;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  
+  /* Haptic feedback */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.planButton:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #475569;
+  transform: translateY(-1px);
+}
+
+.planButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.popularButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.popularButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Extra Credits */
+.extraCredits {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid #f59e0b;
+}
+
+.extraCreditsHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.extraCreditsTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #92400e;
+  margin: 0 0 0.5rem 0;
+}
+
+.extraCreditsSubtitle {
+  color: #a16207;
+  margin: 0;
+}
+
+.extraCreditsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.creditCard {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.creditCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.creditIcon {
+  font-size: 2rem;
+}
+
+.creditInfo {
+  flex: 1;
+}
+
+.creditVideos {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+.creditPrice {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.creditButton {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.creditButton:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+}
+
+.footerText {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Responzivní design */
+@media (min-width: 768px) {
+  .plansGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .extraCreditsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .pricing {
+    padding: 4rem 1rem;
+  }
+  
+  .title {
+    font-size: 2.5rem;
+  }
+  
+  .plansGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .planCard.popular {
+    transform: none;
+  }
+  
+  .planCard.popular:hover {
+    transform: translateY(-4px);
+  }
+  
+  .extraCreditsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .pricing {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  }
+  
+  .title {
+    color: #f1f5f9;
+  }
+  
+  .subtitle {
+    color: #94a3b8;
+  }
+  
+  .planCard {
+    background: #1e293b;
+    border-color: #475569;
+    color: white;
+  }
+  
+  .planName {
+    color: #f1f5f9;
+  }
+  
+  .planDescription {
+    color: #94a3b8;
+  }
+  
+  .feature {
+    color: #cbd5e1;
+    border-color: #475569;
+  }
+  
+  .planButton {
+    background: #334155;
+    color: #cbd5e1;
+    border-color: #475569;
+  }
+  
+  .planButton:hover:not(:disabled) {
+    background: #475569;
+    color: #f1f5f9;
+  }
+  
+  .extraCredits {
+    background: linear-gradient(135deg, #451a03 0%, #78350f 100%);
+    border-color: #d97706;
+  }
+  
+  .extraCreditsTitle {
+    color: #fbbf24;
+  }
+  
+  .extraCreditsSubtitle {
+    color: #fcd34d;
+  }
+  
+  .creditCard {
+    background: #1e293b;
+  }
+  
+  .creditVideos {
+    color: #f1f5f9;
+  }
+  
+  .creditPrice {
+    color: #94a3b8;
+  }
+  
+  .footerText {
+    color: #94a3b8;
+  }
+}
+
+/* Upgrade Prompt Styles */
+.upgradePrompt {
+  text-align: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-radius: 12px;
+  border: 2px solid #475569;
+  margin-top: 1rem;
+}
+
+.upgradePrompt p {
+  font-size: 1.1rem;
+  color: #e2e8f0;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+.upgradeButtons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.upgradeButton {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.upgradeButton:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.upgradeButton:active {
+  transform: translateY(0);
+}
+
+/* Video Plan Note Styles */
+.videoPlanNote {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.noteIcon {
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+.noteText {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .planCard, .planButton, .creditCard, .creditButton {
+    transition: none;
+  }
+  
+  .planCard:hover, .planButton:hover:not(:disabled), .creditCard:hover, .creditButton:hover {
+    transform: none;
+  }
+  
+  .spinner {
+    animation: none;
+  }
+}

@@ -63,7 +63,6 @@ export async function GET(req: NextRequest) {
   const where: Prisma.HistoryWhereInput = {
   userId,
   ...(platform ? { platform } : {}),
-  ...(q ? { prompt: { contains: q, mode: "insensitive" } } : {}),
 };
 
 let data = await prisma.history.findMany({
@@ -81,6 +80,7 @@ let data = await prisma.history.findMany({
   },
 });
 
+// Klientská filtrace podle q (jako dřív)
 if (q) {
   const qLower = q.toLowerCase();
   data = data.filter((r) => {

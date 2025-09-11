@@ -1,6 +1,6 @@
 import { DefaultSession } from "next-auth";
 
-type Plan = "FREE" | "STARTER" | "PRO" | "PREMIUM";
+type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
 
 declare module "next-auth" {
   interface User {

@@ -4,25 +4,18 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { getUsage } from "@/utils/usage";
 import { msUntilLocalMidnight, formatHm } from "@/utils/reset";
+import { PLAN_LIMITS, isUnlimited } from "@/constants/plans";
+import { Plan } from '@prisma/client';
 
 const USAGE_PREFIX = "gen"; // musí odpovídat prefixu v Generatoru
 
-type PlanName = "Free" | "Starter" | "Pro" | "Premium";
-
-// UsageStatus už není potřeba - STARTER používá localStorage
-
-function getPlanFromSession(session: unknown): PlanName {
-  if (!session || typeof session !== "object") return "Free";
+function getPlanFromSession(session: unknown): Plan {
+  if (!session || typeof session !== "object") return "FREE";
   const u = (session as Record<string, unknown>).user;
-  if (!u || typeof u !== "object") return "Free";
+  if (!u || typeof u !== "object") return "FREE";
   const p = (u as Record<string, unknown>).plan;
-  if (p === "Free" || p === "Starter" || p === "Pro" || p === "Premium") return p;
-  // podpora uppercase, kdyby se někde ukládalo jinak
-  if (p === "FREE") return "Free";
-  if (p === "STARTER") return "Starter";
-  if (p === "PRO") return "Pro";
-  if (p === "PREMIUM") return "Premium";
-  return "Free";
+  if (p === "FREE" || p === "TEXT_STARTER" || p === "TEXT_PRO" || p === "VIDEO_LITE" || p === "VIDEO_PRO" || p === "VIDEO_UNLIMITED") return p;
+  return "FREE";
 }
 
 function sumLastNDays(prefix: string, days: number) {
@@ -39,19 +32,19 @@ function sumLastNDays(prefix: string, days: number) {
 export function useUsageInfo() {
   const { data: session } = useSession();
   const plan = getPlanFromSession(session);
+  const planLimits = PLAN_LIMITS[plan];
 
-  // STARTER plán už nepoužívá server data - je stejně jednoduchý jako FREE
-
-  // Fallback na localStorage pro FREE plán
+  // Použití localStorage pro text generace
   const usedToday = getUsage(USAGE_PREFIX);
-  const used3 = sumLastNDays(USAGE_PREFIX, 3);
+  const usedThisMonth = sumLastNDays(USAGE_PREFIX, 30); // Posledních 30 dní
 
-  // Výpočet limitů a použití - zjednodušeno
-  const isUnlimited = plan === "Pro" || plan === "Premium";
-  const limit = isUnlimited ? null : plan === "Starter" ? 15 : 3;
-  const used = plan === "Starter" ? used3 : usedToday; // STARTER používá localStorage jako FREE
-  const left = limit === null ? null : Math.max((limit ?? 0) - used, 0);
-  const windowType = isUnlimited ? "unlimited" : plan === "Starter" ? "total" : "today";
+  // Výpočet limitů podle plánu
+  const textLimit = planLimits.text;
+  const isTextUnlimited = isUnlimited(textLimit);
+  
+  // Použité generace (podle typu plánu)
+  const used = plan === "FREE" ? usedToday : usedThisMonth;
+  const left = isTextUnlimited ? null : Math.max(textLimit - used, 0);
 
   // Reset localStorage při změně plánu
   useEffect(() => {
@@ -70,41 +63,39 @@ export function useUsageInfo() {
     }
   }, [plan]);
 
-  // countdown to local midnight (pouze pro FREE plán)
+  // Countdown pouze pro FREE plán (denní reset)
   const [msLeft, setMsLeft] = useState(msUntilLocalMidnight());
   useEffect(() => {
-    if (plan === "Starter" || plan === "Pro" || plan === "Premium") return; // Pouze FREE má countdown
+    if (plan !== "FREE") return; // Pouze FREE má denní countdown
     
     const t = setInterval(() => setMsLeft(msUntilLocalMidnight()), 30_000);
     return () => clearInterval(t);
   }, [plan]);
   
-  const countdown = isUnlimited || plan === "Starter" ? "" : formatHm(msLeft);
+  const countdown = plan === "FREE" ? formatHm(msLeft) : "";
 
-  // labels - zjednodušené pro lepší UX
-  const windowLabel = windowType;
-  const leftLabel = isUnlimited
+  // Labels podle typu plánu
+  const windowLabel = plan === "FREE" ? "today" : "month";
+  const leftLabel = isTextUnlimited
     ? "Unlimited"
-    : plan === "Starter"
-      ? `${left}/${limit} left` // 15 pokusů celkem
-      : `${left}/${limit} left today`;
+    : `${left}/${textLimit} left`;
 
-  const resetHint = isUnlimited 
+  const resetHint = isTextUnlimited 
     ? "" 
-    : plan === "Starter" 
-      ? "· total limit" // Bez časového omezení
-      : `· resets in ${countdown}`;
+    : plan === "FREE"
+      ? `· resets in ${countdown}`
+      : "· monthly limit";
 
   return { 
     plan, 
-    limit, 
+    limit: textLimit, 
     usedToday, 
-    used3, 
+    usedThisMonth, 
     used,
     left, 
     leftLabel, 
     windowLabel, 
     resetHint,
-    loading: false // Žádné server data, žádné loading
+    loading: false
   };
 }

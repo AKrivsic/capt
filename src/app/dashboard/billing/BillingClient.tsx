@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trackUpgradeClick } from "@/utils/tracking";
+import ExtraCredits from "@/components/ExtraCredits/ExtraCredits";
 import type Stripe from "stripe";
 
 type User = {
@@ -205,6 +206,11 @@ export default function BillingClient({ user, customer, subscription, invoices }
           </div>
         </div>
       )}
+
+      {/* Extra Credits */}
+      <div className="rounded-xl border p-6">
+        <ExtraCredits />
+      </div>
 
       {/* Help */}
       <div className="rounded-xl border p-6 bg-gray-50">

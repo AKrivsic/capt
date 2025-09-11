@@ -1,0 +1,212 @@
+.section {
+  padding: 4rem 1rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: #6b7280;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.plansGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.planCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 2rem;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.planCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.popular {
+  border-color: #8b5cf6;
+  box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.1);
+}
+
+.popularBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.planHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.planName {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.planPrice {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.price {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.period {
+  font-size: 1rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.planDescription {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.planFeatures {
+  margin-bottom: 2rem;
+}
+
+.feature {
+  padding: 0.5rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.planButton {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+  padding: 0.9rem 1.6rem;
+  border: none;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.planButton:hover {
+  transform: scale(1.04);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.planButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.popularButton {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.popularButton:hover {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Extra Credits styles */
+.extraCredits {
+  margin-top: 3rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.extraTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.extraSub {
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+.extraGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.extraCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.extraName {
+  font-weight: 700;
+  color: #111827;
+}
+
+.extraPrice {
+  color: #374151;
+}
+
+@media (max-width: 768px) {
+  .plansGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .planCard {
+    padding: 1.5rem;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .price {
+    font-size: 2.5rem;
+  }
+}

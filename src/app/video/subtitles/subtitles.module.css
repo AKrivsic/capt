@@ -1,0 +1,168 @@
+/* Video Subtitles stránka - mobile-first design */
+
+.container {
+  min-height: 100vh;
+  padding: 1rem;
+  padding-bottom: 6rem; /* Prostor pro bottom CTA */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 0 0.5rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.main {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.1rem;
+  color: #64748b;
+}
+
+/* Style section */
+.styleSection {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.filePreview {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.filePreview h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fileName {
+  margin: 0;
+  font-weight: 500;
+  color: #1e293b;
+  word-break: break-all;
+}
+
+.startButton {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 1.5rem;
+  
+  /* Haptic feedback na mobilu */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.startButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.4);
+}
+
+.startButton:active {
+  transform: translateY(0);
+}
+
+.startButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Step indicator */
+.stepIndicator {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.75rem 1.5rem;
+  border-radius: 2rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.step {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.step.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  transform: scale(1.1);
+}
+
+/* Responzivní design */
+@media (min-width: 768px) {
+  .container {
+    padding: 2rem;
+  }
+  
+  .main {
+    max-width: 500px;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .styleSection {
+    background: #1e293b;
+    color: white;
+  }
+  
+  .filePreview {
+    background: #334155;
+    border-color: #475569;
+  }
+  
+  .fileName {
+    color: #f1f5f9;
+  }
+}
