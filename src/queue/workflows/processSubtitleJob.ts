@@ -2,11 +2,11 @@ import { renderSubtitledVideo } from '@/subtitles/renderSubtitledVideo';
 import { prisma } from '@/lib/prisma';
 import { getStorage } from '@/lib/storage/r2';
 import { WhisperProvider } from '@/lib/transcription/whisper';
-import { transcriptToChunks } from '@/queue/utils/transcriptUtils';
+// import { transcriptToChunks } from '@/queue/utils/transcriptUtils';
 import { writeFileSync, unlinkSync, readFileSync } from 'fs';
 
 export async function processSubtitleJob(
-  { jobId, fileId, style }: { jobId: string; fileId: string; style: string },
+  { jobId, style }: { jobId: string; fileId: string; style: string },
   onProgress: (p: number) => Promise<void>
 ) {
   // 1) dotáhni video info z DB (cesty, storageKey)
@@ -36,7 +36,7 @@ export async function processSubtitleJob(
 
   // 4) render (drawtext pipeline)
   const outPath = `/tmp/${jobId}-output.mp4`;
-  const chunks = transcriptToChunks(transcript);
+  // const chunks = transcriptToChunks(transcript); // Currently unused but may be needed for future features
   
   const renderResult = await renderSubtitledVideo({
     videoPath: inputPath,

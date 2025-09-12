@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import Image from 'next/image';
 import styles from './ShareActions.module.css';
 import { shareTracking } from '@/lib/tracking';
 
@@ -257,9 +258,11 @@ function QRCodeComponent({ url }: { url: string }) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
   
   return (
-    <img 
+    <Image 
       src={qrUrl} 
       alt="QR code for video download"
+      width={200}
+      height={200}
       className={styles.qrImage}
       loading="lazy"
     />

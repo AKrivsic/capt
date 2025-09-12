@@ -28,7 +28,7 @@ import { styleMeta } from '@/constants/styleMeta';
 import { normalizePlatform } from '@/utils/normalizePlatform';
 import FeatureFlagsToggle from '@/components/FeatureFlagsToggle';
 import { VideoLimitModal } from '@/components/VideoLimitModal';
-import { useVideoLimits } from '@/hooks/useVideoLimits';
+// import { useVideoLimits } from '@/hooks/useVideoLimits';
 
 type CSSVarProps = CSSProperties & { [key: `--${string}`]: string };
 
@@ -58,7 +58,7 @@ export default function NewGenerator() {
   const [usageCount, setUsageCount] = useState(0);
   // removed unused upgrade modal state
   
-  const { modalType, showTextToVideoModal, showTextLimitModal, showVideoLimitModal, hideModal } = useCrossSellModal();
+  const { modalType, showTextLimitModal, showVideoLimitModal, hideModal } = useCrossSellModal();
 
   // Form states
   const [captionInput, setCaptionInput] = useState('');
@@ -73,8 +73,8 @@ export default function NewGenerator() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitReason, setLimitReason] = useState('');
   
-  // Video limits hook
-  const { limits: videoLimits, checkDurationLimit, checkGenerationLimit } = useVideoLimits();
+  // Video limits hook - currently unused but may be needed for future features
+  // const { limits: videoLimits, checkDurationLimit, checkGenerationLimit } = useVideoLimits();
 
   // Derived state
   const platforms = Object.keys(platformMeta);

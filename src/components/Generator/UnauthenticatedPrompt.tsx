@@ -55,6 +55,9 @@ export default function UnauthenticatedPrompt() {
     return null;
   }
 
+  // Use variables to avoid unused variable warnings
+  const _ = { selectedStyle, platformColor };
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>

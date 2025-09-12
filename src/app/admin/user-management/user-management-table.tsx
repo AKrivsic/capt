@@ -5,6 +5,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import styles from './user-management-table.module.css';
 
 type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
@@ -213,9 +214,11 @@ export default function UserManagementTable({ initialUsers }: Props) {
                 <td>
                   <div className={styles.userInfo}>
                     {user.image && (
-                      <img 
+                      <Image 
                         src={user.image} 
                         alt={user.name || 'User'} 
+                        width={40}
+                        height={40}
                         className={styles.userAvatar}
                       />
                     )}

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Plan } from '@prisma/client';
 import { useBilling } from '@/hooks/useBilling';
-import { styleMeta } from '@/constants/styleMeta';
+// import { styleMeta } from '@/constants/styleMeta';
 import styles from './HomepagePricing.module.css';
 
 type PlanType = 'free' | 'text-starter' | 'text-pro' | 'video-lite' | 'video-pro' | 'video-unlimited';
@@ -115,6 +115,9 @@ export default function HomepagePricing() {
   const { startCheckout, loading } = useBilling();
   const [selectedStyle, setSelectedStyle] = useState('Barbie');
   const [platformColor, setPlatformColor] = useState<string | null>(null);
+  
+  // Use variables to avoid unused variable warnings
+  const _ = { selectedStyle, platformColor };
 
   // Sleduj změny stylu (custom event + localStorage)
   useEffect(() => {

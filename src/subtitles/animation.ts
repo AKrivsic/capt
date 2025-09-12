@@ -13,7 +13,7 @@ export function buildLineIntroFilters(params: {
   fontSize: number;
   window?: AnimationWindow;
 }): { filters: string[]; preLayers?: string[] } {
-  const { styleAnimation, startSec, baseXExpr, baseYExpr, fontSize, window } = params;
+  const { styleAnimation, startSec, baseXExpr, baseYExpr, window } = params;
   const intro = secs(window?.introMs ?? 180);
   const t0 = startSec.toFixed(2);
   const t1 = (startSec + intro).toFixed(2);
