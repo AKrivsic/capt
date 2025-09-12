@@ -3,11 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-  // provider = "postgresql"
-  // url      = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL") // Volitelné pro dev
+  // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 enum Plan {
