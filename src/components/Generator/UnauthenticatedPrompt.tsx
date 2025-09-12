@@ -56,7 +56,8 @@ export default function UnauthenticatedPrompt() {
   }
 
   // Use variables to avoid unused variable warnings
-  const _ = { selectedStyle, platformColor };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unused = { selectedStyle, platformColor };
 
   return (
     <div className={styles.container}>

@@ -4,6 +4,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { BRAND } from "@/lib/email/branding";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 export const metadata: Metadata = {
   title: "Dashboard – Captioni",
   description: "Your Captioni space",

@@ -1,13 +1,14 @@
 import { Worker, Job } from 'bullmq';
-import { redisConnection, bullPrefix } from './connection';
+import { getRedis } from '@/server/queue';
 import { prisma } from '@/lib/prisma';
 import { processSubtitleJob } from './workflows/processSubtitleJob';
 import { jobTracking } from '@/lib/tracking';
 
 const concurrency = Number(process.env.WORKER_CONCURRENCY ?? 4);
+const prefix = process.env.BULLMQ_PREFIX ?? 'captioni';
 
 export const subtitleWorker = new Worker(
-  'subtitle',
+  'subtitles',
   async (job: Job) => {
     const { jobId, fileId, style } = job.data as { jobId: string; fileId: string; style: string };
 
@@ -68,8 +69,8 @@ export const subtitleWorker = new Worker(
     }
   },
   { 
-    connection: redisConnection, 
-    prefix: bullPrefix, 
+    connection: getRedis(), 
+    prefix, 
     concurrency 
   }
 );
@@ -101,5 +102,5 @@ process.on('SIGTERM', async () => {
 });
 
 console.log(`Subtitle worker started with concurrency: ${concurrency}`);
-console.log(`Listening for jobs on queue: subtitle (prefix: ${bullPrefix})`);
+console.log(`Listening for jobs on queue: subtitles (prefix: ${prefix})`);
 

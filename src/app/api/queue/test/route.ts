@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { subtitleQueue, DEFAULT_JOB_OPTS } from '@/queue';
+import { enqueueSubtitlesJob } from '@/server/queue';
 import { randomUUID } from 'crypto';
 
 export async function POST() {
@@ -11,19 +11,25 @@ export async function POST() {
     );
   }
 
+  // Check if Redis is available
+  if (!process.env.REDIS_URL) {
+    return NextResponse.json(
+      { error: 'Service Unavailable', message: 'Queue unavailable in this environment' },
+      { status: 503 }
+    );
+  }
+
   try {
     const jobId = randomUUID();
     const testJobId = `subtitle:${jobId}`;
     
-    await subtitleQueue.add(
-      'render', 
+    await enqueueSubtitlesJob(
       { 
         jobId, 
         fileId: 'TEST_FILE_ID', 
         style: 'BARBIE' 
       }, 
       { 
-        ...DEFAULT_JOB_OPTS, 
         jobId: testJobId,
         priority: 5 
       }

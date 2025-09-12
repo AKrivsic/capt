@@ -3,6 +3,10 @@ import { getSessionServer } from "@/lib/session";
 import { redirect } from "next/navigation";
 import HistoryList from "@/components/HistoryList/HistoryList";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 export const metadata = {
   title: "History • Captioni",
   description: "Your generated content history.",

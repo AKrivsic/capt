@@ -9,10 +9,18 @@ import { prisma } from '@/lib/prisma';
 import { ProcessRequestSchema } from '@/types/api';
 import type { ProcessResponse, ApiErrorResponse } from '@/types/api';
 import { jobTracking } from '@/lib/tracking';
-import { subtitleQueue, DEFAULT_JOB_OPTS } from '@/queue';
+import { enqueueSubtitlesJob } from '@/server/queue';
 
 export async function POST(request: NextRequest): Promise<NextResponse<ProcessResponse | ApiErrorResponse>> {
   try {
+    // Check if Redis is available
+    if (!process.env.REDIS_URL) {
+      return NextResponse.json(
+        { error: 'Service Unavailable', message: 'Queue unavailable in this environment' },
+        { status: 503 }
+      );
+    }
+
     // Ověření autentizace
     const session = await getServerSession();
     if (!session?.user?.email) {
@@ -119,10 +127,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
     console.log(`Starting subtitle job ${result.id} for video ${fileId} with style ${style}`);
     
     // Enqueue job do BullMQ
-    await subtitleQueue.add(
-      'render',
+    await enqueueSubtitlesJob(
       { jobId: result.id, fileId, style },
-      { ...DEFAULT_JOB_OPTS, jobId: `subtitle:${result.id}`, priority: 5 }
+      { jobId: `subtitle:${result.id}`, priority: 5 }
     );
 
     const response: ProcessResponse = {

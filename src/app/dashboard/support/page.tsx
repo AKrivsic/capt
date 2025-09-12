@@ -2,6 +2,10 @@
 import { getSessionServer } from "@/lib/session";
 import { redirect } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 export default async function SupportPage() {
   const session = await getSessionServer();
   if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard/support");

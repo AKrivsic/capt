@@ -117,7 +117,8 @@ export default function HomepagePricing() {
   const [platformColor, setPlatformColor] = useState<string | null>(null);
   
   // Use variables to avoid unused variable warnings
-  const _ = { selectedStyle, platformColor };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _unused = { selectedStyle, platformColor };
 
   // Sleduj změny stylu (custom event + localStorage)
   useEffect(() => {
