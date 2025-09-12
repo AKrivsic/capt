@@ -185,3 +185,4 @@ console.log("Referral:", window.Rewardful?.referral);
 
 **Vše je připraveno pro produkční nasazení!** 🚀
 
+
