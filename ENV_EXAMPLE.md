@@ -38,3 +38,4 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 2. Vytvořte Redis databázi
 3. Zkopírujte `REDIS_URL` z dashboardu
 4. Nastavte `BULL_PREFIX` na `captioni`
+

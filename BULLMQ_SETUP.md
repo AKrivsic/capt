@@ -151,3 +151,4 @@ Worker loguje:
 - [ ] Stav v DB se mění: QUEUED → PROCESSING (10%) → COMPLETED (100%)
 - [ ] Uloží se `resultStorageKey` v DB
 - [ ] Žádné proprietární fonty, render jede přes drawtext pipeline
+

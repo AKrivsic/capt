@@ -18,3 +18,4 @@ export async function sendLimitReachedEmail(params: LimitReachedEmailParams): Pr
   console.log(`Limit reached email sent to ${params.userEmail} for ${params.limitType} limit`);
 }
 
+

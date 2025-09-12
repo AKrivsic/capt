@@ -7,7 +7,7 @@ import { writeFileSync, unlinkSync, readFileSync } from 'fs';
 
 export async function processSubtitleJob(
   { jobId, fileId, style }: { jobId: string; fileId: string; style: string },
-  onProgress: (p: number) => Promise<any>
+  onProgress: (p: number) => Promise<void>
 ) {
   // 1) dotáhni video info z DB (cesty, storageKey)
   const job = await prisma.subtitleJob.findUnique({ 
@@ -42,7 +42,7 @@ export async function processSubtitleJob(
     videoPath: inputPath,
     outPath,
     mode: 'TALKING_HEAD',
-    style: style as any,
+    style: style as 'BARBIE' | 'BADDIE' | 'INNOCENT' | 'FUNNY' | 'GLAMOUR' | 'EDGY' | 'RAGE' | 'MEME' | 'STREAMER',
     transcript: transcript,
     position: 'BOTTOM'
   });

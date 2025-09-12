@@ -7,3 +7,4 @@ export const redisConnection = {
 } as unknown as RedisOptions;
 
 export const bullPrefix = process.env.BULL_PREFIX ?? 'captioni';
+

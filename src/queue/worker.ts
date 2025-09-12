@@ -50,14 +50,14 @@ export const subtitleWorker = new Worker(
       jobTracking.completed({ jobId });
       console.log(`Job ${jobId} completed successfully with storage key: ${storageKey}`);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Job ${jobId} failed:`, err);
       
       await prisma.subtitleJob.update({
         where: { id: jobId },
         data: { 
           status: 'FAILED', 
-          errorMessage: err?.message ?? 'Failed', 
+          errorMessage: err instanceof Error ? err.message : 'Failed', 
           completedAt: new Date() 
         }
       });
@@ -68,7 +68,7 @@ export const subtitleWorker = new Worker(
     }
   },
   { 
-    connection: redisConnection as any, 
+    connection: redisConnection, 
     prefix: bullPrefix, 
     concurrency 
   }
@@ -102,3 +102,4 @@ process.on('SIGTERM', async () => {
 
 console.log(`Subtitle worker started with concurrency: ${concurrency}`);
 console.log(`Listening for jobs on queue: subtitle (prefix: ${bullPrefix})`);
+

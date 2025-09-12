@@ -83,7 +83,7 @@ export function transcriptToChunks(transcript: Transcript): SubtitleChunk[] {
 /**
  * Convert array of words to subtitle lines
  */
-function wordsToLines(words: typeof transcript.words, maxWordsPerLine: number): string[] {
+function wordsToLines(words: Transcript['words'], maxWordsPerLine: number): string[] {
   const lines: string[] = [];
   let currentLine: string[] = [];
   
@@ -103,3 +103,4 @@ function wordsToLines(words: typeof transcript.words, maxWordsPerLine: number): 
   
   return lines;
 }
+
