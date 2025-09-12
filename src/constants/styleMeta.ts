@@ -28,7 +28,7 @@ export const styleMeta: Record<
     tooltip: "Soft, pure, sweet and subtly charming.",
   },
   Funny: {
-    emoji: "🤣",
+    emoji: "😄",
     color: "#fcd34d", // yellow
     tooltip: "Witty, playful and entertaining – for laughs and engagement.",
   },

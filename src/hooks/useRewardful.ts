@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 
 declare global {
   interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    rewardful: any;
+    rewardful: (event: string, callback: () => void) => void;
     Rewardful: {
       referral: string | null;
     };

@@ -100,7 +100,7 @@ export default function TikTokCaptionsPage() {
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
           <Link
-  href="/?demo=true"
+  href="/try"
   data-pt-event="Demo click"
   data-pt-props='{"source":"blog"}'
 >
@@ -153,7 +153,7 @@ export default function TikTokCaptionsPage() {
         </ul>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
           <Link
-  href="/?demo=true"
+  href="/try"
   data-pt-event="Demo click"
   data-pt-props='{"source":"blog"}'
 >

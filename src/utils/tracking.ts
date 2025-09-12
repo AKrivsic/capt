@@ -1,7 +1,7 @@
 "use client";
 
 // --- Doménové typy ---
-export type Plan = "FREE" | "STARTER" | "PRO" | "PREMIUM";
+export type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
 export type Source =
   | "homepage"
   | "blog"
@@ -27,24 +27,18 @@ type EventName =
   | "Purchase success"
   | "Upgrade click"
   | "Modal close"
-  | "Logout click";
+  | "Logout click"
+  | "Visit try"
+  | "Demo text start"
+  | "Demo video upload"
+  | "Preview shown"
+  | "Email unlock"
+  | "Download clean"
+  | "Limit reached";
 
 type TrackProps = Record<string, string | number | boolean | null | undefined>;
 type PlausibleOptions = { props?: TrackProps; revenue?: number };
-type PlausibleQueueItem = [EventName, PlausibleOptions?];
-
-// --- Správná definice callable typu s vlastností `q` (na funkci, ne na returnu) ---
-type PlausibleFn = {
-  (eventName: EventName, options?: PlausibleOptions): void;
-  q?: PlausibleQueueItem[];
-};
-
-// --- Globální augmentace window ---
-declare global {
-  interface Window {
-    plausible?: PlausibleFn;
-  }
-}
+type PlausibleQueueItem = [string, PlausibleOptions?];
 
 // Disable switch (např. pro e2e/test)
 const DISABLED =
@@ -57,12 +51,11 @@ function ensurePlausibleStub(): void {
   if (typeof window.plausible === "function") return;
 
   const queue: PlausibleQueueItem[] = [];
-  const stub = ((eventName: EventName, options?: PlausibleOptions) => {
+  const stub = ((eventName: string, options?: PlausibleOptions) => {
     queue.push([eventName, options]);
-  }) as PlausibleFn;
-
+  }) as unknown as { (name: string, options?: PlausibleOptions): void; q?: PlausibleQueueItem[] };
   stub.q = queue;
-  window.plausible = stub;
+  window.plausible = stub as unknown as typeof window.plausible;
 }
 
 // Bezpečné volání i když skript ještě není načtený
@@ -70,7 +63,8 @@ function callPlausible(name: EventName, options?: PlausibleOptions): void {
   if (typeof window === "undefined" || DISABLED) return;
   ensurePlausibleStub();
   try {
-    window.plausible?.(name, options);
+    const fn = window.plausible as unknown as (event: string, options?: PlausibleOptions) => void;
+    fn?.(name, options);
   } catch {
     // nikdy neshazovat UI kvůli trackingu
   }
@@ -127,6 +121,47 @@ export function trackModalClose(
   method: "esc" | "overlay" | "button"
 ): void {
   trackCore("Modal close", { props: { modal, method, source: "other" } });
+}
+
+export function trackStyleUiMatch(enabled: boolean): void {
+  // Logujeme jako součást generator metriks
+  trackCore("Generator access", { props: { ab_event: "style_ui_match", enabled } });
+}
+
+// ====== Funnel Events (for post-launch metrics) ======
+
+// Visit → Try flow
+export function trackVisitTry(): void {
+  trackCore("Visit try", { props: { source: "homepage" } });
+}
+
+// Demo interactions
+export function trackDemoTextStart(): void {
+  trackCore("Demo text start", { props: { source: "demo_modal" } });
+}
+
+export function trackDemoVideoUpload(): void {
+  trackCore("Demo video upload", { props: { source: "demo_modal" } });
+}
+
+// Preview and generation
+export function trackPreviewShown(): void {
+  trackCore("Preview shown", { props: { source: "generator" } });
+}
+
+// Email unlock flow
+export function trackEmailUnlock(): void {
+  trackCore("Email unlock", { props: { source: "video_demo" } });
+}
+
+// Download flow
+export function trackDownloadClean(): void {
+  trackCore("Download clean", { props: { source: "email_link" } });
+}
+
+// Limit reached events
+export function trackLimitReached(type: "text" | "video"): void {
+  trackCore("Limit reached", { props: { type } });
 }
 
 export {};

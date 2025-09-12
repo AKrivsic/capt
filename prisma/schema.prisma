@@ -3,22 +3,54 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  // Connection pool settings to prevent prepared statement conflicts
-  directUrl = env("DIRECT_URL")
+  // provider = "postgresql"
+  // url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL") // Volitelné pro dev
 }
 
 enum Plan {
   FREE
-  STARTER
-  PRO
-  PREMIUM
+  TEXT_STARTER
+  TEXT_PRO
+  VIDEO_LITE
+  VIDEO_PRO
+  VIDEO_UNLIMITED
 }
 
 enum UsageKind {
   GENERATION
   DEMO
+}
+
+enum SubtitleStyle {
+  BARBIE
+  BADDIE
+  INNOCENT
+  FUNNY
+  GLAMOUR
+  EDGY
+  RAGE
+  MEME
+  STREAMER
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SkuCode {
+  PACK_STARTER_3
+  PACK_CREATOR_10
+  PACK_PRO_30
+  ADMIN_CREDITS
+  EXTRA_10_VIDEOS
+  EXTRA_25_VIDEOS
+  EXTRA_50_VIDEOS
 }
 
 model User {
@@ -44,6 +76,16 @@ model User {
 
   // ✅ STARTER plan tracking
   starterPurchasedAt DateTime? // Kdy byl zakoupen STARTER plán (pro 3-denní lhůtu)
+  
+  // ✅ Video subtitle credits
+  videoCredits Int @default(0)
+  
+  // ✅ Stripe customer ID for subscription management
+  stripeCustomerId String? @unique
+  
+  // ✅ Text generation limits (monthly)
+  textGenerationsLeft Int @default(3)    // Zbývající generace
+  textGenerationsUsed Int @default(0)    // Použité generace
 
   accounts  Account[]
   sessions  Session[]
@@ -51,6 +93,10 @@ model User {
   usages    Usage[]
 
   consentLogs ConsentLog[]
+  videoFiles VideoFile[]
+  subtitleJobs SubtitleJob[]
+  purchases Purchase[]
+  videoUsages VideoUsage[]
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -177,4 +223,72 @@ model WebhookEvent {
   
   @@unique([source, eventId])
   @@index([source, createdAt])
+}
+
+model VideoFile {
+  id           String   @id @default(cuid())
+  userId       String
+  storageKey   String   // S3/R2 object key
+  originalName String
+  durationSec  Float?   // video délka v sekundách  
+  fileSizeBytes Int?    // velikost souboru v bytech
+  mimeType     String?  // MIME type (video/mp4, video/mov, atd.)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtitleJobs SubtitleJob[]
+
+  @@index([userId, createdAt])
+  @@index([storageKey])
+}
+
+model SubtitleJob {
+  id                String        @id @default(cuid())
+  userId            String
+  videoFileId       String
+  style             SubtitleStyle
+  status            JobStatus     @default(QUEUED)
+  progress          Int           @default(0) // 0-100
+  resultStorageKey  String?       // finální video s titulky
+  errorMessage      String?
+  transcriptJson    Json?         // STT výsledek (words s timestampy)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  startedAt         DateTime?     // kdy začal processing
+  completedAt       DateTime?     // kdy skončil (success/fail)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoFile VideoFile @relation(fields: [videoFileId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([videoFileId])
+}
+
+model VideoUsage {
+  id        String   @id @default(cuid())
+  userId    String?  // null pro demo uživatele
+  ip        String?  // pro demo tracking
+  duration  Float    // délka videa v sekundách
+  createdAt DateTime @default(now())
+  
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, createdAt])
+  @@index([ip, createdAt])
+}
+
+model Purchase {
+  id                    String   @id @default(cuid())
+  userId                String
+  sku                   SkuCode
+  creditsDelta          Int      // kolik kreditů přidal
+  amountUsd             Int      // cena v centech (např. 600 = $6.00)
+  stripePaymentIntentId String   @unique
+  createdAt             DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([stripePaymentIntentId])
 }

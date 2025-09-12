@@ -6,6 +6,10 @@ import { prisma } from "@/lib/prisma";
 import BillingClient from "./BillingClient";
 import type Stripe from "stripe";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 export default async function BillingPage() {
   const session = await getSessionServer();
   if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard/billing");

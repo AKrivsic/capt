@@ -1,12 +1,12 @@
 // src/app/page.tsx
 import Hero from "@/components/Hero/Hero";
-import Generator from "@/components/Generator/Generator";
+import NewGenerator from "@/components/Generator/NewGenerator";
 import Testimonials from "@/components/Testimonials/Testimonials";
 import Benefits from "@/components/Benefits/Benefits";
 import Footer from "@/components/Footer/Footer";
 import Previews from "@/components/Previews/Previews";
 import Faq from "@/components/Faq/Faq";
-import Pricing from "@/components/Pricing/Pricing";
+import HomepagePricing from "@/components/Pricing/HomepagePricing";
 import FinalCTA from "@/components/FinalCTA/FinalCTA";
 import Header from "@/components/Header/Header";
 import { Suspense } from "react";
@@ -40,20 +40,23 @@ export default function HomePage() {
   }}
 />
       <Header />
+      
+      {/* Demo link removed per request */}
+      
       <Suspense fallback={null}>
         <Hero />
       </Suspense>
 
       {/* ⇩⇩⇩ přidaný anchor */}
       <section id="generator">
-        <Generator />
+        <NewGenerator />
       </section>
       {/* ⇧⇧⇧ */}
 
       <Benefits />
       <Previews />
       <Testimonials />
-      <Pricing />
+      <HomepagePricing />
       <Faq />
       <BlogTeaser />
       <FinalCTA />

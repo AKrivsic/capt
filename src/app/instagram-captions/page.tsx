@@ -101,7 +101,7 @@ export default function InstagramCaptionsPage() {
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
           <Link
-  href="/?demo=true"
+  href="/try"
   data-pt-event="Demo click"
   data-pt-props='{"source":"blog"}'
 >
@@ -131,7 +131,7 @@ export default function InstagramCaptionsPage() {
         <p>
           Want 10 tailored options like these?{" "}
           <Link
-  href="/?demo=true"
+  href="/try"
   data-pt-event="Demo click"
   data-pt-props='{"source":"blog"}'
 >
@@ -161,7 +161,7 @@ export default function InstagramCaptionsPage() {
         </ul>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
           <Link
-  href="/?demo=true"
+  href="/try"
   data-pt-event="Demo click"
   data-pt-props='{"source":"blog"}'
 >

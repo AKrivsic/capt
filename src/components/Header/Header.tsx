@@ -9,7 +9,6 @@ import {
   trackDemoClick,
   trackGeneratorAccess,
   trackPricingClick,
-  trackSignupStart,
 } from "@/utils/tracking";
 
 export default function Header() {
@@ -38,7 +37,7 @@ export default function Header() {
           {/* --- Nepřihlášený má i DEMO, přihlášený ne --- */}
           {!isLoggedIn && (
             <Link
-              href="/?demo=true"
+              href="/try"
               onClick={() => {
                 trackDemoClick("header");
                 closeMenu();
@@ -92,11 +91,10 @@ export default function Header() {
             </Link>
           ) : (
             <Link
-              href="/?demo=true"
+              href="#pricing"
               className={styles.cta}
               onClick={() => {
-                trackDemoClick("header");
-                trackSignupStart("header");
+                trackPricingClick("header");
                 closeMenu();
               }}
             >
@@ -114,6 +112,7 @@ export default function Header() {
           {open ? "×" : "☰"}
         </button>
       </div>
+
     </header>
   );
 }

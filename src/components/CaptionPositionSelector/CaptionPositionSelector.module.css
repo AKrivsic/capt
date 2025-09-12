@@ -1,0 +1,227 @@
+/* CaptionPositionSelector - Styling pro výběr pozice titulků */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.labelText {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.labelIcon {
+  font-size: 1.2rem;
+}
+
+.positions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.positionOption {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  background: #fafafa;
+}
+
+.positionOption:hover {
+  border-color: #3b82f6;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.positionOption.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.positionOption.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f9fafb;
+}
+
+.positionOption.disabled:hover {
+  transform: none;
+  border-color: #e2e8f0;
+  background: #f9fafb;
+  box-shadow: none;
+}
+
+.radioButton {
+  flex-shrink: 0;
+}
+
+.radioCircle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.radioSelected {
+  border-color: #3b82f6;
+  background: #3b82f6;
+}
+
+.radioDot {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.positionInfo {
+  flex: 1;
+}
+
+.positionLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.positionDescription {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.tooltip {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tooltipArrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #1e293b;
+}
+
+.tooltipContent {
+  background: #1e293b;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.preview {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.previewLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.75rem;
+}
+
+.previewVideo {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.previewOverlay {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.previewCaption {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+
+.previewCaption.top {
+  top: 20px;
+}
+
+.previewCaption.middle {
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
+}
+
+.previewCaption.bottom {
+  bottom: 20px;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .positionOption {
+    padding: 0.75rem;
+  }
+  
+  .positionLabel {
+    font-size: 0.9rem;
+  }
+  
+  .positionDescription {
+    font-size: 0.8rem;
+  }
+  
+  .previewVideo {
+    height: 100px;
+  }
+}

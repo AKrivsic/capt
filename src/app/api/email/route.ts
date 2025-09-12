@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const apiKey = process.env.RESEND_API_KEY;
+const resend = apiKey ? new Resend(apiKey) : null;
 
 export async function POST() {
   try {
+    if (!resend) {
+      return NextResponse.json({ ok: true, skipped: true, reason: "RESEND_API_KEY not set" });
+    }
     const data = await resend.emails.send({
       from: "Captioni <no-reply@captioni.com>",
       to: "o.kryvshych@gmail.com", // sem dáš příjemce

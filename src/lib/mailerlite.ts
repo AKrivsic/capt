@@ -5,7 +5,7 @@ const ML_BASE = "https://connect.mailerlite.com/api";
 
 // ===== Typy =====
 type GroupId = string;
-export type PlanSlug = "free" | "starter" | "pro" | "premium";
+export type PlanSlug = "free" | "text-starter" | "text-pro" | "video-lite" | "video-pro" | "video-unlimited";
 
 type UpsertParams = {
   email: string;
@@ -180,9 +180,11 @@ export async function mlEnsureUsersGroup(email: string, name?: string | null): P
 export async function mlSetPlanGroup(email: string, plan: PlanSlug): Promise<void> {
   const id = {
     free: process.env.ML_GROUP_PLAN_FREE,
-    starter: process.env.ML_GROUP_PLAN_STARTER,
-    pro: process.env.ML_GROUP_PLAN_PRO,
-    premium: process.env.ML_GROUP_PLAN_PREMIUM,
+    "text-starter": process.env.ML_GROUP_PLAN_TEXT_STARTER,
+    "text-pro": process.env.ML_GROUP_PLAN_TEXT_PRO,
+    "video-lite": process.env.ML_GROUP_PLAN_VIDEO_LITE,
+    "video-pro": process.env.ML_GROUP_PLAN_VIDEO_PRO,
+    "video-unlimited": process.env.ML_GROUP_PLAN_VIDEO_UNLIMITED,
   }[plan];
   if (!id) throw new Error(`Missing ML_GROUP for plan=${plan}`);
 

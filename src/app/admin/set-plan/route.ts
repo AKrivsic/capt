@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 const BodySchema = z
   .object({
     userId: z.string().cuid(), // uprav na union, pokud nepoužíváš cuid()
-    plan: z.enum(["FREE", "STARTER", "PRO", "PREMIUM"]),
+    plan: z.enum(["FREE", "TEXT_STARTER", "TEXT_PRO", "VIDEO_LITE", "VIDEO_PRO", "VIDEO_UNLIMITED"]),
   })
   .strict();
 

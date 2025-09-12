@@ -1,0 +1,336 @@
+/* ShareActions - sdílení a stahování videa */
+
+.container {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Loading a error states */
+.loading, .error {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.errorIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.retryButton {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: #b91c1c;
+}
+
+/* Success header */
+.successHeader {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.successIcon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.successTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #16a34a;
+  margin: 0 0 0.5rem 0;
+}
+
+.successDescription {
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.primaryActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.secondaryActions {
+  display: flex;
+  justify-content: center;
+}
+
+/* Buttons */
+.downloadButton, .shareButton, .qrButton, .newVideoButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  
+  /* Haptic feedback */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.downloadButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.downloadButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+}
+
+.shareButton {
+  background: #10b981;
+  color: white;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.shareButton:hover {
+  transform: translateY(-2px);
+  background: #059669;
+  box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+}
+
+.qrButton {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1.5rem;
+}
+
+.qrButton:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.newVideoButton {
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.newVideoButton:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.buttonIcon {
+  font-size: 1.2rem;
+}
+
+/* QR Section */
+.qrSection {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.qrTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.qrContainer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.qrImage {
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.qrDescription {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* File info */
+.fileInfo {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.fileInfo h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.fileDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fileDetail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fileLabel {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.fileValue {
+  color: #1e293b;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-align: right;
+  word-break: break-all;
+}
+
+/* New video section */
+.newVideoSection {
+  text-align: center;
+}
+
+/* Responzivní design */
+@media (min-width: 768px) {
+  .primaryActions {
+    grid-template-columns: 2fr 1fr;
+  }
+  
+  .actions {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  
+  .secondaryActions {
+    flex: 0 0 auto;
+  }
+  
+  .qrButton {
+    white-space: nowrap;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .successHeader,
+  .qrSection,
+  .fileInfo {
+    background: #1e293b;
+    color: white;
+  }
+  
+  .successTitle {
+    color: #22c55e;
+  }
+  
+  .successDescription,
+  .qrDescription {
+    color: #94a3b8;
+  }
+  
+  .qrTitle,
+  .fileInfo h4 {
+    color: #f1f5f9;
+  }
+  
+  .fileLabel {
+    color: #94a3b8;
+  }
+  
+  .fileValue {
+    color: #f1f5f9;
+  }
+  
+  .qrButton {
+    background: #334155;
+    color: #cbd5e1;
+    border-color: #475569;
+  }
+  
+  .qrButton:hover {
+    background: #475569;
+    color: #f1f5f9;
+  }
+  
+  .newVideoButton {
+    background: #1e293b;
+    border-color: #667eea;
+    color: #667eea;
+  }
+  
+  .newVideoButton:hover {
+    background: #667eea;
+    color: white;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  
+  .downloadButton:hover,
+  .shareButton:hover,
+  .newVideoButton:hover {
+    transform: none;
+  }
+}

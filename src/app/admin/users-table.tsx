@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-type Plan = "FREE" | "STARTER" | "PRO" | "PREMIUM";
+type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";
 
 type User = {
   id: string;
@@ -116,9 +116,11 @@ export default function AdminUsersTable({ initialUsers }: { initialUsers: User[]
                     disabled={loading}
                   >
                     <option value="FREE">FREE</option>
-                    <option value="STARTER">STARTER</option>
-                    <option value="PRO">PRO</option>
-                    <option value="PREMIUM">PREMIUM</option>
+                    <option value="TEXT_STARTER">TEXT_STARTER</option>
+                    <option value="TEXT_PRO">TEXT_PRO</option>
+                    <option value="VIDEO_LITE">VIDEO_LITE</option>
+                    <option value="VIDEO_PRO">VIDEO_PRO</option>
+                    <option value="VIDEO_UNLIMITED">VIDEO_UNLIMITED</option>
                   </select>
                   <button
                     className="px-2 py-1 border rounded"

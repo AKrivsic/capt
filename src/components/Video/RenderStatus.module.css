@@ -1,0 +1,302 @@
+/* RenderStatus - zobrazení stavu renderování */
+
+.container {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Loading state */
+.loadingState {
+  text-align: center;
+  padding: 2rem;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error state */
+.errorState {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  border: 2px solid #fecaca;
+}
+
+.errorIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.errorTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin: 0 0 0.5rem 0;
+}
+
+.errorMessage {
+  color: #ef4444;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.4;
+}
+
+.retryButton {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: #b91c1c;
+}
+
+/* Status card */
+.statusCard {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Status header */
+.statusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.statusTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.statusBadge {
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.statusBadge[data-status="QUEUED"] {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.statusBadge[data-status="PROCESSING"] {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.statusBadge[data-status="COMPLETED"] {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.statusBadge[data-status="FAILED"] {
+  background: #fecaca;
+  color: #dc2626;
+}
+
+/* Progress bar */
+.progressContainer {
+  margin-bottom: 1.5rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  transition: width 0.5s ease;
+  border-radius: 4px;
+}
+
+.progressText {
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* Time remaining */
+.timeRemaining {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.timeIcon {
+  font-size: 1rem;
+}
+
+/* Processing phases */
+.phases {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.phase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  opacity: 0.5;
+}
+
+.phase.phaseActive {
+  opacity: 1;
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.phaseIcon {
+  font-size: 1.2rem;
+}
+
+.phaseText {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Tips */
+.tips {
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.tipsTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #d97706;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tipsText {
+  font-size: 0.8rem;
+  color: #92400e;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Responzivní design */
+@media (min-width: 768px) {
+  .statusCard {
+    padding: 2.5rem;
+  }
+  
+  .phases {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .phaseText {
+    font-size: 0.875rem;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .statusCard {
+    background: #1e293b;
+    color: white;
+  }
+  
+  .statusTitle {
+    color: #f1f5f9;
+  }
+  
+  .phase {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+  }
+  
+  .phase.phaseActive {
+    background: #1e40af;
+    border-color: #3b82f6;
+    color: #dbeafe;
+  }
+  
+  .timeRemaining {
+    background: #334155;
+    color: #94a3b8;
+  }
+  
+  .tips {
+    background: #451a03;
+    border-color: #d97706;
+  }
+  
+  .tipsTitle {
+    color: #fbbf24;
+  }
+  
+  .tipsText {
+    color: #fcd34d;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  
+  .progressFill,
+  .phase {
+    transition: none;
+  }
+}

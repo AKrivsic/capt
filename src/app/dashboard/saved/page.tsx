@@ -3,6 +3,10 @@ import { getSessionServer } from "@/lib/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
 export default async function SavedPage() {
   const session = await getSessionServer();
   if (!session?.user) redirect("/api/auth/signin?callbackUrl=/dashboard/saved");
