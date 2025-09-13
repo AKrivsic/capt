@@ -339,6 +339,61 @@
   transform: none;
 }
 
+/* Demo buttons for unauthenticated users */
+.demoButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.demoButton,
+.freeButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: inline-block;
+  text-align: center;
+  min-width: 120px;
+}
+
+.demoButton {
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  color: white;
+  border: none;
+}
+
+.demoButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.freeButton {
+  background: white;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.freeButton:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .demoButtons {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .demoButton,
+  .freeButton {
+    width: 100%;
+  }
+}
+
 .generateButton.generating {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }

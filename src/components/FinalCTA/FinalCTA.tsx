@@ -2,7 +2,6 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { goToGenerator } from "@/utils/goToGenerator";
 import styles from "./FinalCTA.module.css";
 import {
   trackDemoClick,
@@ -17,14 +16,12 @@ export default function FinalCTA() {
 
   const handleClick = () => {
     if (isLoggedIn) {
-      // Aktivace generátoru (uživatel je v systému)
       trackGeneratorAccess("homepage");
     } else {
-      // Zájem o demo + začátek registrace (funnel)
       trackDemoClick("homepage");
       trackSignupStart("homepage");
     }
-    goToGenerator(router, isLoggedIn);
+    router.push("/#pricing", { scroll: true });
   };
 
   return (

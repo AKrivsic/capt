@@ -65,6 +65,8 @@
   border-radius: 999px;
   font-size: 0.875rem;
   font-weight: 600;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .planHeader {
@@ -117,7 +119,7 @@
 
 .planButton {
   width: 100%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, var(--accent, #8b5cf6), var(--accent-2, #ec4899));
   color: white;
   padding: 0.9rem 1.6rem;
   border: none;
@@ -130,7 +132,7 @@
 
 .planButton:hover {
   transform: scale(1.04);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent, #8b5cf6) 30%, transparent);
 }
 
 .planButton:disabled {
@@ -140,12 +142,12 @@
 }
 
 .popularButton {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--accent) 20%, transparent);
+  background: linear-gradient(135deg, var(--accent, #8b5cf6), var(--accent-2, #ec4899));
+  box-shadow: 0 4px 6px -1px color-mix(in srgb, var(--accent, #8b5cf6) 20%, transparent);
 }
 
 .popularButton:hover {
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent, #8b5cf6) 40%, transparent);
 }
 
 /* Extra Credits styles */
@@ -171,8 +173,18 @@
 
 .extraGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .extraGrid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    max-width: 300px;
+  }
 }
 
 .extraCard {
@@ -181,6 +193,18 @@
   border-radius: 0.75rem;
   padding: 1rem;
   text-align: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.extraCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.extraCard.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
 }
 
 .extraName {
@@ -189,6 +213,31 @@
 }
 
 .extraPrice {
+  color: #374151;
+}
+
+.extraWarning {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  font-weight: 600;
   color: #374151;
 }
 

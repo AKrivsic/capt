@@ -4,10 +4,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import styles from './NewGenerator.module.css';
+import { useUsageInfo } from '@/hooks/useUsageInfo';
+import { useDemoLimit } from '@/hooks/useDemoLimit';
 import { STYLE_PRESETS } from '@/constants/subtitleStyles';
 import type { SubtitleStyle } from '@/types/subtitles';
 import CrossSellModals, { useCrossSellModal } from '@/components/CrossSell/CrossSellModals';
@@ -55,10 +57,13 @@ export default function NewGenerator() {
   const { data: session } = useSession();
   const [isGenerating, setIsGenerating] = useState(false);
   const [genMap, setGenMap] = useState<Record<string, string[]>>({});
-  const [usageCount, setUsageCount] = useState(0);
-  // removed unused upgrade modal state
   
-  const { modalType, showTextLimitModal, showVideoLimitModal, hideModal } = useCrossSellModal();
+  // Usage tracking hooks
+  const { plan, limit, left, windowLabel, leftLabel, resetHint } = useUsageInfo();
+  const { uses: demoUses, canUse: canUseDemo, inc: incDemo } = useDemoLimit('captioni_demo_generator_v1', 2);
+  const isTextUnlimited = limit === -1;
+  
+  const { modalType, showTextLimitModal, hideModal } = useCrossSellModal();
 
   // Form states
   const [captionInput, setCaptionInput] = useState('');
@@ -89,10 +94,7 @@ export default function NewGenerator() {
     );
   };
 
-  // Mock usage tracking
-  useEffect(() => {
-    setUsageCount(2); // Mock: 2/3 použito
-  }, []);
+  // Remove mock usage tracking - now using real hooks
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -105,13 +107,17 @@ export default function NewGenerator() {
 
   const handleGenerate = async () => {
     if (activeTab === 'captions' && !captionInput.trim()) return;
-    if (usageCount >= 3) {
-      if (activeTab === 'captions') {
+
+    if (session?.user) {
+      if (!isTextUnlimited && (left === null || left <= 0)) {
         showTextLimitModal();
-      } else {
-        showVideoLimitModal();
+        return;
       }
-      return;
+    } else {
+      if (!canUseDemo) {
+        showTextLimitModal();
+        return;
+      }
     }
 
     setIsGenerating(true);
@@ -134,6 +140,10 @@ export default function NewGenerator() {
         if (!payload?.ok) throw new Error(payload?.error || 'GENERATION_FAILED');
         const data: Record<string, string[]> = payload.data || {};
         setGenMap(data);
+        
+        if (!session?.user) {
+          incDemo(); // Increment demo usage
+        }
       } catch {
         alert('Generation failed. Please try again.');
       } finally {
@@ -173,13 +183,14 @@ export default function NewGenerator() {
       } catch {}
 
       // no-op: results replaced by genMap for captions; subtitles keeps mock only
-      setUsageCount(prev => prev + 1);
+      if (!session?.user) {
+        incDemo(); // Increment demo usage
+      }
       setIsGenerating(false);
     }, 2000);
   };
 
-  const remainingUsage = 3 - usageCount;
-  const isLimitReached = usageCount >= 3;
+  // Remove old mock variables - now using real hooks
 
   const stylePreset = STYLE_PRESETS[selectedStyle];
   const themedVars: CSSVarProps = {
@@ -318,20 +329,31 @@ export default function NewGenerator() {
 
               {/* Subtitle-specific controls are only in the Subtitles tab */}
 
-              <button
-                className={`${styles.generateButton} ${isGenerating ? styles.generating : ''}`}
-                onClick={handleGenerate}
-                disabled={!captionInput.trim() || isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <span className={styles.spinner} />
-                    Generating...
-                  </>
-                ) : (
-                  'Generate Caption'
-                )}
-              </button>
+              {session?.user ? (
+                <button
+                  className={`${styles.generateButton} ${isGenerating ? styles.generating : ''}`}
+                  onClick={handleGenerate}
+                  disabled={!captionInput.trim() || isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <span className={styles.spinner} />
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate Caption'
+                  )}
+                </button>
+              ) : (
+                <div className={styles.demoButtons}>
+                  <Link href="/try" className={styles.demoButton}>
+                    🎯 Try Demo
+                  </Link>
+                  <Link href="/api/auth/signin" className={styles.freeButton}>
+                    Free
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
@@ -414,42 +436,68 @@ export default function NewGenerator() {
                 <FeatureFlagsToggle mode={subtitleMode} value={featureFlags} onChange={setFeatureFlags} />
               </div>
 
-              <button
-                className={`${styles.generateButton} ${isGenerating ? styles.generating : ''}`}
-                onClick={handleGenerate}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <span className={styles.spinner} />
-                    Processing...
-                  </>
-                ) : (
-                  'Generate Subtitles'
-                )}
-              </button>
+              {session?.user ? (
+                <button
+                  className={`${styles.generateButton} ${isGenerating ? styles.generating : ''}`}
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <span className={styles.spinner} />
+                      Processing...
+                    </>
+                  ) : (
+                    'Generate Subtitles'
+                  )}
+                </button>
+              ) : (
+                <div className={styles.demoButtons}>
+                  <Link href="/try" className={styles.demoButton}>
+                    🎯 Try Demo
+                  </Link>
+                  <Link href="/api/auth/signin" className={styles.freeButton}>
+                    Free
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Usage Limit */}
+        {/* Usage Limit - show for all users */}
         <div className={styles.usageLimit}>
           <div className={styles.usageInfo}>
-            <span className={styles.usageText}>
-              Free = 3 text generations/month 💖
-            </span>
-            {remainingUsage > 0 && (
-              <span className={styles.remainingUsage}>
-                {remainingUsage} left this month
-              </span>
+            {session?.user ? (
+              <>
+                <span className={styles.usageText}>
+                  {plan} = {isTextUnlimited ? 'Unlimited' : `${limit} text generations/${windowLabel}`} 💖
+                </span>
+                {!isTextUnlimited && left !== null && left > 0 && (
+                  <span className={styles.remainingUsage}>
+                    {leftLabel} {resetHint}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <span className={styles.usageText}>
+                  Demo = 2 text generations/month 🎯
+                </span>
+                {canUseDemo && (
+                  <span className={styles.remainingUsage}>
+                    {2 - demoUses} left this month
+                  </span>
+                )}
+              </>
             )}
           </div>
-          
-          {isLimitReached && (
+
+          {((session?.user && !isTextUnlimited && left !== null && left <= 0) || (!session?.user && !canUseDemo)) && (
             <div className={styles.upgradePrompt}>
-              <p>You&apos;ve used all your free generations!</p>
+              <p>{session?.user ? `You've used all your ${plan.toLowerCase()} generations!` : "You've used all your demo generations!"}</p>
               <Link href="#pricing" className={styles.upgradeButton}>
-                Upgrade to keep creating →
+                {session?.user ? 'Upgrade to keep creating' : 'Sign up for more generations'} →
               </Link>
             </div>
           )}

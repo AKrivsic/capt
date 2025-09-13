@@ -62,7 +62,7 @@ const plans: PricingPlan[] = [
       '✅ History + fast generation'
     ],
     cta: 'Upgrade to Pro →',
-    popular: true,
+    popular: false,
     stripePlan: 'TEXT_PRO'
   },
   {
@@ -77,6 +77,7 @@ const plans: PricingPlan[] = [
       '✅ All styles'
     ],
     cta: 'Try Video Lite 🎬',
+    popular: true,
     stripePlan: 'VIDEO_LITE'
   },
   {
@@ -115,6 +116,7 @@ export default function HomepagePricing() {
   const { startCheckout, loading } = useBilling();
   const [selectedStyle, setSelectedStyle] = useState('Barbie');
   const [platformColor, setPlatformColor] = useState<string | null>(null);
+  const [extraCreditsBusy, setExtraCreditsBusy] = useState<string | null>(null);
   
   // Use variables to avoid unused variable warnings
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -176,6 +178,12 @@ export default function HomepagePricing() {
     return backgrounds[index % backgrounds.length];
   };
 
+  const hasVideoPlan = () => {
+    if (!session?.user?.plan) return false;
+    const videoPlans = ['VIDEO_LITE', 'VIDEO_PRO', 'VIDEO_UNLIMITED'];
+    return videoPlans.includes(session.user.plan);
+  };
+
   const handlePlanClick = async (plan: PricingPlan) => {
     if (plan.id === 'free') {
       // Redirect to sign in for free plan
@@ -191,6 +199,39 @@ export default function HomepagePricing() {
 
     if (plan.stripePlan) {
       await startCheckout(plan.stripePlan);
+    }
+  };
+
+  const handleExtraCreditsPurchase = async (sku: string) => {
+    if (!hasVideoPlan()) {
+      alert('Extra video credits are only available for video plans (Video Lite, Video Pro, Video Unlimited). Please upgrade to a video plan first.');
+      return;
+    }
+
+    if (!session?.user) {
+      window.location.href = '/api/auth/signin';
+      return;
+    }
+
+    setExtraCreditsBusy(sku);
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku }),
+      });
+      
+      const data = await response.json();
+      if (data.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || 'Checkout failed');
+      }
+    } catch (error) {
+      console.error('Extra credits purchase failed:', error);
+      alert('Purchase failed. Please try again.');
+    } finally {
+      setExtraCreditsBusy(null);
     }
   };
 
@@ -252,18 +293,44 @@ export default function HomepagePricing() {
       <div className={styles.extraCredits}>
         <h3 className={styles.extraTitle}>Need more videos?</h3>
         <p className={styles.extraSub}>Running out? Add video credits anytime.</p>
+        {!hasVideoPlan() && (
+          <p className={styles.extraWarning}>
+            ⚠️ Extra video credits are only available for video plans (Video Lite, Video Pro, Video Unlimited)
+          </p>
+        )}
         <div className={styles.extraGrid}>
-          <div className={styles.extraCard}>
+          <div
+            className={`${styles.extraCard} ${!hasVideoPlan() ? styles.disabled : ''}`}
+            onClick={() => hasVideoPlan() && handleExtraCreditsPurchase('EXTRA_10_VIDEOS')}
+            style={{ cursor: hasVideoPlan() ? 'pointer' : 'not-allowed' }}
+          >
             <div className={styles.extraName}>🎬 10 extra</div>
             <div className={styles.extraPrice}>$7</div>
+            {extraCreditsBusy === 'EXTRA_10_VIDEOS' && (
+              <div className={styles.loading}>Processing...</div>
+            )}
           </div>
-          <div className={styles.extraCard}>
+          <div
+            className={`${styles.extraCard} ${!hasVideoPlan() ? styles.disabled : ''}`}
+            onClick={() => hasVideoPlan() && handleExtraCreditsPurchase('EXTRA_25_VIDEOS')}
+            style={{ cursor: hasVideoPlan() ? 'pointer' : 'not-allowed' }}
+          >
             <div className={styles.extraName}>🎬 25 extra</div>
             <div className={styles.extraPrice}>$20</div>
+            {extraCreditsBusy === 'EXTRA_25_VIDEOS' && (
+              <div className={styles.loading}>Processing...</div>
+            )}
           </div>
-          <div className={styles.extraCard}>
+          <div
+            className={`${styles.extraCard} ${!hasVideoPlan() ? styles.disabled : ''}`}
+            onClick={() => hasVideoPlan() && handleExtraCreditsPurchase('EXTRA_50_VIDEOS')}
+            style={{ cursor: hasVideoPlan() ? 'pointer' : 'not-allowed' }}
+          >
             <div className={styles.extraName}>🎬 50 extra</div>
             <div className={styles.extraPrice}>$40</div>
+            {extraCreditsBusy === 'EXTRA_50_VIDEOS' && (
+              <div className={styles.loading}>Processing...</div>
+            )}
           </div>
         </div>
       </div>
