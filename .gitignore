@@ -40,5 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# documentation (private)
+/docs
+
 /src/generated/prisma
 prisma/_migrations_backup/
