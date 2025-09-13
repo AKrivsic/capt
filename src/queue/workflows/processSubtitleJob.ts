@@ -5,6 +5,23 @@ import { WhisperProvider } from '@/lib/transcription/whisper';
 // import { transcriptToChunks } from '@/queue/utils/transcriptUtils';
 import { writeFileSync, unlinkSync, readFileSync } from 'fs';
 
+/**
+ * Video subtitle processing workflow
+ * 
+ * Complete pipeline for processing video files and generating subtitles:
+ * 1. Fetch job and video file info from database
+ * 2. Download original video from R2 storage
+ * 3. Transcribe audio using OpenAI Whisper
+ * 4. Render subtitles using FFmpeg with specified style
+ * 5. Upload final video with subtitles to R2
+ * 6. Clean up temporary files
+ * 
+ * @param jobId - SubtitleJob ID from database
+ * @param fileId - VideoFile ID (unused but kept for compatibility)
+ * @param style - Subtitle style (BARBIE, BADDIE, etc.)
+ * @param onProgress - Progress callback function (0-100)
+ * @returns Storage key of the final rendered video
+ */
 export async function processSubtitleJob(
   { jobId, style }: { jobId: string; fileId: string; style: string },
   onProgress: (p: number) => Promise<void>

@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Captioni
 
-## Getting Started
+**AI-powered social media content generator** pro Instagram, TikTok, X a OnlyFans. Generuje titulky, bio, hashtagy a další obsah s různými styly (Barbie, Edgy, Glamour, atd.).
 
-First, run the development server:
+## Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Database**: PostgreSQL (Vercel Postgres)
+- **Queue**: BullMQ + Upstash Redis
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **Auth**: NextAuth.js (Google OAuth + Magic Links)
+- **Payments**: Stripe (subscriptions + one-time)
+- **AI**: OpenAI GPT-4o-mini + Whisper
+- **Email**: Resend
+- **Analytics**: Plausible
+- **Deployment**: Vercel
+
+## Rychlý start
+
+### 1. Instalace
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repo>
+cd capt
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Zkopírujte `.env.example` do `.env.local` a vyplňte:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local
+```
 
-## Learn More
+**Povinné proměnné:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Upstash Redis URL
+- `NEXTAUTH_SECRET` - NextAuth secret
+- `OPENAI_API_KEY` - OpenAI API key
+- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT` - Cloudflare R2
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run prisma:migrate
+npm run prisma:generate
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Spuštění
 
-## Deploy on Vercel
+```bash
+# Development server
+npm run dev
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Worker (v separátním terminálu)
+npm run worker
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Aplikace běží na `http://localhost:3000`
+
+## Skripty
+
+- `npm run dev` - Development server
+- `npm run build` - Production build
+- `npm run start` - Production server
+- `npm run worker` - BullMQ worker
+- `npm run prisma:studio` - Database GUI
+- `npm run prisma:migrate` - Database migrations
+
+## Dokumentace
+
+- [Architektura](./docs/ARCHITECTURE.md) - Systémové diagramy a komponenty
+- [Průvodce kódem](./docs/CODE_TOUR.md) - Mapování souborů a funkcí
+- [API dokumentace](./docs/API.md) - Endpointy a schémata
+- [Environment proměnné](./docs/ENVs.md) - Kompletní seznam .env
+- [Jobs & Workers](./docs/JOBS_AND_WORKERS.md) - Queue systém
+- [Deployment](./docs/DEPLOYMENT.md) - Vercel setup a cron
+- [Runbook](./docs/RUNBOOK.md) - Provoz a incidenty
+- [Testing](./docs/TESTING.md) - Testy a mocking
+- [Security](./docs/SECURITY.md) - Bezpečnostní opatření
+- [Monitoring](./docs/MONITORING.md) - Metriky a alerty
+- [Glossary](./docs/GLOSSARY.md) - Terminologie
+- [Contributing](./docs/CONTRIBUTING.md) - Vývojářské standardy
+
+## Hlavní toky
+
+1. **Text Generation**: Uživatel → `/api/generate` → OpenAI → Response
+2. **Video Processing**: Upload → R2 → Queue → Worker → Whisper → FFmpeg → R2
+3. **Authentication**: NextAuth → Google/Magic Link → Session
+4. **Payments**: Stripe → Webhook → Plan Update → Usage Reset
+
+## Assumptions & Gaps
+
+- **Assumption**: Vercel Postgres se používá v produkci
+- **Assumption**: Cloudflare R2 je primární storage
+- **Gap**: Chybí E2E testy
+- **Gap**: Chybí performance monitoring setup

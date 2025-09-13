@@ -3,9 +3,20 @@ import { runNoGen24h } from "@/server/cron/noGen24h";
 import { runResetUsage } from "@/server/cron/resetUsage";
 import { runCleanupR2 } from "@/server/cron/cleanupR2";
 
+/**
+ * Daily cron job orchestrator
+ * 
+ * Spouští se denně v 07:00 UTC přes Vercel cron
+ * Provádí tři hlavní úkoly:
+ * 1. noGen24h - Označí uživatele bez aktivity 24h pro MailerLite
+ * 2. resetUsage - Resetuje denní limity pro FREE plán
+ * 3. cleanupR2 - Maže staré soubory a joby z databáze
+ * 
+ * Authorization: Bearer token s CRON_SECRET
+ */
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  if (!secret) return true; // Development fallback
   const auth = req.headers.get("authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
   return token === secret;

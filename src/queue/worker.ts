@@ -4,6 +4,21 @@ import { prisma } from '@/lib/prisma';
 import { processSubtitleJob } from './workflows/processSubtitleJob';
 import { jobTracking } from '@/lib/tracking';
 
+/**
+ * BullMQ Worker for processing video subtitle jobs
+ * 
+ * This worker handles the complete video processing pipeline:
+ * 1. Download video from R2 storage
+ * 2. Transcribe audio using OpenAI Whisper
+ * 3. Render subtitles using FFmpeg
+ * 4. Upload result back to R2
+ * 5. Update job status in database
+ * 
+ * Configuration:
+ * - Concurrency: Number of parallel jobs (default: 4)
+ * - Prefix: Queue namespace (default: 'captioni')
+ * - Retry: 3 attempts with exponential backoff
+ */
 const concurrency = Number(process.env.WORKER_CONCURRENCY ?? 4);
 const prefix = process.env.BULLMQ_PREFIX ?? 'captioni';
 
