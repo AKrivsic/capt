@@ -96,7 +96,46 @@ export async function POST(req: NextRequest) {
         break;
       }
       case "invoice.paid": {
-        // successful payment for subscription or invoice; keep plan as-is
+        // Úspěšná platba za předplatné - resetuj limity
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        if (!customerId) break;
+
+        const customer = await getStripe().customers.retrieve(customerId).catch(() => null);
+        const email = (customer && "email" in customer ? (customer as Stripe.Customer).email : null) || undefined;
+        if (!email) break;
+
+        const user = await prisma.user.findFirst({ where: { email: { equals: email } } });
+        if (!user) break;
+
+        // Reset usage při úspěšné platbě (měsíční obnova)
+        try {
+          await fetch(`${process.env.NEXTAUTH_URL}/api/user/reset-usage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: user.id }),
+          });
+          console.log(`[stripe/webhook] Reset usage for user ${user.id} after successful payment`);
+        } catch (e) {
+          console.error("[reset usage after payment]", e);
+        }
+        break;
+      }
+      case "invoice.payment_failed": {
+        // Payment failed - log but don't downgrade immediately
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        if (!customerId) break;
+        
+        const customer = await getStripe().customers.retrieve(customerId).catch(() => null);
+        const email = (customer && "email" in customer ? (customer as Stripe.Customer).email : null) || undefined;
+        if (!email) break;
+        
+        console.warn(`[webhook] Payment failed for customer ${email}, invoice ${invoice.id}`);
+        
+        // Note: We don't downgrade here - Stripe handles retries and grace period
+        // The subscription will be marked as "past_due" but remains active
+        // Downgrade only happens when subscription is actually cancelled
         break;
       }
       case "customer.subscription.updated": {
@@ -135,7 +174,7 @@ export async function POST(req: NextRequest) {
         
         // Reset usage při změně plánu
         try {
-          await fetch(`${process.env.NEXTAUTH_URL}/api/admin/reset-usage`, {
+          await fetch(`${process.env.NEXTAUTH_URL}/api/user/reset-usage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: user.id }),
@@ -167,6 +206,7 @@ export async function POST(req: NextRequest) {
             await fetch(`${process.env.NEXTAUTH_URL}/api/user/reset-usage`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: user.id }),
             });
           } catch (e) {
             console.error("[reset usage]", e);

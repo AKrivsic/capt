@@ -42,7 +42,7 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     price: 0,
     description: 'Perfect for trying out Captioni',
     features: [
-      '✅ 3 text generations / month',
+      '✅ 3 text generations / day',
       '❌ No videos',
       '❌ No history'
     ],

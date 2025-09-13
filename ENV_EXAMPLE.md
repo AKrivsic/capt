@@ -10,6 +10,10 @@ DATABASE_URL="postgresql://user:password@localhost:5432/captioni"
 REDIS_URL="rediss://default:password@host:port"
 BULL_PREFIX="captioni"
 
+# Upstash Redis (for rate limiting)
+KV_REST_API_REDIS_URL="rediss://default:password@host:port"
+KV_REST_API_KV_REST_API_TOKEN="your-upstash-token"
+
 # Worker
 WORKER_CONCURRENCY=4
 
@@ -39,3 +43,10 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 3. Zkopírujte `REDIS_URL` z dashboardu
 4. Nastavte `BULL_PREFIX` na `captioni`
 
+## Upstash Redis Setup (for Rate Limiting)
+
+1. Vytvořte účet na [Upstash](https://upstash.com/)
+2. Vytvořte Redis databázi
+3. Zkopírujte `KV_REST_API_REDIS_URL` z dashboardu
+4. Zkopírujte `KV_REST_API_KV_REST_API_TOKEN` z dashboardu
+5. Rate limiting bude fungovat automaticky s těmito proměnnými

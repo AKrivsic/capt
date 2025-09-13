@@ -11,6 +11,7 @@ import { assertSameOrigin } from "@/lib/origin";
 import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
 import { PLAN_LIMITS, isUnlimited } from "@/constants/plans";
 import { mlMarkEvent } from "@/lib/mailerlite";
+import { prisma } from "@/lib/prisma";
 
 // ====== enums & vstup ======
 const OutputEnum = z.enum([
@@ -50,9 +51,7 @@ type PlanUpper = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PR
 
 // ====== LLM/proxy nastavení ======
 const MODEL = process.env.MODEL || "gpt-4o-mini";
-const OPENAI_PROXY_URL =
-  process.env.OPENAI_PROXY_URL ||
-  "https://api.openai.com/v1/chat/completions";
+const OPENAI_PROXY_URL = process.env.OPENAI_PROXY_URL || "https://api.openai.com/v1/chat/completions";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 12_000);
 
@@ -643,19 +642,22 @@ export async function POST(req: NextRequest) {
   let remainingToday: number | null = null;
 
   if (!isAuthed) {
+    // Enhanced demo limits with fingerprinting
+    // Note: Client-side fingerprinting will be handled in the frontend
+    // This is a fallback server-side check based on IP
     const hard = 2;
-    // Use fallback rate limiting for demo users
     const key = `gen:ip:${ip}:${DAY()}`;
     const rec = rl.get(key);
     const newCount = rec
       ? (rec.count += 1)
       : (rl.set(key, { count: 1, day: DAY() }), 1);
+    
     if (newCount > hard) {
       return NextResponse.json(
         {
           ok: false,
           error: "LIMIT",
-          message: "Demo limit reached (2/day).",
+          message: "Demo limit reached (2/day). Register for unlimited access.",
           meta: { remainingToday: 0, demo: true },
         },
         { status: 429 }
@@ -664,9 +666,74 @@ export async function POST(req: NextRequest) {
     remainingToday = Math.max(0, hard - newCount);
     input.demo = true;
   } else {
-    // TODO: Implement proper user limits
-    // For now, just set remaining based on plan
-    remainingToday = limit;
+    // Implement proper user limits
+    if (limit !== null) {
+      // Check user's current usage
+      const user = await prisma.user.findUnique({
+        where: { id: userId! },
+        select: { 
+          textGenerationsUsed: true, 
+          textGenerationsLeft: true,
+          plan: true 
+        }
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { ok: false, error: "USER_NOT_FOUND" },
+          { status: 404 }
+        );
+      }
+
+      // For FREE plan, check daily usage (reset daily)
+      if (user.plan === "FREE") {
+        const today = new Date().toISOString().slice(0, 10);
+        const todayUsage = await prisma.usage.count({
+          where: {
+            userId: userId!,
+            kind: "GENERATION",
+            date: today
+          }
+        });
+
+        if (todayUsage >= limit) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: `Daily limit reached (${limit}/day).`,
+              meta: { remainingToday: 0, plan: user.plan }
+            },
+            { status: 429 }
+          );
+        }
+
+        remainingToday = Math.max(0, limit - todayUsage);
+      } else {
+        // For paid plans (including TEXT_PRO), use monthly limits from database
+        if (user.plan === "TEXT_PRO") {
+          // TEXT_PRO is unlimited - no limit check needed
+          remainingToday = null;
+        } else if (user.textGenerationsLeft <= 0) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "LIMIT",
+              message: `Monthly limit reached (${limit}/month).`,
+              meta: { remainingToday: 0, plan: user.plan }
+            },
+            { status: 429 }
+          );
+        } else {
+          remainingToday = user.textGenerationsLeft;
+        }
+      }
+    } else {
+      // This should not happen - all paid plans should have limit tracking
+      remainingToday = null;
+    }
+
+    // MailerLite tracking for low usage
     if (
       userEmail &&
       remainingToday !== null &&
@@ -780,6 +847,54 @@ export async function POST(req: NextRequest) {
           arr = injectCTA(type, arr);
         }
         out[type] = arr;
+      }
+    }
+
+    // Record usage for authenticated users
+    if (isAuthed && userId) {
+      const today = new Date().toISOString().slice(0, 10);
+      
+      if (planFromSession === "FREE") {
+        // For FREE plan, record daily usage
+        await prisma.usage.upsert({
+          where: {
+            userId_date_kind: {
+              userId: userId,
+              date: today,
+              kind: "GENERATION"
+            }
+          },
+          update: {
+            count: { increment: 1 }
+          },
+          create: {
+            userId: userId,
+            date: today,
+            kind: "GENERATION",
+            count: 1
+          }
+        });
+      } else {
+        // For paid plans, update monthly counters
+        if (planFromSession === "TEXT_PRO") {
+          // TEXT_PRO is unlimited - only track usage, don't decrement limits
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              textGenerationsUsed: { increment: 1 }
+              // Don't decrement textGenerationsLeft for unlimited plans
+            }
+          });
+        } else {
+          // For limited paid plans, decrement counters
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              textGenerationsUsed: { increment: 1 },
+              textGenerationsLeft: { decrement: 1 }
+            }
+          });
+        }
       }
     }
 

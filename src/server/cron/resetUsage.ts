@@ -4,18 +4,21 @@ import { prisma } from "@/lib/prisma";
 type RunResult = { ok: boolean; meta?: Record<string, unknown> };
 
 export async function runResetUsage(): Promise<RunResult> {
-  console.info("[cron:reset-usage] start");
+  console.info("[cron:reset-usage] start - FREE plan daily reset only");
   try {
-    const users = await prisma.user.findMany({
+    // Reset pouze FREE plán (daily reset) - paid plány se resetují přes Stripe webhook
+    const freeUsers = await prisma.user.findMany({
+      where: { plan: "FREE" },
       select: { id: true, plan: true, textGenerationsLeft: true, textGenerationsUsed: true },
     });
 
     const { PLAN_LIMITS } = await import("@/constants/plans");
 
     let resetCount = 0;
-    for (const user of users) {
+    for (const user of freeUsers) {
       const planLimits = PLAN_LIMITS[user.plan as keyof typeof PLAN_LIMITS];
-      if (planLimits && planLimits.text !== -1) {
+      if (planLimits) {
+        // FREE plán - reset both counters (daily reset)
         await prisma.user.update({
           where: { id: user.id },
           data: { textGenerationsLeft: planLimits.text, textGenerationsUsed: 0 },

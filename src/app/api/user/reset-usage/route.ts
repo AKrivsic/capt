@@ -16,6 +16,30 @@ export async function POST() {
     const userId = String(session.user.id);
     const plan = session.user.plan as Plan;
 
+    // Import plan limits (stejná logika jako v cron jobu)
+    const { PLAN_LIMITS } = await import("@/constants/plans");
+    const planLimits = PLAN_LIMITS[plan];
+
+    if (planLimits) {
+      // Reset User counters podle typu plánu (stejná logika jako cron job)
+      if (planLimits.text === -1) {
+        // Unlimited plans (TEXT_PRO) - reset only usage counter, keep unlimited limits
+        await prisma.user.update({
+          where: { id: userId },
+          data: { textGenerationsUsed: 0 },
+        });
+      } else {
+        // Limited plans - reset both counters
+        await prisma.user.update({
+          where: { id: userId },
+          data: { 
+            textGenerationsLeft: planLimits.text, 
+            textGenerationsUsed: 0 
+          },
+        });
+      }
+    }
+
     // Reset usage pro aktuální den
     const today = new Date().toISOString().slice(0, 10);
     

@@ -5,6 +5,7 @@ import styles from "./DemoModal.module.css";
 import { getUsage, incUsage } from "@/utils/usage";
 import Link from "next/link";
 import { trackGenerationComplete, trackPricingClick, trackSignupStart } from "@/utils/tracking";
+import { useDemoLimits } from "@/hooks/useDemoLimits";
 
 type Props = {
   onClose: () => void;
@@ -30,11 +31,11 @@ export default function DemoModal({ onClose }: Props) {
 
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [demoUsed, setDemoUsed] = useState(0); // per-day persisted (client-side counter)
   const [limitReached, setLimitReached] = useState(false); // server-side RL flag
   const [error, setError] = useState<string | null>(null);
 
-  const DEMO_LIMIT = 2;
+  // Enhanced demo limits with fingerprinting
+  const demoLimits = useDemoLimits();
 
   // Scroll lock + Escape + cleanup
   useEffect(() => {
@@ -47,14 +48,17 @@ export default function DemoModal({ onClose }: Props) {
     };
   }, [onClose]);
 
-  // Načtení počtu použití (per-day) přes helper
-  useEffect(() => {
-    setDemoUsed(getUsage("demoUsed"));
-  }, []);
-
-  // Generování výstupu (napojení na /api/generate) + detekce 429 → CTA
+  // Enhanced demo generation with fingerprinting
   const handleGenerate = async () => {
     if (!vibe.trim()) return;
+
+    // Check demo limits first
+    const limitCheck = await demoLimits.checkLimit();
+    if (!limitCheck.allowed) {
+      setLimitReached(true);
+      setError(limitCheck.reason || "Demo limit reached");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -96,14 +100,9 @@ export default function DemoModal({ onClose }: Props) {
       // tracking: úspěšná generace v demu = FREE
       trackGenerationComplete("FREE");
 
-      // inkrementuj až po úspěchu (per-day persist – pro místní metriku/UX)
-      const next = incUsage("demoUsed");
-      setDemoUsed(next);
+      // Legacy usage tracking (for backward compatibility)
+      incUsage("demoUsed");
 
-      // pokud jsme právě dojeli na limit i podle lokální metriky, ukaž CTA při další akci
-      if (next >= DEMO_LIMIT) {
-        // volitelně: setLimitReached(true);
-      }
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -199,17 +198,29 @@ export default function DemoModal({ onClose }: Props) {
 
             {/* Button → CTA swap */}
             {!limitReached ? (
-              <button
-                className={styles.btn}
-                onClick={handleGenerate}
-                disabled={loading || !vibe.trim()}
-              >
-                {loading ? "Generating..." : "Generate"}
-              </button>
+              <>
+                <button
+                  className={styles.btn}
+                  onClick={handleGenerate}
+                  disabled={loading || !vibe.trim() || !demoLimits.canGenerate()}
+                >
+                  {loading ? "Generating..." : "Generate"}
+                </button>
+                
+                {/* Enhanced demo limit display */}
+                <div className={styles.usageInfo}>
+                  <p className={styles.usageText}>
+                    {demoLimits.getStatusText()}
+                    {demoLimits.getResetText() && (
+                      <span className={styles.resetText}> • {demoLimits.getResetText()}</span>
+                    )}
+                  </p>
+                </div>
+              </>
             ) : (
               <div className={styles.ctaWrap}>
                 <p className={styles.limitNote}>
-                  You’ve used {DEMO_LIMIT} demo generations today.
+                  {demoLimits.lastCheck?.reason || "Demo limit reached"}
                 </p>
                 <div className={styles.ctaBtns}>
                   <Link
@@ -238,7 +249,7 @@ export default function DemoModal({ onClose }: Props) {
 
             {captionVariants && captionVariants.length > 0 && (
               <div className={styles.result}>
-                <h4>Result {Math.min(demoUsed, DEMO_LIMIT)}/{DEMO_LIMIT}</h4>
+                <h4>Result {2 - demoLimits.remaining}/2</h4>
                 {captionVariants.map((text, i) => (
                   <pre key={i}>{text}</pre>
                 ))}

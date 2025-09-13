@@ -30,7 +30,7 @@ const plans: PricingPlan[] = [
     period: '',
     description: 'All plans include captions & subtitles. Pick what fits your vibe.',
     features: [
-      '✅ 3 text generations / month',
+      '✅ 3 text generations / day',
       '❌ No videos',
       '❌ No history'
     ],
