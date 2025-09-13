@@ -2,10 +2,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import styles from "./DemoModal.module.css";
-import { getUsage, incUsage } from "@/utils/usage";
+import { incUsage } from "@/utils/usage";
 import Link from "next/link";
 import { trackGenerationComplete, trackPricingClick, trackSignupStart } from "@/utils/tracking";
-import { useDemoLimits } from "@/hooks/useDemoLimits";
+import { demoLimits as demoLimitsLib } from "@/lib/demoLimits";
 
 type Props = {
   onClose: () => void;
@@ -15,12 +15,20 @@ type GenerateResponse = Record<string, string[]>; // { caption: ["v1","v2","v3"]
 type PlatformLabel = "Instagram" | "TikTok" | "X/Twitter" | "OnlyFans";
 type PlatformEnum = "instagram" | "tiktok" | "x" | "onlyfans";
 
+const DEMO_LIMIT_UI = 2; // drž v sync s DemoLimits.DEMO_LIMIT
+
 function toEnum(label: PlatformLabel): PlatformEnum {
   switch (label) {
-    case "Instagram": return "instagram";
-    case "TikTok":    return "tiktok";
-    case "X/Twitter": return "x";
-    case "OnlyFans":  return "onlyfans";
+    case "Instagram":
+      return "instagram";
+    case "TikTok":
+      return "tiktok";
+    case "X/Twitter":
+      return "x";
+    case "OnlyFans":
+      return "onlyfans";
+    default:
+      return "instagram";
   }
 }
 
@@ -34,13 +42,17 @@ export default function DemoModal({ onClose }: Props) {
   const [limitReached, setLimitReached] = useState(false); // server-side RL flag
   const [error, setError] = useState<string | null>(null);
 
-  // Enhanced demo limits with fingerprinting
-  const demoLimits = useDemoLimits();
+  // lokální stav pro UI informaci o demech
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [resetText, setResetText] = useState<string>("");
+  const [lastReason, setLastReason] = useState<string | undefined>(undefined);
 
   // Scroll lock + Escape + cleanup
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = "";
@@ -48,15 +60,58 @@ export default function DemoModal({ onClose }: Props) {
     };
   }, [onClose]);
 
-  // Enhanced demo generation with fingerprinting
+  // Načti počty a reset text při mountu
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const r = await demoLimitsLib.getRemaining();
+        if (!alive) return;
+        setRemaining(r);
+
+        const t = await demoLimitsLib.formatTimeLeft();
+        if (!alive) return;
+        setResetText(t);
+      } catch {
+        if (!alive) return;
+        setRemaining(null);
+        setResetText("");
+      }
+    };
+    void refresh();
+
+    // lehké periodické osvěžení času resetu (volitelné)
+    const id = window.setInterval(() => {
+      void demoLimitsLib.formatTimeLeft().then((t) => setResetText(t));
+    }, 60_000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  const refreshLimits = async () => {
+    try {
+      const r = await demoLimitsLib.getRemaining();
+      setRemaining(r);
+      const t = await demoLimitsLib.formatTimeLeft();
+      setResetText(t);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Demo generate s lokálním limiterem (fingerprint)
   const handleGenerate = async () => {
     if (!vibe.trim()) return;
 
-    // Check demo limits first
-    const limitCheck = await demoLimits.checkLimit();
+    // Check demo limits first (client-side)
+    const limitCheck = await demoLimitsLib.checkLimit();
+    setLastReason(limitCheck.reason);
     if (!limitCheck.allowed) {
       setLimitReached(true);
-      setError(limitCheck.reason || "Demo limit reached");
+      setError(limitCheck.reason ?? "Demo limit reached");
+      void refreshLimits();
       return;
     }
 
@@ -69,29 +124,29 @@ export default function DemoModal({ onClose }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          style,                          // e.g., "Barbie"
-          platform: toEnum(platform),     // "instagram" | "tiktok" | "x" | "onlyfans"
-          outputs: ["caption"],           // demo: one output
-          vibe,                           // user input
-          demo: true,                     // demo mode
+          style, // e.g., "Barbie"
+          platform: toEnum(platform), // "instagram" | "tiktok" | "x" | "onlyfans"
+          outputs: ["caption"], // demo: one output
+          vibe, // user input
+          demo: true, // demo mode
         }),
       });
 
       // Server-side RL (429) → ukaž CTA
       if (res.status === 429) {
         setLimitReached(true);
+        void refreshLimits();
         return;
       }
 
-      const payload = await res.json();
-
-      // API může vrátit LIMIT i 200/4xx s ok:false
+      const payload = (await res.json()) as { ok?: boolean; data?: unknown; error?: string };
       if (!payload?.ok) {
         if (payload?.error === "LIMIT") {
           setLimitReached(true);
+          void refreshLimits();
           return;
         }
-        setError(payload?.error || "Generation failed.");
+        setError(payload?.error ?? "Generation failed.");
         return;
       }
 
@@ -103,6 +158,7 @@ export default function DemoModal({ onClose }: Props) {
       // Legacy usage tracking (for backward compatibility)
       incUsage("demoUsed");
 
+      void refreshLimits();
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -116,9 +172,7 @@ export default function DemoModal({ onClose }: Props) {
   };
 
   const handleGoToPricing = () => {
-    // tracking
     trackPricingClick("demoModal");
-
     onClose();
     setTimeout(() => {
       const section = document.querySelector("#pricing");
@@ -127,13 +181,18 @@ export default function DemoModal({ onClose }: Props) {
   };
 
   // Zobraz CTA když limit hlásí server, nebo když lokálně víme, že už je vyčerpáno a nemáme nové výsledky
-  const showCTA = (limitReached || demoUsed >= DEMO_LIMIT) && !result;
+  const showCTA = (limitReached || (remaining !== null && remaining <= 0)) && !result;
   const captionVariants = result?.caption ?? null;
+
+  const usedCount =
+    remaining == null ? 0 : Math.max(0, Math.min(DEMO_LIMIT_UI, DEMO_LIMIT_UI - remaining));
 
   return (
     <div className={styles.overlay} onClick={handleOverlayClick}>
       <div className={styles.modal}>
-        <button className={styles.closeBtn} onClick={onClose}>×</button>
+        <button className={styles.closeBtn} onClick={onClose}>
+          ×
+        </button>
 
         <h2 className={styles.heading}>
           {showCTA ? "Demo Limit Reached 💔" : "Try Captioni Demo ✨"}
@@ -142,7 +201,7 @@ export default function DemoModal({ onClose }: Props) {
         {showCTA ? (
           <div className={styles.blocked}>
             <p className={styles.limitText}>
-              You’ve used {DEMO_LIMIT} demo generations today.
+              You’ve used {DEMO_LIMIT_UI} demo generations today.
             </p>
             <p className={styles.cta}>
               Unlock more styles, vibes, and outputs with our plans.
@@ -202,26 +261,26 @@ export default function DemoModal({ onClose }: Props) {
                 <button
                   className={styles.btn}
                   onClick={handleGenerate}
-                  disabled={loading || !vibe.trim() || !demoLimits.canGenerate()}
+                  disabled={loading || !vibe.trim() || (remaining !== null && remaining <= 0)}
                 >
                   {loading ? "Generating..." : "Generate"}
                 </button>
-                
-                {/* Enhanced demo limit display */}
+
+                {/* Demo limit display */}
                 <div className={styles.usageInfo}>
                   <p className={styles.usageText}>
-                    {demoLimits.getStatusText()}
-                    {demoLimits.getResetText() && (
-                      <span className={styles.resetText}> • {demoLimits.getResetText()}</span>
-                    )}
+                    {remaining == null
+                      ? "Checking demo limit…"
+                      : remaining > 0
+                      ? `${remaining}/${DEMO_LIMIT_UI} left`
+                      : "Limit reached"}
+                    {resetText && <span className={styles.resetText}> • resets in {resetText}</span>}
                   </p>
                 </div>
               </>
             ) : (
               <div className={styles.ctaWrap}>
-                <p className={styles.limitNote}>
-                  {demoLimits.lastCheck?.reason || "Demo limit reached"}
-                </p>
+                <p className={styles.limitNote}>{lastReason || "Demo limit reached"}</p>
                 <div className={styles.ctaBtns}>
                   <Link
                     className={styles.primary}
@@ -230,13 +289,13 @@ export default function DemoModal({ onClose }: Props) {
                   >
                     Create free account
                   </Link>
-                  <a
+                  <Link
                     className={styles.secondary}
-                    href="#pricing"
+                    href="/#pricing"
                     onClick={() => trackPricingClick("demoModal")}
                   >
                     See pricing
-                  </a>
+                  </Link>
                 </div>
               </div>
             )}
@@ -249,7 +308,9 @@ export default function DemoModal({ onClose }: Props) {
 
             {captionVariants && captionVariants.length > 0 && (
               <div className={styles.result}>
-                <h4>Result {2 - demoLimits.remaining}/2</h4>
+                <h4>
+                  Result {usedCount}/{DEMO_LIMIT_UI}
+                </h4>
                 {captionVariants.map((text, i) => (
                   <pre key={i}>{text}</pre>
                 ))}

@@ -19,6 +19,14 @@ export interface FingerprintData {
   userAgent: string;
 }
 
+type NavigatorConn = { effectiveType?: string; downlink?: number };
+type NavigatorWithMemory = Navigator & { deviceMemory?: number; connection?: NavigatorConn };
+
+type WebGLDebugInfo = {
+  UNMASKED_VENDOR_WEBGL: number;
+  UNMASKED_RENDERER_WEBGL: number;
+};
+
 export class BrowserFingerprint {
   private static instance: BrowserFingerprint;
   private fingerprint: string | null = null;
@@ -33,55 +41,63 @@ export class BrowserFingerprint {
 
   private async generateCanvasFingerprint(): Promise<string> {
     try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return 'no-canvas';
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return "no-canvas";
 
       // Draw text with various fonts and styles
-      ctx.textBaseline = 'top';
-      ctx.font = '14px Arial';
-      ctx.fillStyle = '#f60';
+      ctx.textBaseline = "top";
+      ctx.font = "14px Arial";
+      ctx.fillStyle = "#f60";
       ctx.fillRect(125, 1, 62, 20);
-      ctx.fillStyle = '#069';
-      ctx.font = '11px Arial';
-      ctx.fillText('Browser fingerprint test 🔒', 2, 15);
-      ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-      ctx.font = '18px Arial';
-      ctx.fillText('Browser fingerprint test 🔒', 4, 45);
+      ctx.fillStyle = "#069";
+      ctx.font = "11px Arial";
+      ctx.fillText("Browser fingerprint test 🔒", 2, 15);
+      ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+      ctx.font = "18px Arial";
+      ctx.fillText("Browser fingerprint test 🔒", 4, 45);
 
       return canvas.toDataURL();
-    } catch (error) {
-      return 'canvas-error';
+    } catch {
+      return "canvas-error";
     }
   }
 
   private async generateWebGLFingerprint(): Promise<string> {
     try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) return 'no-webgl';
+      const canvas = document.createElement("canvas");
+      const gl =
+        (canvas.getContext("webgl") as WebGLRenderingContext | null) ||
+        (canvas.getContext("experimental-webgl") as WebGLRenderingContext | null);
+      if (!gl) return "no-webgl";
 
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      if (!debugInfo) return 'no-debug-info';
+      const debugInfo = gl.getExtension("WEBGL_debug_renderer_info") as WebGLDebugInfo | null;
+      if (!debugInfo) return "no-debug-info";
 
-      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-      
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) as string;
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string;
+
       return `${vendor}|${renderer}`;
-    } catch (error) {
-      return 'webgl-error';
+    } catch {
+      return "webgl-error";
     }
   }
 
   private async generateAudioFingerprint(): Promise<string> {
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // Handle prefixed AudioContext without using `any`
+      const maybePrefixed = (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+      const AC = window.AudioContext || maybePrefixed;
+      if (!AC) return "no-audioctx";
+
+      const audioContext = new AC();
       const oscillator = audioContext.createOscillator();
       const analyser = audioContext.createAnalyser();
       const gainNode = audioContext.createGain();
       const scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
-      oscillator.type = 'triangle';
+      oscillator.type = "triangle";
       oscillator.frequency.setValueAtTime(10000, audioContext.currentTime);
 
       gainNode.gain.setValueAtTime(0, audioContext.currentTime);
@@ -90,40 +106,59 @@ export class BrowserFingerprint {
       scriptProcessor.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      oscillator.start(0);
+      oscillator.start();
 
-      return new Promise((resolve) => {
-        scriptProcessor.onaudioprocess = (event) => {
+      return await new Promise<string>((resolve) => {
+        scriptProcessor.onaudioprocess = (event: AudioProcessingEvent) => {
           const buffer = event.inputBuffer.getChannelData(0);
+          // Take first N samples, convert to a compact base36-ish string
           const hash = Array.from(buffer.slice(0, 30))
-            .map(x => x.toString(36))
-            .join('');
+            .map((x) => {
+              // normalize to 0..1, then to 0..35
+              const v = Math.max(0, Math.min(1, (x + 1) / 2));
+              return Math.floor(v * 35).toString(36);
+            })
+            .join("");
           resolve(hash);
           oscillator.stop();
           audioContext.close();
         };
       });
-    } catch (error) {
-      return 'audio-error';
+    } catch {
+      return "audio-error";
     }
   }
 
   private getInstalledFonts(): string {
     const testFonts = [
-      'Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana',
-      'Georgia', 'Palatino', 'Garamond', 'Bookman', 'Comic Sans MS',
-      'Trebuchet MS', 'Arial Black', 'Impact', 'Lucida Console',
-      'Monaco', 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono'
+      "Arial",
+      "Helvetica",
+      "Times New Roman",
+      "Courier New",
+      "Verdana",
+      "Georgia",
+      "Palatino",
+      "Garamond",
+      "Bookman",
+      "Comic Sans MS",
+      "Trebuchet MS",
+      "Arial Black",
+      "Impact",
+      "Lucida Console",
+      "Monaco",
+      "Consolas",
+      "Liberation Mono",
+      "DejaVu Sans Mono",
     ];
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return 'no-context';
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "no-context";
 
-    const baseFonts = ['monospace', 'sans-serif', 'serif'];
-    const testString = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    const testSize = '72px';
-    
+    const baseFonts = ["monospace", "sans-serif", "serif"];
+    const testString = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const testSize = "72px";
+
     const detectedFonts: string[] = [];
 
     for (const font of testFonts) {
@@ -131,21 +166,19 @@ export class BrowserFingerprint {
       for (const baseFont of baseFonts) {
         ctx.font = `${testSize} ${font}, ${baseFont}`;
         const metrics1 = ctx.measureText(testString);
-        
+
         ctx.font = `${testSize} ${baseFont}`;
         const metrics2 = ctx.measureText(testString);
-        
+
         if (metrics1.width !== metrics2.width) {
           detected = true;
           break;
         }
       }
-      if (detected) {
-        detectedFonts.push(font);
-      }
+      if (detected) detectedFonts.push(font);
     }
 
-    return detectedFonts.join(',');
+    return detectedFonts.join(",");
   }
 
   private getScreenInfo(): string {
@@ -153,29 +186,31 @@ export class BrowserFingerprint {
       screen.width,
       screen.height,
       screen.colorDepth,
+      // `pixelDepth` existuje v lib.dom
       screen.pixelDepth,
       window.devicePixelRatio,
       window.innerWidth,
-      window.innerHeight
-    ].join('|');
+      window.innerHeight,
+    ].join("|");
   }
 
   private getHardwareInfo(): string {
-    const info = [
-      navigator.hardwareConcurrency || 0,
-      navigator.maxTouchPoints || 0,
-      navigator.deviceMemory || 0,
-      navigator.connection?.effectiveType || 'unknown',
-      navigator.connection?.downlink || 0
+    const nav = navigator as NavigatorWithMemory;
+    const parts = [
+      nav.hardwareConcurrency ?? 0,
+      nav.maxTouchPoints ?? 0,
+      nav.deviceMemory ?? 0,
+      nav.connection?.effectiveType ?? "unknown",
+      nav.connection?.downlink ?? 0,
     ];
-    return info.join('|');
+    return parts.join("|");
   }
 
   private async collectFingerprintData(): Promise<FingerprintData> {
     const [canvas, webgl, audio] = await Promise.all([
       this.generateCanvasFingerprint(),
       this.generateWebGLFingerprint(),
-      this.generateAudioFingerprint()
+      this.generateAudioFingerprint(),
     ]);
 
     return {
@@ -188,71 +223,68 @@ export class BrowserFingerprint {
       language: navigator.language,
       platform: navigator.platform,
       hardware: this.getHardwareInfo(),
-      userAgent: navigator.userAgent
+      userAgent: navigator.userAgent,
     };
   }
 
   private hashFingerprint(data: FingerprintData): string {
-    const combined = Object.values(data).join('|');
-    
-    // Simple hash function (in production, use crypto.subtle.digest)
+    const combined = Object.values(data).join("|");
+
+    // Simple non-crypto hash (for demo). Prefer crypto.subtle.digest in production if available.
     let hash = 0;
     for (let i = 0; i < combined.length; i++) {
       const char = combined.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+      hash = (hash << 5) - hash + char;
+      hash |= 0; // force 32-bit
     }
-    
     return Math.abs(hash).toString(36);
   }
 
   async getFingerprint(): Promise<string> {
-    if (this.fingerprint) {
-      return this.fingerprint;
-    }
+    if (this.fingerprint) return this.fingerprint;
 
     try {
       this.fingerprintData = await this.collectFingerprintData();
       this.fingerprint = this.hashFingerprint(this.fingerprintData);
-      
+
       // Store in localStorage for persistence
-      localStorage.setItem('captioni_fingerprint', this.fingerprint);
-      localStorage.setItem('captioni_fingerprint_data', JSON.stringify(this.fingerprintData));
-      
+      if (typeof window !== "undefined") {
+        localStorage.setItem("captioni_fingerprint", this.fingerprint);
+        localStorage.setItem("captioni_fingerprint_data", JSON.stringify(this.fingerprintData));
+      }
+
       return this.fingerprint;
-    } catch (error) {
-      console.error('Fingerprint generation failed:', error);
+    } catch {
       // Fallback to a simple hash of available data
       const fallback = this.hashFingerprint({
-        canvas: 'fallback',
-        webgl: 'fallback',
-        audio: 'fallback',
+        canvas: "fallback",
+        webgl: "fallback",
+        audio: "fallback",
         fonts: this.getInstalledFonts(),
         screen: this.getScreenInfo(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         language: navigator.language,
         platform: navigator.platform,
         hardware: this.getHardwareInfo(),
-        userAgent: navigator.userAgent
+        userAgent: navigator.userAgent,
       });
-      
+
       this.fingerprint = fallback;
-      localStorage.setItem('captioni_fingerprint', fallback);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("captioni_fingerprint", fallback);
+      }
       return fallback;
     }
   }
 
   getStoredFingerprint(): string | null {
-    if (this.fingerprint) {
-      return this.fingerprint;
-    }
-    
-    const stored = localStorage.getItem('captioni_fingerprint');
+    if (this.fingerprint) return this.fingerprint;
+
+    const stored = typeof window !== "undefined" ? localStorage.getItem("captioni_fingerprint") : null;
     if (stored) {
       this.fingerprint = stored;
       return stored;
     }
-    
     return null;
   }
 
@@ -265,20 +297,18 @@ export class BrowserFingerprint {
   }
 
   getFingerprintData(): FingerprintData | null {
-    if (this.fingerprintData) {
-      return this.fingerprintData;
-    }
+    if (this.fingerprintData) return this.fingerprintData;
 
-    const stored = localStorage.getItem('captioni_fingerprint_data');
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem("captioni_fingerprint_data") : null;
     if (stored) {
       try {
-        this.fingerprintData = JSON.parse(stored);
+        this.fingerprintData = JSON.parse(stored) as FingerprintData;
         return this.fingerprintData;
-      } catch (error) {
-        console.error('Failed to parse stored fingerprint data:', error);
+      } catch (err) {
+        console.error("Failed to parse stored fingerprint data:", err);
       }
     }
-
     return null;
   }
 }
