@@ -89,6 +89,31 @@ export async function POST(req: NextRequest) {
         const storage = getStorage();
         const storageKey = `demo/videos/${videoFileId}`;
 
+        // Check if demo file exists in storage
+        if (!(await storage.fileExists?.(storageKey))) {
+          console.log('Demo file does not exist in storage, returning fallback');
+          return Response.json({
+            ok: true,
+            jobId: demoJobId,
+            status: 'COMPLETED',
+            message: 'Demo video processing completed (fallback)',
+            isDemo: true,
+            result: {
+              processedVideoUrl: `https://demo-processed.captioni.com/${demoJobId}.mp4`,
+              subtitles: [
+                { start: 0, end: 3, text: 'Welcome to Captioni demo!' },
+                { start: 3, end: 6, text: 'This is how AI subtitles work.' },
+                { start: 6, end: 9, text: 'Upload your video to try it!' },
+              ],
+              style: style as SubtitleStyle,
+              duration: durationSec,
+              language: 'en',
+              confidence: 0.8,
+              fallback: true,
+            },
+          });
+        }
+
         // 2) Transcribe
         const { WhisperProvider } = await import('@/lib/transcription/whisper');
         const whisper = new WhisperProvider();
@@ -159,9 +184,9 @@ export async function POST(req: NextRequest) {
           const url = await storage.getPublicUrl(outputKey);
           processedVideoUrl = typeof url === 'string' ? url : String(url);
         } else if (hasGetFileUrl(storage)) {
-          processedVideoUrl = storage.getFileUrl(outputKey);
+          processedVideoUrl = (storage as { getFileUrl: (key: string) => string }).getFileUrl(outputKey);
         } else if (hasGetSignedDownloadUrl(storage)) {
-          processedVideoUrl = await storage.getSignedDownloadUrl(outputKey, 3600); // 1 hod
+          processedVideoUrl = await (storage as { getSignedDownloadUrl: (key: string, ttl?: number) => Promise<string> }).getSignedDownloadUrl(outputKey, 3600); // 1 hod
         } else {
           processedVideoUrl = `/r2/${outputKey}`; // nouzový fallback
         }

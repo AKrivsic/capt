@@ -114,13 +114,17 @@ export async function renderSubtitledVideo(
       }
     );
 
-    // Execute FFmpeg command
+    // Execute FFmpeg command with ffmpeg-static
     const { exec } = await import('child_process');
     const { promisify } = await import('util');
     const execAsync = promisify(exec);
 
+    // Get ffmpeg path from ffmpeg-static
+    const ffmpegPath = (await import('ffmpeg-static')).default || 'ffmpeg';
+    const finalCommand = ffmpegCommand.replace(/^ffmpeg\b/, ffmpegPath);
+
     try {
-      await execAsync(ffmpegCommand);
+      await execAsync(finalCommand);
       console.log('FFmpeg rendering completed successfully');
 
       return {

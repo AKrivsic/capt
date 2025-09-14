@@ -120,6 +120,9 @@ export class WhisperProvider implements TranscriptionProvider {
       const { promisify } = await import('util');
       const execAsync = promisify(exec);
       
+      // Get ffmpeg path from ffmpeg-static
+      const ffmpegPath = (await import('ffmpeg-static')).default || 'ffmpeg';
+      
       // Write video buffer to temp file
       const fs = await import('fs');
       const path = await import('path');
@@ -128,8 +131,8 @@ export class WhisperProvider implements TranscriptionProvider {
       
       fs.writeFileSync(tempVideoPath, videoBuffer);
       
-      // Extract audio using FFmpeg
-      const ffmpegCommand = `ffmpeg -i "${tempVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${tempAudioPath}" -y`;
+      // Extract audio using FFmpeg with ffmpeg-static path
+      const ffmpegCommand = `${ffmpegPath} -i "${tempVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${tempAudioPath}" -y`;
       await execAsync(ffmpegCommand);
       
       // Read audio file

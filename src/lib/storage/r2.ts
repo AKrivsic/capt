@@ -168,6 +168,44 @@ export class R2Storage {
       return false;
     }
   }
+
+  /**
+   * Get public URL for file (if bucket is public)
+   * @param key - File key in bucket
+   * @returns Public URL
+   */
+  async getPublicUrl(key: string): Promise<string> {
+    const publicBase = process.env.R2_PUBLIC_BASE_URL;
+    if (publicBase) {
+      return `${publicBase}/${key}`;
+    }
+    // Fallback to presigned URL
+    return this.getPresignedDownloadUrl(key, 86400);
+  }
+
+  /**
+   * Get signed download URL (alias for getPresignedDownloadUrl)
+   * @param key - File key in bucket
+   * @param ttlSeconds - Time to live in seconds
+   * @returns Signed download URL
+   */
+  async getSignedDownloadUrl(key: string, ttlSeconds: number = 86400): Promise<string> {
+    return this.getPresignedDownloadUrl(key, ttlSeconds);
+  }
+
+  /**
+   * Get file URL (alias for getPublicUrl)
+   * @param key - File key in bucket
+   * @returns File URL
+   */
+  getFileUrl(key: string): string {
+    const publicBase = process.env.R2_PUBLIC_BASE_URL;
+    if (publicBase) {
+      return `${publicBase}/${key}`;
+    }
+    // Fallback - return key for relative path
+    return `/r2/${key}`;
+  }
 }
 
 // Singleton instance
@@ -220,7 +258,39 @@ export class MockR2Storage {
 
   async fileExists(key: string): Promise<boolean> {
     console.log(`Mock check file exists ${key}`);
-    return true;
+    // Mock returns false for demo files to test fallback
+    return !key.startsWith('demo/');
+  }
+
+  /**
+   * Get public URL for file (mock)
+   * @param key - File key in bucket
+   * @returns Public URL
+   */
+  async getPublicUrl(key: string): Promise<string> {
+    console.log(`Mock get public URL for ${key}`);
+    return `https://mock-public-url.com/${key}`;
+  }
+
+  /**
+   * Get signed download URL (mock)
+   * @param key - File key in bucket
+   * @param ttlSeconds - Time to live in seconds
+   * @returns Signed download URL
+   */
+  async getSignedDownloadUrl(key: string, ttlSeconds: number = 86400): Promise<string> {
+    console.log(`Mock get signed download URL for ${key}, TTL: ${ttlSeconds}s`);
+    return `https://mock-signed-url.com/${key}?expires=${Date.now() + ttlSeconds * 1000}`;
+  }
+
+  /**
+   * Get file URL (mock)
+   * @param key - File key in bucket
+   * @returns File URL
+   */
+  getFileUrl(key: string): string {
+    console.log(`Mock get file URL for ${key}`);
+    return `https://mock-file-url.com/${key}`;
   }
 }
 

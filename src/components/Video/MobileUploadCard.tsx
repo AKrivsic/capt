@@ -15,15 +15,18 @@ interface UploadedFile {
   name: string;
   size: number;
   url?: string;
+  file?: File;
+  previewUrl?: string;
 }
 
 interface Props {
   onUploadComplete: (file: UploadedFile) => void;
+  onError?: (error: string) => void;
 }
 
 type UploadState = 'idle' | 'preparing' | 'uploading' | 'success' | 'error';
 
-export default function MobileUploadCard({ onUploadComplete }: Props) {
+export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
@@ -89,18 +92,22 @@ export default function MobileUploadCard({ onUploadComplete }: Props) {
       const uploadedFile: UploadedFile = {
         id: fileId,
         name: file.name,
-        size: file.size
+        size: file.size,
+        file: file, // Pass the original file for blob URL creation
+        previewUrl: URL.createObjectURL(file) // Create preview URL
       };
 
       onUploadComplete(uploadedFile);
 
     } catch (error) {
       console.error('Upload error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Upload error';
       setUploadState('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Upload error');
-      uploadTracking.failed(error instanceof Error ? error.message : 'Unknown error');
+      setErrorMessage(errorMsg);
+      uploadTracking.failed(errorMsg);
+      onError?.(errorMsg);
     }
-  }, [onUploadComplete]);
+  }, [onUploadComplete, onError]);
 
   const uploadToPresignedUrl = async (
     file: File, 
