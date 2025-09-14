@@ -21,7 +21,7 @@ interface Props {
   onUploadComplete: (file: UploadedFile) => void;
 }
 
-type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+type UploadState = 'idle' | 'preparing' | 'uploading' | 'success' | 'error';
 
 export default function MobileUploadCard({ onUploadComplete }: Props) {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
@@ -47,7 +47,7 @@ export default function MobileUploadCard({ onUploadComplete }: Props) {
   }, [acceptedTypes, maxSizeBytes]);
 
   const uploadFile = useCallback(async (file: File) => {
-    setUploadState('uploading');
+    setUploadState('preparing');
     setUploadProgress(0);
     setErrorMessage('');
 
@@ -77,6 +77,7 @@ export default function MobileUploadCard({ onUploadComplete }: Props) {
       const { uploadUrl, fileId } = await initResponse.json();
 
       // 2. Upload souboru s progress tracking
+      setUploadState('uploading');
       await uploadToPresignedUrl(file, uploadUrl, (progress) => {
         setUploadProgress(progress.percentage);
       });
@@ -215,6 +216,20 @@ export default function MobileUploadCard({ onUploadComplete }: Props) {
           </>
         )}
 
+        {uploadState === 'preparing' && (
+          <>
+            <div className={styles.progressContainer}>
+              <div className={styles.progressBar}>
+                <div className={styles.progressFill} style={{ width: '10%' }} />
+              </div>
+              <div className={styles.progressText}>
+                <div className={styles.uploadingSpinner} />
+                Preparing upload...
+              </div>
+            </div>
+          </>
+        )}
+
         {uploadState === 'uploading' && (
           <>
             <div className={styles.progressContainer}>
@@ -225,6 +240,7 @@ export default function MobileUploadCard({ onUploadComplete }: Props) {
                 />
               </div>
               <div className={styles.progressText}>
+                <div className={styles.uploadingSpinner} />
                 Uploading... {uploadProgress}%
               </div>
             </div>

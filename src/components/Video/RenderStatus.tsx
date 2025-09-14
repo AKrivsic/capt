@@ -201,6 +201,7 @@ export default function RenderStatus({ jobId, onComplete }: Props) {
             />
           </div>
           <div className={styles.progressText}>
+            {jobStatus.status === 'PROCESSING' && <div className={styles.processingSpinner} />}
             {jobStatus.progress}%
           </div>
         </div>
