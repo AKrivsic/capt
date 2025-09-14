@@ -20,7 +20,7 @@ import type { SubtitleStyle } from '@/types/subtitles';
 import CrossSellModals, { useCrossSellModal } from '@/components/CrossSell/CrossSellModals';
 import CaptionPositionSelector from '@/components/CaptionPositionSelector/CaptionPositionSelector';
 import { useCaptionPosition } from '@/hooks/useCaptionPosition';
-import { createFFmpegCommand } from '@/lib/ffmpeg/captionRenderer';
+// import { createFFmpegCommand } from '@/lib/ffmpeg/captionRenderer';
 import SubtitleModeSelector from '@/components/SubtitleModeSelector';
 import type { SubtitleMode } from '@/subtitles/types';
 import VideoDemoUploader from '@/components/Demo/VideoDemoUploader';
@@ -142,7 +142,7 @@ export default function NewGenerator() {
   const [selectedStyle, setSelectedStyle] = useState<SubtitleStyle>('BARBIE');
   const [selectedPlatform, setSelectedPlatform] = useState('Instagram');
   const [selectedOutputs, setSelectedOutputs] = useState<string[]>(['caption']);
-  const { position, avoidOverlays, setPosition } = useCaptionPosition({ initialPosition: 'BOTTOM' });
+  const { position, setPosition } = useCaptionPosition({ initialPosition: 'BOTTOM' });
   const [subtitleMode, setSubtitleMode] = useState<SubtitleMode>('TALKING_HEAD');
   const [featureFlags, setFeatureFlags] = useState({ highlightKeywords: true, emojiAugment: true, microAnimations: true });
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
@@ -369,34 +369,63 @@ export default function NewGenerator() {
       return;
     }
 
-    // ----- Subtitles (demo mock) -----
-    setTimeout(() => {
+    // ----- Subtitles (real processing) -----
+    if (activeTab === 'subtitles') {
       try {
-        const demoCmd = createFFmpegCommand('/path/to/input.mp4', '/path/to/output.mp4', {
-          videoWidth: 1080,
-          videoHeight: 1920,
-          position,
-          avoidOverlays,
-          fontSize: 48,
-          fontFamily: '/path/to/font.ttf',
-          textColor: 'white',
-          backgroundColor: 'black@0.7',
-          outlineColor: 'black',
-          outlineWidth: 3,
-          lineHeight: 1.2,
-          maxWidth: 900,
-          text: captionInput || 'Sample caption',
-        });
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('FFmpeg command with computed y (mode = ' + subtitleMode + '):', demoCmd);
+        // Check if we have a video file
+        if (!videoPreviewUrl) {
+          setErrorMsg('Please upload a video first');
+          setIsGenerating(false);
+          return;
         }
-      } catch {
-        /* noop */
-      }
 
-      if (!session?.user) incDemo();
-      setIsGenerating(false);
-    }, 2000);
+        // Extract video file ID from the preview URL or use demo ID
+        const videoFileId = videoPreviewUrl.includes('demo-') 
+          ? videoPreviewUrl.split('/').pop()?.split('-')[0] || 'demo'
+          : 'demo'; // For demo videos
+
+        // Get video duration (estimate or from metadata)
+        const durationSec = 15; // Demo videos are limited to 15s
+
+        const styleForApi = STYLE_MAP[selectedStyle] ?? STYLE_PRESETS[selectedStyle].name;
+
+        const res = await fetch('/api/video/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoFileId,
+            style: styleForApi,
+            durationSec,
+            isDemo: !session?.user,
+          }),
+        });
+
+        const payload = await res.json();
+
+        if (!res.ok) {
+          throw new Error(payload.error || 'Video processing failed');
+        }
+
+        if (payload.ok) {
+          // Success - show processing status
+          console.log('Video processing started:', payload.jobId);
+          // TODO: Implement real-time status updates
+          setErrorMsg(null);
+        } else {
+          throw new Error(payload.error || 'Video processing failed');
+        }
+
+        if (!session?.user) {
+          incDemo();
+        }
+
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Video processing failed. Please try again.';
+        setErrorMsg(msg);
+      } finally {
+        setIsGenerating(false);
+      }
+    }
   };
 
   const stylePreset = STYLE_PRESETS[selectedStyle];

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     
     // Parse request body
     const body = await req.json();
-    const { videoFileId, style, durationSec } = body;
+    const { videoFileId, style, durationSec, isDemo } = body;
     
     if (!videoFileId || !style || !durationSec) {
       return Response.json({ 
@@ -28,14 +28,44 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if user is authenticated
-    if (!session?.user?.id) {
-      return Response.json({ 
-        ok: false, 
-        error: 'Authentication required for video generation' 
-      }, { status: 401 });
+    // Demo mode check
+    const isDemoMode = isDemo === true || !session?.user?.id;
+    
+    if (isDemoMode) {
+      // Demo video limits: 1 video/month, max 15s
+      if (durationSec > 15) {
+        return Response.json({ 
+          ok: false, 
+          error: 'Demo videos are limited to 15 seconds' 
+        }, { status: 400 });
+      }
+      
+      // TODO: Check demo video usage (1/month) using fingerprinting
+      // For now, allow demo processing
+    } else {
+      // Authenticated user processing
+      if (!session?.user?.id) {
+        return Response.json({ 
+          ok: false, 
+          error: 'Authentication required for video generation' 
+        }, { status: 401 });
+      }
     }
 
+    if (isDemoMode) {
+      // Demo processing - no database records
+      // TODO: Implement demo video processing queue
+      // For now, return mock success
+      return Response.json({
+        ok: true,
+        jobId: `demo-${Date.now()}`,
+        status: 'QUEUED',
+        message: 'Demo video processing started',
+        isDemo: true
+      });
+    }
+
+    // Authenticated user processing
     // Get user limits
     const userLimits = await getUserLimits(session.user.id, prisma);
     if (!userLimits) {
