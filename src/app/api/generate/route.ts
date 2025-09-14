@@ -614,8 +614,11 @@ export async function POST(req: NextRequest) {
 
   // --- input ---
   const raw = await req.json().catch(() => null);
+  console.log("[generate] Raw input:", JSON.stringify(raw, null, 2));
+  
   const parsed = InputSchema.safeParse(raw);
   if (!parsed.success) {
+    console.error("[generate] Validation failed:", parsed.error.flatten());
     return NextResponse.json(
       { ok: false, error: "INVALID_INPUT", issues: parsed.error.flatten() },
       { status: 400 }

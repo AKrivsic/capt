@@ -50,6 +50,9 @@ const STYLE_MAP: Record<string, string> = {
   BADDIE: 'Baddie',
   INNOCENT: 'Innocent',
   FUNNY: 'Funny',
+  RAGE: 'Rage',
+  MEME: 'Meme',
+  STREAMER: 'Streamer',
 };
 
 // UI doporučení (může obsahovat položky, které API neumí — do API je nepošleme)
@@ -177,6 +180,35 @@ export default function NewGenerator() {
 
         const styleForApi = STYLE_MAP[selectedStyle] ?? STYLE_PRESETS[selectedStyle].name;
         const platformSlug = normalizePlatform(selectedPlatform);
+
+        // Validate inputs before sending
+        console.log('[NewGenerator] Sending request:', {
+          style: styleForApi,
+          platform: platformSlug,
+          outputs: safeOutputs,
+          vibe: captionInput.trim(),
+          vibeLength: captionInput.trim().length,
+          variants: 3,
+          demo: !session?.user,
+        });
+
+        // Check for common issues
+        if (!styleForApi) {
+          console.error('[NewGenerator] Style mapping failed:', { selectedStyle, STYLE_MAP, STYLE_PRESETS });
+          throw new Error('Invalid style selected');
+        }
+        if (!platformSlug) {
+          console.error('[NewGenerator] Platform normalization failed:', selectedPlatform);
+          throw new Error('Invalid platform selected');
+        }
+        if (captionInput.trim().length < 2) {
+          console.error('[NewGenerator] Vibe too short:', captionInput.trim().length);
+          throw new Error('Vibe must be at least 2 characters');
+        }
+        if (captionInput.trim().length > 600) {
+          console.error('[NewGenerator] Vibe too long:', captionInput.trim().length);
+          throw new Error('Vibe must be less than 600 characters');
+        }
 
         const res = await fetch('/api/generate', {
           method: 'POST',
