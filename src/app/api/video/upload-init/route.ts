@@ -47,11 +47,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadIni
       );
     }
 
-    // Kontrola velikosti souboru (max 100MB pro MVP)
-    const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+    // Kontrola velikosti souboru (max 4MB pro Vercel Free)
+    const maxSizeBytes = 4 * 1024 * 1024; // 4MB
     if (fileSize > maxSizeBytes) {
       return NextResponse.json(
-        { error: 'File Too Large', message: 'File is too large (max 100MB)' },
+        { error: 'File Too Large', message: 'File is too large (max 4MB)' },
         { status: 400 }
       );
     }

@@ -32,7 +32,7 @@ export default function MobileUploadCard({ onUploadComplete }: Props) {
 
   // Podporované formáty
   const acceptedTypes = useMemo(() => ['video/mp4', 'video/mov', 'video/quicktime', 'video/webm'], []);
-  const maxSizeBytes = useMemo(() => 100 * 1024 * 1024, []); // 100MB
+  const maxSizeBytes = useMemo(() => 4 * 1024 * 1024, []); // 4MB - Vercel Free limit
 
   const validateFile = useCallback((file: File): string | null => {
     if (!acceptedTypes.includes(file.type)) {
