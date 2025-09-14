@@ -621,7 +621,12 @@ export default function NewGenerator() {
                     }}
                   />
                 ) : (
-                  <VideoDemoPreview src={videoPreviewUrl} />
+                  <div className={styles.uploadContainer}>
+                    <VideoDemoPreview src={videoPreviewUrl} />
+                    <div className={styles.uploadSuccess}>
+                      <p>Video uploaded! Continue by selecting subtitle style below.</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
