@@ -9,7 +9,7 @@ interface Props {
   onLimitReached?: (reason: string) => void;
 }
 
-export default function VideoDemoUploader({ onUploaded, onLimitReached }: Props) {
+export default function VideoDemoUploader({ onUploaded /*, onLimitReached*/ }: Props) {
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -23,25 +23,18 @@ export default function VideoDemoUploader({ onUploaded, onLimitReached }: Props)
     [onUploaded]
   );
 
-  // Pokud MobileUploadCard podporuje error callback, můžeš mu ho předat.
-  // Tady si necháme univerzální setter, ale budeme ho volat jen z props níž.
-  const handleError = useCallback(
-    (error: string) => {
-      setUploadState('error');
-      setErrorMessage(error);
-      if (error.toLowerCase().includes('limit') || error.toLowerCase().includes('quota')) {
-        onLimitReached?.(error);
-      }
-    },
-    [onLimitReached]
-  );
-
   return (
     <div className={styles.uploadContainer}>
       <MobileUploadCard
         onUploadComplete={handleUploadComplete}
-        // pokud MobileUploadCard umí onError/onFail, odkomentuj:
-        // onError={handleError}
+        // Pokud MobileUploadCard podporuje onError/onFail, můžeš doplnit a případně volat onLimitReached:
+        // onError={(err) => {
+        //   setUploadState('error');
+        //   setErrorMessage(err);
+        //   if (err.toLowerCase().includes('limit') || err.toLowerCase().includes('quota')) {
+        //     onLimitReached?.(err);
+        //   }
+        // }}
       />
 
       {uploadState === 'error' && (

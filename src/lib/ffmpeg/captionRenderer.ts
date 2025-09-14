@@ -1,5 +1,5 @@
 /**
- * FFmpeg caption renderer s pozicováním titulků
+ * FFmpeg caption renderer s pozicováním titulků + jednoduché animace (fade)
  */
 
 import type { 
@@ -23,6 +23,8 @@ export interface CaptionRenderOptions {
   lineHeight: number;
   maxWidth: number;
   text: string;
+  /** 🔥 Přidáno: volitelná animace. Implementováno: 'fade' (alpha ramp), ostatní zatím no-op. */
+  animation?: 'fade' | 'bounce' | 'pop' | 'glitch' | string;
 }
 
 export interface FFmpegCaptionFilter {
@@ -30,8 +32,25 @@ export interface FFmpegCaptionFilter {
   parameters: Record<string, string | number>;
 }
 
+/** Escapování pro drawtext */
+function esc(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+/** Vygeneruje výraz pro alpha podle animace */
+function alphaExpr(animation?: CaptionRenderOptions['animation']): string | undefined {
+  if (!animation) return undefined;
+  switch (animation) {
+    case 'fade':
+      // 0 → 1 během prvních 0.25s
+      return "if(lt(t,0.25), t/0.25, 1)";
+    default:
+      return undefined; // ostatní animace zatím no-op
+  }
+}
+
 /**
- * Vytvoří FFmpeg drawtext filter pro titulky
+ * Vytvoří FFmpeg drawtext filter pro titulky (single-line)
  */
 export function createCaptionFilter(options: CaptionRenderOptions): FFmpegCaptionFilter {
   const {
@@ -48,41 +67,40 @@ export function createCaptionFilter(options: CaptionRenderOptions): FFmpegCaptio
     lineHeight,
     maxWidth: _maxWidth, // eslint-disable-line @typescript-eslint/no-unused-vars
     text,
+    animation,
   } = options;
 
-  // Vypočítáme pozici pomocí naší utility funkce
   const layoutInput: LayoutInput = {
     videoWidth,
     videoHeight,
     position,
     lineHeightPx: fontSize * lineHeight,
-    linesCount: Math.ceil(text.length / 30), // Odhad počtu řádků
+    linesCount: Math.ceil(text.length / 30),
     avoidOverlays,
   };
 
   const layout: CaptionLayout = computeY(layoutInput);
   const y = layout.y;
 
-  // Sestavíme FFmpeg drawtext filter
   const parameters: Record<string, string | number> = {
-    text: `'${text.replace(/'/g, "\\'")}'`,
-    fontfile: `'${fontFamily}'`,
+    text: `'${esc(text)}'`,
+    fontfile: `'${esc(fontFamily)}'`,
     fontsize: fontSize,
     fontcolor: textColor,
-    x: '(w-text_w)/2', // Horizontálně vycentrované
-    y: y,
+    x: '(w-text_w)/2',
+    y,
     box: backgroundColor ? 1 : 0,
     boxcolor: backgroundColor || 'black@0.0',
     boxborderw: 5,
     borderw: outlineWidth,
     bordercolor: outlineColor || 'black',
-    line_spacing: fontSize * (lineHeight - 1),
+    line_spacing: Math.max(0, Math.round(fontSize * (lineHeight - 1))),
   };
 
-  return {
-    filter: 'drawtext',
-    parameters,
-  };
+  const a = alphaExpr(animation);
+  if (a) parameters.alpha = `'${a}'`;
+
+  return { filter: 'drawtext', parameters };
 }
 
 /**
@@ -94,55 +112,26 @@ export function createFFmpegCommand(
   captionOptions: CaptionRenderOptions
 ): string {
   const captionFilter = createCaptionFilter(captionOptions);
-  
-  // Sestavíme parametry filtru
+
   const filterParams = Object.entries(captionFilter.parameters)
     .map(([key, value]) => `${key}=${value}`)
     .join(':');
 
   const filterString = `${captionFilter.filter}=${filterParams}`;
 
-  // Kompletní FFmpeg command
   const command = [
     'ffmpeg',
+    '-y',
     '-i', `"${inputVideoPath}"`,
     '-vf', `"${filterString}"`,
-    '-c:a', 'copy', // Kopírujeme audio beze změny
-    '-c:v', 'libx264', // Video codec
-    '-preset', 'fast', // Rychlé encoding
-    '-crf', '23', // Kvalita videa
-    '-y', // Přepiš výstupní soubor
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-crf', '23',
+    '-c:a', 'copy',
     `"${outputVideoPath}"`
   ].join(' ');
 
   return command;
-}
-
-/**
- * Příklad použití s konkrétními hodnotami
- */
-export function getExampleFFmpegCommand(): string {
-  const exampleOptions: CaptionRenderOptions = {
-    videoWidth: 1080,
-    videoHeight: 1920, // TikTok/IG Stories rozměry
-    position: 'BOTTOM',
-    avoidOverlays: true,
-    fontSize: 48,
-    fontFamily: '/path/to/font.ttf',
-    textColor: 'white',
-    backgroundColor: 'black@0.7',
-    outlineColor: 'black',
-    outlineWidth: 3,
-    lineHeight: 1.2,
-    maxWidth: 900,
-    text: 'Hello world! This is a test caption.',
-  };
-
-  return createFFmpegCommand(
-    '/path/to/input.mp4',
-    '/path/to/output.mp4',
-    exampleOptions
-  );
 }
 
 /**
@@ -164,9 +153,9 @@ export function createMultilineCaptionFilter(
     outlineColor,
     outlineWidth = 2,
     lineHeight,
+    animation,
   } = options;
 
-  // Vypočítáme pozici pro víceřádkový text
   const layoutInput: LayoutInput = {
     videoWidth,
     videoHeight,
@@ -179,26 +168,25 @@ export function createMultilineCaptionFilter(
   const layout: CaptionLayout = computeY(layoutInput);
   const y = layout.y;
 
-  // Sestavíme text s novými řádky
   const multilineText = lines.join('\\n');
 
   const parameters: Record<string, string | number> = {
-    text: `'${multilineText.replace(/'/g, "\\'")}'`,
-    fontfile: `'${fontFamily}'`,
+    text: `'${esc(multilineText)}'`,
+    fontfile: `'${esc(fontFamily)}'`,
     fontsize: fontSize,
     fontcolor: textColor,
     x: '(w-text_w)/2',
-    y: y,
+    y,
     box: backgroundColor ? 1 : 0,
     boxcolor: backgroundColor || 'black@0.0',
     boxborderw: 5,
     borderw: outlineWidth,
     bordercolor: outlineColor || 'black',
-    line_spacing: fontSize * (lineHeight - 1),
+    line_spacing: Math.max(0, Math.round(fontSize * (lineHeight - 1))),
   };
 
-  return {
-    filter: 'drawtext',
-    parameters,
-  };
+  const a = alphaExpr(animation);
+  if (a) parameters.alpha = `'${a}'`;
+
+  return { filter: 'drawtext', parameters };
 }

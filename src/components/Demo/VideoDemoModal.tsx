@@ -25,12 +25,28 @@ interface VideoDemoModalProps {
   onSuccess?: (result: { previewUrl: string }) => void;
 }
 
+type GeneratedSubtitle = {
+  start: number;
+  end: number;
+  text: string;
+};
+
+type DemoProcessingResult = {
+  processedVideoUrl: string;
+  subtitles: GeneratedSubtitle[];
+  style: string;
+  duration: number;
+  language?: string;
+  confidence?: number;
+  fallback?: boolean;
+};
+
 export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalProps) {
   const [mounted, setMounted] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [processingResult, setProcessingResult] = useState<any>(null);
+  const [processingResult, setProcessingResult] = useState<DemoProcessingResult | null>(null);
 
   // Form states
   const [selectedStyle, setSelectedStyle] = useState<SubtitleStyle>('BARBIE');
@@ -46,8 +62,8 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
   if (!mounted) return null;
 
   const modalContent = (
-    <div 
-      className={styles.overlay} 
+    <div
+      className={styles.overlay}
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -63,11 +79,11 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
         padding: '20px',
         width: '100vw',
         height: '100vh',
-        margin: 0
+        margin: 0,
       }}
     >
-      <div 
-        className={styles.modal} 
+      <div
+        className={styles.modal}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
@@ -76,10 +92,11 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
           width: '100%',
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          boxShadow:
+            '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           margin: 0,
           position: 'relative',
-          padding: '2rem'
+          padding: '2rem',
         }}
       >
         <div className={styles.header}>
@@ -88,12 +105,12 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
             ✕
           </button>
         </div>
-        
+
         <div className={styles.content}>
           {!videoPreviewUrl ? (
             <div>
               <h4>Upload a 15s vertical video to preview AI subtitles</h4>
-              <VideoDemoUploader 
+              <VideoDemoUploader
                 onUploaded={(previewUrl) => {
                   console.log('Video uploaded:', previewUrl);
                   setVideoPreviewUrl(previewUrl);
@@ -108,15 +125,17 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
             <div>
               <div style={{ marginBottom: '1rem' }}>
                 <VideoDemoPreview src={videoPreviewUrl} />
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '0.75rem 1rem',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  color: 'white',
-                  borderRadius: '0.5rem',
-                  textAlign: 'center',
-                  fontWeight: '500'
-                }}>
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem 1rem',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: 'white',
+                    borderRadius: '0.5rem',
+                    textAlign: 'center',
+                    fontWeight: '500',
+                  }}
+                >
                   <p style={{ margin: 0, fontSize: '0.875rem' }}>
                     Video uploaded! Continue by selecting subtitle style below.
                   </p>
@@ -128,36 +147,43 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                   Choose subtitle style
                 </label>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-                  gap: '0.5rem' 
-                }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: '0.5rem',
+                  }}
+                >
                   {Object.entries(STYLE_PRESETS).map(([key, preset]) => {
                     const displayName = preset.name.charAt(0) + preset.name.slice(1).toLowerCase();
                     const meta = styleMeta[displayName] || null;
                     const shownEmoji =
-                      displayName === 'Meme' ? '🤣' :
-                      displayName === 'Rage' ? '💢' :
-                      (preset.emojiSet?.[0] ?? '✨');
+                      displayName === 'Meme'
+                        ? '🤣'
+                        : displayName === 'Rage'
+                        ? '💢'
+                        : preset.emojiSet?.[0] ?? '✨';
                     return (
                       <Tippy key={key} content={meta?.tooltip || displayName} placement="top">
                         <button
                           style={{
                             padding: '0.75rem',
-                            border: selectedStyle === key ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                            border:
+                              selectedStyle === key ? '2px solid #3b82f6' : '1px solid #e5e7eb',
                             borderRadius: '0.5rem',
                             background: selectedStyle === key ? '#eff6ff' : 'white',
                             cursor: 'pointer',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
-                            gap: '0.25rem'
+                            gap: '0.25rem',
                           }}
                           onClick={() => setSelectedStyle(key as SubtitleStyle)}
                         >
                           <span style={{ fontSize: '1.5rem' }}>{shownEmoji}</span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>{displayName}</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>
+                            {displayName}
+                          </span>
                         </button>
                       </Tippy>
                     );
@@ -166,7 +192,14 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
               </div>
 
               {/* Position and Mode */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '1rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
                     Caption position
@@ -205,12 +238,12 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
                 }}
                 onClick={async () => {
                   setIsGenerating(true);
                   setErrorMsg(null);
-                  
+
                   try {
                     // Demo video processing
                     const res = await fetch('/api/video/generate', {
@@ -224,21 +257,29 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                       }),
                     });
 
-                    const payload = await res.json();
+                    const payload = (await res.json()) as {
+                      ok: boolean;
+                      jobId?: string;
+                      result?: DemoProcessingResult;
+                      error?: string;
+                    };
 
                     if (!res.ok) {
                       throw new Error(payload.error || 'Video processing failed');
                     }
 
-                    if (payload.ok) {
+                    if (payload.ok && payload.result) {
                       console.log('Demo video processing completed:', payload.jobId);
                       setProcessingResult(payload.result);
-                      if (onSuccess) onSuccess({ previewUrl: videoPreviewUrl });
+                      if (onSuccess) onSuccess({ previewUrl: videoPreviewUrl! });
                     } else {
                       throw new Error(payload.error || 'Video processing failed');
                     }
                   } catch (e) {
-                    const msg = e instanceof Error ? e.message : 'Video processing failed. Please try again.';
+                    const msg =
+                      e instanceof Error
+                        ? e.message
+                        : 'Video processing failed. Please try again.';
                     setErrorMsg(msg);
                   } finally {
                     setIsGenerating(false);
@@ -260,58 +301,68 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
               </button>
 
               {errorMsg && (
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '0.75rem', 
-                  background: '#fef2f2', 
-                  color: '#dc2626', 
-                  borderRadius: '0.5rem',
-                  border: '1px solid #fecaca'
-                }}>
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem',
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #fecaca',
+                  }}
+                >
                   ⚠️ {errorMsg}
                 </div>
               )}
 
               {processingResult && (
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '1rem', 
-                  background: 'linear-gradient(135deg, #10b981, #059669)', 
-                  color: 'white', 
-                  borderRadius: '0.5rem',
-                  textAlign: 'center'
-                }}>
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    padding: '1rem',
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: 'white',
+                    borderRadius: '0.5rem',
+                    textAlign: 'center',
+                  }}
+                >
                   <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>
                     🎉 Demo Video Processing Complete!
                   </h4>
                   <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
                     Style: {processingResult.style} • Duration: {processingResult.duration}s
                     {processingResult.language && ` • Language: ${processingResult.language}`}
-                    {processingResult.confidence && ` • Confidence: ${Math.round(processingResult.confidence * 100)}%`}
+                    {processingResult.confidence &&
+                      ` • Confidence: ${Math.round((processingResult.confidence || 0) * 100)}%`}
                     {processingResult.fallback && ` • (Fallback mode)`}
                   </p>
-                  <div style={{ 
-                    background: 'rgba(255,255,255,0.2)', 
-                    padding: '0.75rem', 
-                    borderRadius: '0.25rem',
-                    marginTop: '0.5rem'
-                  }}>
+                  <div
+                    style={{
+                      background: 'rgba(255,255,255,0.2)',
+                      padding: '0.75rem',
+                      borderRadius: '0.25rem',
+                      marginTop: '0.5rem',
+                    }}
+                  >
                     <p style={{ margin: '0 0 0.5rem 0', fontWeight: '600' }}>Generated Subtitles:</p>
-                    {processingResult.subtitles.map((subtitle: any, index: number) => (
-                      <div key={index} style={{ 
-                        marginBottom: '0.25rem', 
-                        fontSize: '0.85rem',
-                        opacity: 0.9
-                      }}>
-                        {subtitle.start}s-{subtitle.end}s: "{subtitle.text}"
+                    {processingResult.subtitles.map((subtitle: GeneratedSubtitle, index: number) => (
+                      <div
+                        key={index}
+                        style={{
+                          marginBottom: '0.25rem',
+                          fontSize: '0.85rem',
+                          opacity: 0.9,
+                        }}
+                      >
+                        {subtitle.start}s-{subtitle.end}s: &quot;{subtitle.text}&quot;
                       </div>
                     ))}
                   </div>
-                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', opacity: 0.8 }}>
-                      {processingResult.fallback 
-                        ? 'This is a demo result. Sign up for real video processing!' 
-                        : 'This is real AI transcription! Sign up for unlimited processing!'}
-                    </p>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', opacity: 0.8 }}>
+                    {processingResult.fallback
+                      ? 'This is a demo result. Sign up for real video processing!'
+                      : 'This is real AI transcription! Sign up for unlimited processing!'}
+                  </p>
                 </div>
               )}
             </div>

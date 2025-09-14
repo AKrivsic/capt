@@ -83,7 +83,7 @@ export async function POST(
     } else {
       // Autentifikovaný upload
       const user = await prisma.user.findUnique({
-        where: { email: session.user.email as string },
+        where: { email: session!.user!.email as string },
         select: { id: true, videoCredits: true },
       });
 
@@ -140,11 +140,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
-
-// (volitelný TODO helper; ponechán, ale nepoužitý)
-async function generatePresignedUploadUrl(
-  _storageKey: string
-): Promise<{ url: string; expiresAt: Date }> {
-  throw new Error('Not implemented - presigned URL generation');
 }
