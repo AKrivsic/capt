@@ -14,6 +14,7 @@ import Link from 'next/link';
 import styles from './NewGenerator.module.css';
 import { useUsageInfo } from '@/hooks/useUsageInfo';
 import { useDemoLimit } from '@/hooks/useDemoLimit';
+import { incUsage } from '@/utils/usage';
 import { STYLE_PRESETS } from '@/constants/subtitleStyles';
 import type { SubtitleStyle } from '@/types/subtitles';
 import CrossSellModals, { useCrossSellModal } from '@/components/CrossSell/CrossSellModals';
@@ -355,6 +356,9 @@ export default function NewGenerator() {
 
         if (!session?.user) {
           incDemo();
+        } else {
+          // Update localStorage usage for authenticated users (FREE plan)
+          incUsage('gen');
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Generation failed. Please try again.';
