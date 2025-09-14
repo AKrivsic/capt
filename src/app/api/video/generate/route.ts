@@ -53,29 +53,139 @@ export async function POST(req: NextRequest) {
     }
 
     if (isDemoMode) {
-      // Demo processing - return mock result immediately
+      // Demo processing - real transcription and rendering
       const demoJobId = `demo-${Date.now()}`;
       
-      // For demo, return a mock processed video URL
-      const mockProcessedUrl = `https://demo-processed.captioni.com/${demoJobId}.mp4`;
-      
-      return Response.json({
-        ok: true,
-        jobId: demoJobId,
-        status: 'COMPLETED',
-        message: 'Demo video processing completed',
-        isDemo: true,
-        result: {
-          processedVideoUrl: mockProcessedUrl,
-          subtitles: [
-            { start: 0, end: 3, text: "Welcome to Captioni demo!" },
-            { start: 3, end: 6, text: "This is how AI subtitles work." },
-            { start: 6, end: 9, text: "Upload your video to try it!" }
-          ],
-          style: style,
-          duration: durationSec
+      try {
+        // 1. Get video file from storage (demo videos are stored in demo/ folder)
+        const { getStorage } = await import('@/lib/storage/r2');
+        const storage = getStorage();
+        
+        // For demo, we'll use the videoFileId as storage key
+        const storageKey = `demo/videos/${videoFileId}`;
+        
+        // 2. Transcribe video using Whisper
+        const { WhisperProvider } = await import('@/lib/transcription/whisper');
+        const whisper = new WhisperProvider();
+        
+        const transcript = await whisper.transcribe({
+          storageKey,
+          audioLanguage: 'auto'
+        });
+        
+        // 3. Render subtitles with FFmpeg
+        const { renderSubtitledVideo } = await import('@/subtitles/renderSubtitledVideo');
+        
+        const outputKey = `demo/processed/${demoJobId}.mp4`;
+        const outputPath = `/tmp/demo-${demoJobId}.mp4`;
+        
+        const renderResult = await renderSubtitledVideo({
+          videoPath: storageKey, // This will be downloaded from storage
+          outPath: outputPath,
+          mode: 'TALKING_HEAD', // Default mode for demo
+          style: style as any, // Convert string to SubtitleStyle
+          transcript: transcript,
+          position: 'BOTTOM' // Default position for demo
+        });
+        
+        if (!renderResult.success) {
+          throw new Error(renderResult.error || 'Rendering failed');
         }
-      });
+        
+        // 4. Upload processed video back to storage
+        const processedVideoBuffer = await import('fs').then(fs => fs.readFileSync(outputPath));
+        await storage.uploadFile(outputKey, processedVideoBuffer, 'video/mp4');
+        
+        // 5. Clean up temp file
+        await import('fs').then(fs => fs.unlinkSync(outputPath));
+        
+        // 6. Convert transcript to subtitle format
+        const subtitles = transcript.words.map((word, index) => ({
+          start: word.start,
+          end: word.end,
+          text: word.text,
+          confidence: word.confidence
+        }));
+        
+        // Group words into sentences for better subtitle display
+        const groupedSubtitles = [];
+        let currentSentence = '';
+        let currentStart = 0;
+        let currentEnd = 0;
+        
+        for (const word of transcript.words) {
+          if (currentSentence === '') {
+            currentStart = word.start;
+          }
+          currentSentence += (currentSentence ? ' ' : '') + word.text;
+          currentEnd = word.end;
+          
+          // End sentence on punctuation or after 3-4 words
+          if (word.text.match(/[.!?]$/) || currentSentence.split(' ').length >= 4) {
+            groupedSubtitles.push({
+              start: currentStart,
+              end: currentEnd,
+              text: currentSentence.trim()
+            });
+            currentSentence = '';
+          }
+        }
+        
+        // Add remaining words as last subtitle
+        if (currentSentence) {
+          groupedSubtitles.push({
+            start: currentStart,
+            end: currentEnd,
+            text: currentSentence.trim()
+          });
+        }
+        
+        const processedVideoUrl = await storage.getPublicUrl(outputKey);
+        
+        return Response.json({
+          ok: true,
+          jobId: demoJobId,
+          status: 'COMPLETED',
+          message: 'Demo video processing completed',
+          isDemo: true,
+          result: {
+            processedVideoUrl,
+            subtitles: groupedSubtitles,
+            rawTranscript: transcript,
+            style: style,
+            duration: durationSec,
+            language: transcript.language,
+            confidence: transcript.confidence
+          }
+        });
+        
+      } catch (error) {
+        console.error('Demo video processing error:', error);
+        
+        // Fallback to mock result if real processing fails
+        const mockProcessedUrl = `https://demo-processed.captioni.com/${demoJobId}.mp4`;
+        
+        return Response.json({
+          ok: true,
+          jobId: demoJobId,
+          status: 'COMPLETED',
+          message: 'Demo video processing completed (fallback)',
+          isDemo: true,
+          result: {
+            processedVideoUrl: mockProcessedUrl,
+            subtitles: [
+              { start: 0, end: 3, text: "Welcome to Captioni demo!" },
+              { start: 3, end: 6, text: "This is how AI subtitles work." },
+              { start: 6, end: 9, text: "Upload your video to try it!" }
+            ],
+            style: style,
+            duration: durationSec,
+            language: 'en',
+            confidence: 0.8,
+            fallback: true
+          }
+        });
+      }
     }
 
     // Authenticated user processing

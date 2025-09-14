@@ -286,6 +286,9 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                   </h4>
                   <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
                     Style: {processingResult.style} • Duration: {processingResult.duration}s
+                    {processingResult.language && ` • Language: ${processingResult.language}`}
+                    {processingResult.confidence && ` • Confidence: ${Math.round(processingResult.confidence * 100)}%`}
+                    {processingResult.fallback && ` • (Fallback mode)`}
                   </p>
                   <div style={{ 
                     background: 'rgba(255,255,255,0.2)', 
@@ -304,9 +307,11 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                       </div>
                     ))}
                   </div>
-                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', opacity: 0.8 }}>
-                    This is a demo result. Sign up for real video processing!
-                  </p>
+                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', opacity: 0.8 }}>
+                      {processingResult.fallback 
+                        ? 'This is a demo result. Sign up for real video processing!' 
+                        : 'This is real AI transcription! Sign up for unlimited processing!'}
+                    </p>
                 </div>
               )}
             </div>
