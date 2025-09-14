@@ -872,3 +872,104 @@
   text-align: center;
   margin-bottom: 1rem;
 }
+
+/* Results with feedback system */
+.resultDescription {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+}
+
+.variantBlock {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: white;
+}
+
+.resultText {
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.variantActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.feedbackButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+  
+  /* Haptic feedback */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.feedbackButton:hover {
+  border-color: #667eea;
+  transform: scale(1.1);
+}
+
+.feedbackButton.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+  transform: scale(1.1);
+}
+
+.pickedLabel {
+  font-size: 0.75rem;
+  color: #667eea;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+/* Dark mode for feedback system */
+@media (prefers-color-scheme: dark) {
+  .variantBlock {
+    background: #334155;
+    border-color: #475569;
+  }
+  
+  .resultText {
+    color: #f1f5f9;
+  }
+  
+  .feedbackButton {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+  
+  .feedbackButton:hover {
+    border-color: #667eea;
+  }
+  
+  .feedbackButton.active {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+  }
+  
+  .pickedLabel {
+    color: #667eea;
+  }
+}

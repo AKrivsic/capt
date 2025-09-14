@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import styles from './NewGenerator.module.css';
@@ -35,9 +35,10 @@ import { VideoLimitModal } from '@/components/VideoLimitModal';
 
 type CSSVarProps = CSSProperties & { [key: `--${string}`]: string };
 type TabType = 'captions' | 'subtitles';
-type OutputKey = 'caption' | 'hashtags' | 'bio' | 'story';
+type OutputKey = 'caption' | 'hashtags' | 'bio' | 'story' | 'comments' | 'dm' | 'hook';
+type FeedbackState = Record<string, Record<number, "like" | "dislike" | null>>;
 
-const SUPPORTED_OUTPUTS: readonly OutputKey[] = ['caption', 'hashtags', 'bio', 'story'] as const;
+const SUPPORTED_OUTPUTS: readonly OutputKey[] = ['caption', 'hashtags', 'bio', 'story', 'comments', 'dm', 'hook'] as const;
 
 function isOutputKey(x: string): x is OutputKey {
   return (SUPPORTED_OUTPUTS as readonly string[]).includes(x);
@@ -125,6 +126,8 @@ export default function NewGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [genMap, setGenMap] = useState<Record<string, string[]>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [likes, setLikes] = useState<FeedbackState>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Usage tracking hooks
   const { plan, limit, left, windowLabel, leftLabel, resetHint } = useUsageInfo();
@@ -148,6 +151,84 @@ export default function NewGenerator() {
   // Derived state
   const platforms = Object.keys(platformMeta);
   const allowedOutputs = platformOutputMap[selectedPlatform] || [];
+
+  // Load feedback state from localStorage
+  useEffect(() => {
+    try {
+      const likesRaw = localStorage.getItem('captioni_likes_v1');
+      if (likesRaw) setLikes(JSON.parse(likesRaw));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Feedback functions
+  async function saveHistoryFeedback(params: {
+    type: string;
+    index: number;
+    text: string;
+    feedback: "like" | "dislike" | null;
+  }) {
+    try {
+      await fetch('/api/history/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: normalizePlatform(selectedPlatform),
+          style: STYLE_MAP[selectedStyle] ?? STYLE_PRESETS[selectedStyle].name,
+          type: params.type,
+          index: params.index,
+          text: params.text,
+          feedback: params.feedback,
+        }),
+      });
+    } catch {
+      // no-op
+    }
+  }
+
+  function persistLikes(next: FeedbackState) {
+    try {
+      localStorage.setItem('captioni_likes_v1', JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  function toggleFeedback(key: string, idx: number, val: "like" | "dislike") {
+    setLikes((prev) => {
+      const cur = prev[key] || {};
+      const nextVal = cur[idx] === val ? null : val; // toggle
+      const next: FeedbackState = { ...prev, [key]: { ...cur, [idx]: nextVal } };
+      persistLikes(next);
+      const text = (Array.isArray(genMap[key]) ? genMap[key][idx] : genMap[key]) ?? "";
+      void saveHistoryFeedback({
+        type: key,
+        index: idx,
+        text: String(text ?? ""),
+        feedback: nextVal,
+      });
+      return next;
+    });
+  }
+
+  const handleCopy = async (text: string, key?: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    } finally {
+      if (key) {
+        setCopiedKey(key);
+        window.setTimeout(() => setCopiedKey(null), 1500);
+      }
+    }
+  };
 
   const handleGenerate = async () => {
     setErrorMsg(null);
@@ -218,7 +299,7 @@ export default function NewGenerator() {
             platform: platformSlug,
             outputs: safeOutputs,
             vibe: captionInput.trim(),
-            variants: 3,
+            // Remove variants parameter - let API use DEFAULT_VARIANTS
             demo: !session?.user,
           }),
         });
@@ -242,6 +323,35 @@ export default function NewGenerator() {
         const raw = payload.result ?? payload.data ?? {};
         const normalized = normalizeResult(raw);
         setGenMap(normalized);
+
+        // Automatically save to history for authenticated users
+        if (session?.user && normalized) {
+          for (const [type, variants] of Object.entries(normalized)) {
+            if (Array.isArray(variants)) {
+              for (let i = 0; i < variants.length; i++) {
+                const text = variants[i];
+                if (typeof text === 'string' && text.trim()) {
+                  try {
+                    await fetch('/api/history/save', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        platform: platformSlug,
+                        style: styleForApi,
+                        type,
+                        index: i,
+                        text,
+                        feedback: null, // no feedback on auto-save
+                      }),
+                    });
+                  } catch {
+                    // ignore history save errors
+                  }
+                }
+              }
+            }
+          }
+        }
 
         if (!session?.user) {
           incDemo();
@@ -422,9 +532,6 @@ export default function NewGenerator() {
                     >
                       <span className={styles.outputIcon}>{outputMeta[type]?.emoji ?? '✨'}</span>
                       <span className={styles.outputName}>{type}</span>
-                      {!isOutputKey(type) && (
-                        <span className={styles.badgeWarn} title="Not yet supported in API">beta</span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -610,21 +717,71 @@ export default function NewGenerator() {
         {activeTab === 'captions' && Object.keys(genMap).length > 0 && (
           <div className={styles.results}>
             <h3 className={styles.resultsTitle}>Your creations</h3>
-            {Object.entries(genMap).map(([type, variants]) => (
-              <div key={type} className={styles.resultCard}>
-                <div className={styles.resultHeader}>
-                  <span className={styles.resultStyle}>{type}</span>
-                  <span className={styles.resultTime}>{new Date().toLocaleTimeString()}</span>
+            {Object.entries(genMap).map(([type, variants]) => {
+              const meta = outputMeta[type] || {
+                emoji: "✨",
+                color: "#6B7280",
+                description: "Generated text for your selected option.",
+              };
+              const list = Array.isArray(variants) ? variants : [String(variants)];
+
+              return (
+                <div key={type} className={styles.resultCard}>
+                  <div className={styles.resultHeader}>
+                    <span className={styles.resultStyle} style={{ color: meta.color }}>
+                      {meta.emoji} {type.toUpperCase()}
+                    </span>
+                    <span className={styles.resultTime}>{new Date().toLocaleTimeString()}</span>
+                  </div>
+                  <p className={styles.resultDescription}>{meta.description}</p>
+
+                  {list.map((text, idx) => {
+                    const status = likes[type]?.[idx] ?? null;
+                    const copyId = `${type}-${idx}`;
+                    return (
+                      <div key={copyId} className={styles.variantBlock}>
+                        <pre className={styles.resultText}>{text}</pre>
+                        <div className={styles.variantActions}>
+                          <button
+                            className={styles.copyButton}
+                            onClick={() => handleCopy(text, copyId)}
+                            aria-label="Copy text to clipboard"
+                          >
+                            {copiedKey === copyId ? "Copied!" : "Copy"}
+                          </button>
+
+                          <button
+                            className={`${styles.feedbackButton} ${status === "like" ? styles.active : ""}`}
+                            onClick={() => toggleFeedback(type, idx, "like")}
+                            aria-pressed={status === "like"}
+                            aria-label="Like this variant"
+                            title="I like this"
+                          >
+                            👍
+                          </button>
+
+                          <button
+                            className={`${styles.feedbackButton} ${status === "dislike" ? styles.active : ""}`}
+                            onClick={() => toggleFeedback(type, idx, "dislike")}
+                            aria-pressed={status === "dislike"}
+                            aria-label="Dislike this variant"
+                            title="Not for me"
+                          >
+                            👎
+                          </button>
+
+                          {!!status && (
+                            <span className={styles.pickedLabel}>
+                              {status === "like" ? "Liked" : "Disliked"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className={styles.resultContent}>
-                  {Array.isArray(variants) ? variants.join('\n\n') : String(variants)}
-                </div>
-                <div className={styles.resultActions}>
-                  <button className={styles.copyButton}>Copy</button>
-                  <button className={styles.shareButton}>Share</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
