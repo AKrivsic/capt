@@ -12,14 +12,9 @@ import { getStorage } from '@/lib/storage/r2';
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadInitResponse | ApiErrorResponse>> {
   try {
-    // Ověření autentizace
+    // Ověření autentizace (volitelné pro demo)
     const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'You must be logged in' },
-        { status: 401 }
-      );
-    }
+    const isDemo = !session?.user?.email;
 
     // Validace input dat
     const body = await request.json();
@@ -56,39 +51,53 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadIni
       );
     }
 
-    // Najdi uživatele
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, videoCredits: true }
-    });
+    // Pro demo nebo autentifikované uživatele
+    let userId: string;
+    let storageKey: string;
+    let videoFile: any;
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User Not Found', message: 'User not found' },
-        { status: 404 }
-      );
-    }
+    if (isDemo) {
+      // Demo upload - použij anonymní ID
+      userId = 'demo';
+      storageKey = `demo/videos/${Date.now()}-${Math.random().toString(36).slice(2)}-${fileName}`;
+      
+      // Pro demo nevytváříme záznam v databázi
+      videoFile = { id: `demo-${Date.now()}` };
+    } else {
+      // Autentifikovaný upload
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true, videoCredits: true }
+      });
 
-    // Kontrola kreditů
-    if (user.videoCredits <= 0) {
-      return NextResponse.json(
-        { error: 'Insufficient Credits', message: 'Insufficient credits' },
-        { status: 402 }
-      );
-    }
-
-    // Vytvoř záznam video souboru
-    const storageKey = `videos/${user.id}/${Date.now()}-${fileName}`;
-    
-    const videoFile = await prisma.videoFile.create({
-      data: {
-        userId: user.id,
-        storageKey,
-        originalName: fileName,
-        fileSizeBytes: fileSize,
-        mimeType,
+      if (!user) {
+        return NextResponse.json(
+          { error: 'User Not Found', message: 'User not found' },
+          { status: 404 }
+        );
       }
-    });
+
+      // Kontrola kreditů
+      if (user.videoCredits <= 0) {
+        return NextResponse.json(
+          { error: 'Insufficient Credits', message: 'Insufficient credits' },
+          { status: 402 }
+        );
+      }
+
+      userId = user.id;
+      storageKey = `videos/${user.id}/${Date.now()}-${fileName}`;
+      
+      videoFile = await prisma.videoFile.create({
+        data: {
+          userId: user.id,
+          storageKey,
+          originalName: fileName,
+          fileSizeBytes: fileSize,
+          mimeType,
+        }
+      });
+    }
 
     // Vygeneruj presigned upload URL pro R2
     const storage = getStorage();

@@ -551,8 +551,13 @@ export default function NewGenerator() {
                 >
                   {isGenerating ? (
                     <>
-                      <span className={styles.spinner} />
-                      Generating...
+                      <div className={styles.loadingContainer}>
+                        <div className={styles.progressBar}>
+                          <div className={styles.progressFill} />
+                        </div>
+                        <span className={styles.spinner} />
+                        <span>Generating...</span>
+                      </div>
                     </>
                   ) : (
                     'Generate Caption'
@@ -658,8 +663,13 @@ export default function NewGenerator() {
                 >
                   {isGenerating ? (
                     <>
-                      <span className={styles.spinner} />
-                      Processing...
+                      <div className={styles.loadingContainer}>
+                        <div className={styles.progressBar}>
+                          <div className={styles.progressFill} />
+                        </div>
+                        <span className={styles.spinner} />
+                        <span>Processing...</span>
+                      </div>
                     </>
                   ) : (
                     'Generate Subtitles'
