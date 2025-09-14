@@ -47,8 +47,8 @@ export default function VideoDemoUploader({ onUploaded, onLimitReached }: Props)
         } else if (result.previewUrl) {
           previewUrl = result.previewUrl;
         } else {
-          // Fallback to mock URL (but this should be avoided)
-          previewUrl = `https://demo-preview.captioni.com/${result.id}`;
+          // Fallback to API endpoint (no fake domains)
+          previewUrl = `/api/demo/preview/${result.id}`;
         }
 
         setUploadState('success');

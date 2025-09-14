@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
             message: 'Demo video processing completed (fallback)',
             isDemo: true,
             result: {
-              processedVideoUrl: `https://demo-processed.captioni.com/${demoJobId}.mp4`,
+              processedVideoUrl: `/api/demo/video/${demoJobId}`, // Use API endpoint instead of fake domain
               subtitles: [
                 { start: 0, end: 3, text: 'Welcome to Captioni demo!' },
                 { start: 3, end: 6, text: 'This is how AI subtitles work.' },
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
         console.error('Demo video processing error:', error);
 
         // Fallback (mock)
-        const mockProcessedUrl = `https://demo-processed.captioni.com/${demoJobId}.mp4`;
+        const mockProcessedUrl = `/api/demo/video/${demoJobId}`; // Use API endpoint instead of fake domain
         return Response.json({
           ok: true,
           jobId: demoJobId,

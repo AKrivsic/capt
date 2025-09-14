@@ -235,12 +235,12 @@ export function getR2Storage(): R2Storage {
 export class MockR2Storage {
   async getPresignedUploadUrl(key: string, expiresIn: number = 3600): Promise<string> {
     console.log(`Mock presigned upload URL for ${key}, expires in ${expiresIn}s`);
-    return `https://mock-upload-url.com/${key}?expires=${Date.now() + expiresIn * 1000}`;
+    return `/api/mock/upload/${key}?expires=${Date.now() + expiresIn * 1000}`;
   }
 
   async getPresignedDownloadUrl(key: string, expiresIn: number = 86400): Promise<string> {
     console.log(`Mock presigned download URL for ${key}, expires in ${expiresIn}s`);
-    return `https://mock-download-url.com/${key}?expires=${Date.now() + expiresIn * 1000}`;
+    return `/api/mock/download/${key}?expires=${Date.now() + expiresIn * 1000}`;
   }
 
   async uploadFile(key: string, body: Buffer | Uint8Array, contentType: string = 'video/mp4'): Promise<void> {
@@ -269,7 +269,7 @@ export class MockR2Storage {
    */
   async getPublicUrl(key: string): Promise<string> {
     console.log(`Mock get public URL for ${key}`);
-    return `https://mock-public-url.com/${key}`;
+    return `/api/mock/public/${key}`;
   }
 
   /**
@@ -280,7 +280,7 @@ export class MockR2Storage {
    */
   async getSignedDownloadUrl(key: string, ttlSeconds: number = 86400): Promise<string> {
     console.log(`Mock get signed download URL for ${key}, TTL: ${ttlSeconds}s`);
-    return `https://mock-signed-url.com/${key}?expires=${Date.now() + ttlSeconds * 1000}`;
+    return `/api/mock/signed/${key}?expires=${Date.now() + ttlSeconds * 1000}`;
   }
 
   /**
@@ -290,7 +290,7 @@ export class MockR2Storage {
    */
   getFileUrl(key: string): string {
     console.log(`Mock get file URL for ${key}`);
-    return `https://mock-file-url.com/${key}`;
+    return `/api/mock/file/${key}`;
   }
 }
 
