@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import styles from '../Generator/NewGenerator.module.css';
+import MobileUploadCard from '../Video/MobileUploadCard';
 
 interface Props {
   onUploaded: (previewUrl: string) => void;
@@ -9,61 +10,44 @@ interface Props {
 }
 
 export default function VideoDemoUploader({ onUploaded, onLimitReached }: Props) {
-  const [, setIsUploading] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [dragOver, setDragOver] = useState(false);
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    if (file.size > 100 * 1024 * 1024) {
-      alert('Max file size is 100MB');
-      return;
+  const handleUploadComplete = useCallback((file: { id: string; name: string; size: number }) => {
+    // For demo, we'll create a mock preview URL
+    // In real implementation, this would trigger video processing
+    const mockPreviewUrl = `https://demo-preview.captioni.com/${file.id}`;
+    setUploadState('success');
+    onUploaded(mockPreviewUrl);
+  }, [onUploaded]);
+
+  const handleUploadError = useCallback((error: string) => {
+    setUploadState('error');
+    setErrorMessage(error);
+    
+    // Check if it's a limit error
+    if (error.includes('limit') || error.includes('quota')) {
+      onLimitReached?.(error);
     }
-    if (!file.type.startsWith('video/')) {
-      alert('Please upload a video file (MP4 recommended)');
-      return;
-    }
-    setIsUploading(true);
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-      const res = await fetch('/api/demo/video', { method: 'POST', body: fd });
-      const json = await res.json();
-      if (!json.ok) {
-        if (json.limitReached && onLimitReached) {
-          onLimitReached(json.error);
-          return;
-        }
-        throw new Error(json.error || 'Upload failed');
-      }
-      onUploaded(json.preview.url as string);
-    } catch {
-      alert('Upload failed, please retry.');
-    } finally {
-      setIsUploading(false);
-    }
-  }
+  }, [onLimitReached]);
 
   return (
-    <div
-      className={styles.uploadArea}
-      onClick={() => inputRef.current?.click()}
-      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-      style={dragOver ? { borderColor: 'var(--accent)', background: '#eff6ff' } : undefined}
-    >
-      <div className={styles.uploadIcon}>📹</div>
-      <p className={styles.uploadText}>Upload a 15s vertical video to preview AI subtitles.</p>
-      <p className={styles.uploadHint}>MP4 (H.264), ≤100MB • Watermark preview included</p>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="video/mp4,video/*"
-        hidden
-        onChange={(e) => handleFiles(e.target.files)}
+    <div className={styles.uploadContainer}>
+      <MobileUploadCard 
+        onUploadComplete={handleUploadComplete}
       />
+      
+      {uploadState === 'error' && (
+        <div className={styles.errorMessage}>
+          <p>❌ {errorMessage}</p>
+          <button 
+            className={styles.retryButton}
+            onClick={() => setUploadState('idle')}
+          >
+            Try Again
+          </button>
+        </div>
+      )}
     </div>
   );
 }
