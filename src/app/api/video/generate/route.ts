@@ -53,15 +53,28 @@ export async function POST(req: NextRequest) {
     }
 
     if (isDemoMode) {
-      // Demo processing - no database records
-      // TODO: Implement demo video processing queue
-      // For now, return mock success
+      // Demo processing - return mock result immediately
+      const demoJobId = `demo-${Date.now()}`;
+      
+      // For demo, return a mock processed video URL
+      const mockProcessedUrl = `https://demo-processed.captioni.com/${demoJobId}.mp4`;
+      
       return Response.json({
         ok: true,
-        jobId: `demo-${Date.now()}`,
-        status: 'QUEUED',
-        message: 'Demo video processing started',
-        isDemo: true
+        jobId: demoJobId,
+        status: 'COMPLETED',
+        message: 'Demo video processing completed',
+        isDemo: true,
+        result: {
+          processedVideoUrl: mockProcessedUrl,
+          subtitles: [
+            { start: 0, end: 3, text: "Welcome to Captioni demo!" },
+            { start: 3, end: 6, text: "This is how AI subtitles work." },
+            { start: 6, end: 9, text: "Upload your video to try it!" }
+          ],
+          style: style,
+          duration: durationSec
+        }
       });
     }
 

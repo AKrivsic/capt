@@ -30,6 +30,7 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [processingResult, setProcessingResult] = useState<any>(null);
 
   // Form states
   const [selectedStyle, setSelectedStyle] = useState<SubtitleStyle>('BARBIE');
@@ -230,7 +231,8 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                     }
 
                     if (payload.ok) {
-                      console.log('Demo video processing started:', payload.jobId);
+                      console.log('Demo video processing completed:', payload.jobId);
+                      setProcessingResult(payload.result);
                       if (onSuccess) onSuccess({ previewUrl: videoPreviewUrl });
                     } else {
                       throw new Error(payload.error || 'Video processing failed');
@@ -267,6 +269,44 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                   border: '1px solid #fecaca'
                 }}>
                   ⚠️ {errorMsg}
+                </div>
+              )}
+
+              {processingResult && (
+                <div style={{ 
+                  marginTop: '1rem', 
+                  padding: '1rem', 
+                  background: 'linear-gradient(135deg, #10b981, #059669)', 
+                  color: 'white', 
+                  borderRadius: '0.5rem',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>
+                    🎉 Demo Video Processing Complete!
+                  </h4>
+                  <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
+                    Style: {processingResult.style} • Duration: {processingResult.duration}s
+                  </p>
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.2)', 
+                    padding: '0.75rem', 
+                    borderRadius: '0.25rem',
+                    marginTop: '0.5rem'
+                  }}>
+                    <p style={{ margin: '0 0 0.5rem 0', fontWeight: '600' }}>Generated Subtitles:</p>
+                    {processingResult.subtitles.map((subtitle: any, index: number) => (
+                      <div key={index} style={{ 
+                        marginBottom: '0.25rem', 
+                        fontSize: '0.85rem',
+                        opacity: 0.9
+                      }}>
+                        {subtitle.start}s-{subtitle.end}s: "{subtitle.text}"
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', opacity: 0.8 }}>
+                    This is a demo result. Sign up for real video processing!
+                  </p>
                 </div>
               )}
             </div>
