@@ -48,9 +48,12 @@ export class WhisperProvider implements TranscriptionProvider {
       try {
         transcript = await this.callWhisperAPI(audioBuffer, language);
       } catch (apiError) {
-        console.warn('Whisper API failed, using mock data:', apiError);
-        // Fallback na mock data pokud API není dostupné
-        transcript = this.getMockTranscript();
+        console.error('Whisper API failed:', apiError);
+        throw new TranscriptionError(
+          'Whisper API is not available',
+          'API_ERROR',
+          { originalError: apiError }
+        );
       }
       
       onProgress?.({ phase: 'uploading', progress: 100 });
@@ -80,23 +83,6 @@ export class WhisperProvider implements TranscriptionProvider {
     return 'auto';
   }
 
-  private getMockTranscript(): Transcript {
-    return {
-      words: [
-        { text: 'Hello', start: 0.0, end: 0.5, confidence: 0.95 },
-        { text: 'world', start: 0.6, end: 1.0, confidence: 0.98 },
-        { text: 'this', start: 1.1, end: 1.3, confidence: 0.92 },
-        { text: 'is', start: 1.4, end: 1.5, confidence: 0.99 },
-        { text: 'a', start: 1.6, end: 1.7, confidence: 0.85 },
-        { text: 'test', start: 1.8, end: 2.2, confidence: 0.96 },
-        { text: 'video', start: 2.3, end: 2.8, confidence: 0.94 },
-        { text: 'with', start: 2.9, end: 3.1, confidence: 0.91 },
-        { text: 'subtitles', start: 3.2, end: 3.8, confidence: 0.97 },
-      ],
-      language: 'en',
-      confidence: 0.94
-    };
-  }
 
   /**
    * Privátní metody pro implementaci
@@ -107,9 +93,8 @@ export class WhisperProvider implements TranscriptionProvider {
       const storage = getStorage();
       return await storage.downloadFile(storageKey);
     } catch (error) {
-      console.warn('Storage download failed, using mock data:', error);
-      // Fallback na mock data
-      return Buffer.from('mock video data');
+      console.error('Storage download failed:', error);
+      throw new Error(`Failed to download video from storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -145,8 +130,8 @@ export class WhisperProvider implements TranscriptionProvider {
       console.log(`Audio extraction completed: ${audioBuffer.length} bytes`);
       return audioBuffer;
     } catch (error) {
-      console.warn('Audio extraction failed, using mock data:', error);
-      return Buffer.from('mock audio data');
+      console.error('Audio extraction failed:', error);
+      throw new Error(`Failed to extract audio from video: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

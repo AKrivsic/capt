@@ -3,7 +3,7 @@
  * Handles file uploads, downloads, and presigned URLs
  */
 
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface R2Config {
@@ -206,6 +206,31 @@ export class R2Storage {
     // Fallback - return key for relative path
     return `/r2/${key}`;
   }
+
+  /**
+   * List files in directory
+   * @param prefix - Directory prefix
+   * @returns List of files
+   */
+  async listFiles(prefix: string): Promise<Array<{ key: string; size: number; lastModified: Date }>> {
+    try {
+      const command = new ListObjectsV2Command({
+        Bucket: this.bucketName,
+        Prefix: prefix,
+        MaxKeys: 1000,
+      });
+
+      const response = await this.client.send(command);
+      return (response.Contents || []).map(obj => ({
+        key: obj.Key!,
+        size: obj.Size || 0,
+        lastModified: obj.LastModified || new Date(),
+      }));
+    } catch (error) {
+      console.error('Error listing files:', error);
+      return [];
+    }
+  }
 }
 
 // Singleton instance
@@ -291,6 +316,17 @@ export class MockR2Storage {
   getFileUrl(key: string): string {
     console.log(`Mock get file URL for ${key}`);
     return `/api/mock/file/${key}`;
+  }
+
+  /**
+   * List files in directory (mock)
+   * @param prefix - Directory prefix
+   * @returns List of files
+   */
+  async listFiles(prefix: string): Promise<Array<{ key: string; size: number; lastModified: Date }>> {
+    console.log(`Mock list files with prefix ${prefix}`);
+    // Return empty array for demo files to simulate no files found
+    return [];
   }
 }
 

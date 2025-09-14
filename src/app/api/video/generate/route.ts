@@ -87,31 +87,32 @@ export async function POST(req: NextRequest) {
         // 1) Storage
         const { getStorage } = await import('@/lib/storage/r2');
         const storage = getStorage();
-        const storageKey = `demo/videos/${videoFileId}`;
+        
+        // For demo videos, we need to find the actual storage key
+        // since videoFileId is just "demo-{timestamp}" but storage key is "demo/videos/{timestamp}-{random}-{filename}"
+        let storageKey: string;
+        if (videoFileId.startsWith('demo-')) {
+          // Find the actual demo file in storage
+          const demoFiles = await storage.listFiles?.('demo/videos/') || [];
+          const matchingFile = demoFiles.find(file => file.key.includes(videoFileId.replace('demo-', '')));
+          if (!matchingFile) {
+            return Response.json({
+              ok: false,
+              error: 'Demo video file not found. Please upload a video first.',
+            }, { status: 404 });
+          }
+          storageKey = matchingFile.key;
+        } else {
+          storageKey = `demo/videos/${videoFileId}`;
+        }
 
         // Check if demo file exists in storage
         if (!(await storage.fileExists?.(storageKey))) {
-          console.log('Demo file does not exist in storage, returning fallback');
+          console.log('Demo file does not exist in storage');
           return Response.json({
-            ok: true,
-            jobId: demoJobId,
-            status: 'COMPLETED',
-            message: 'Demo video processing completed (fallback)',
-            isDemo: true,
-            result: {
-              processedVideoUrl: `/api/demo/video/${demoJobId}`, // Use API endpoint instead of fake domain
-              subtitles: [
-                { start: 0, end: 3, text: 'Welcome to Captioni demo!' },
-                { start: 3, end: 6, text: 'This is how AI subtitles work.' },
-                { start: 6, end: 9, text: 'Upload your video to try it!' },
-              ],
-              style: style as SubtitleStyle,
-              duration: durationSec,
-              language: 'en',
-              confidence: 0.8,
-              fallback: true,
-            },
-          });
+            ok: false,
+            error: 'Demo video file not found. Please upload a video first.',
+          }, { status: 404 });
         }
 
         // 2) Transcribe
@@ -209,29 +210,10 @@ export async function POST(req: NextRequest) {
         });
       } catch (error) {
         console.error('Demo video processing error:', error);
-
-        // Fallback (mock)
-        const mockProcessedUrl = `/api/demo/video/${demoJobId}`; // Use API endpoint instead of fake domain
         return Response.json({
-          ok: true,
-          jobId: demoJobId,
-          status: 'COMPLETED',
-          message: 'Demo video processing completed (fallback)',
-          isDemo: true,
-          result: {
-            processedVideoUrl: mockProcessedUrl,
-            subtitles: [
-              { start: 0, end: 3, text: 'Welcome to Captioni demo!' },
-              { start: 3, end: 6, text: 'This is how AI subtitles work.' },
-              { start: 6, end: 9, text: 'Upload your video to try it!' },
-            ],
-            style,
-            duration: durationSec,
-            language: 'en',
-            confidence: 0.8,
-            fallback: true,
-          },
-        });
+          ok: false,
+          error: 'Demo video processing failed. Please try again.',
+        }, { status: 500 });
       }
     }
 

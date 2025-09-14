@@ -8,6 +8,7 @@ export async function GET(
     const { key } = await params;
     
     // For mock, return a placeholder response
+    console.log(`Mock public file request for key: ${key}`);
     return new NextResponse('Mock public file content', {
       status: 200,
       headers: {
