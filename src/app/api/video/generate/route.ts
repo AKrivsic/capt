@@ -84,27 +84,24 @@ export async function POST(req: NextRequest) {
       const demoJobId = `demo-${Date.now()}`;
 
       try {
-        // 1) Storage
+        // 1) Find video file in database
+        const videoFile = await prisma.videoFile.findFirst({
+          where: { id: videoFileId },
+          select: { storageKey: true, originalName: true }
+        });
+
+        if (!videoFile) {
+          return Response.json({
+            ok: false,
+            error: 'Demo video file not found. Please upload a video first.',
+          }, { status: 404 });
+        }
+
+        const storageKey = videoFile.storageKey;
+
+        // 2) Storage
         const { getStorage } = await import('@/lib/storage/r2');
         const storage = getStorage();
-        
-        // For demo videos, we need to find the actual storage key
-        // since videoFileId is just "demo-{timestamp}" but storage key is "demo/videos/{timestamp}-{random}-{filename}"
-        let storageKey: string;
-        if (videoFileId.startsWith('demo-')) {
-          // Find the actual demo file in storage
-          const demoFiles = await storage.listFiles?.('demo/videos/') || [];
-          const matchingFile = demoFiles.find(file => file.key.includes(videoFileId.replace('demo-', '')));
-          if (!matchingFile) {
-            return Response.json({
-              ok: false,
-              error: 'Demo video file not found. Please upload a video first.',
-            }, { status: 404 });
-          }
-          storageKey = matchingFile.key;
-        } else {
-          storageKey = `demo/videos/${videoFileId}`;
-        }
 
         // Check if demo file exists in storage
         if (!(await storage.fileExists?.(storageKey))) {
@@ -115,7 +112,7 @@ export async function POST(req: NextRequest) {
           }, { status: 404 });
         }
 
-        // 2) Transcribe
+        // 3) Transcribe
         const { WhisperProvider } = await import('@/lib/transcription/whisper');
         const whisper = new WhisperProvider();
         const transcript = await whisper.transcribe({
@@ -123,7 +120,7 @@ export async function POST(req: NextRequest) {
           audioLanguage: 'auto',
         });
 
-        // 3) Render
+        // 4) Render
         const { renderSubtitledVideo } = await import('@/subtitles/renderSubtitledVideo');
         const outputKey = `demo/processed/${demoJobId}.mp4`;
         const outputPath = `/tmp/demo-${demoJobId}.mp4`;
@@ -142,14 +139,14 @@ export async function POST(req: NextRequest) {
           throw new Error(renderResult.error || 'Rendering failed');
         }
 
-        // 4) Upload zpět do storage
+        // 5) Upload zpět do storage
         const processedVideoBuffer = await import('fs').then((fs) => fs.readFileSync(outputPath));
         await storage.uploadFile(outputKey, processedVideoBuffer, 'video/mp4');
 
-        // 5) Úklid tmp souboru
+        // 6) Úklid tmp souboru
         await import('fs').then((fs) => fs.unlinkSync(outputPath));
 
-        // 6) Seskupení slov do krátkých vět (subtitles)
+        // 7) Seskupení slov do krátkých vět (subtitles)
         const groupedSubtitles: Array<{ start: number; end: number; text: string }> = [];
         let currentSentence = '';
         let currentStart = 0;
@@ -179,7 +176,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // 7) Získání přehratelné URL — bezpečně napříč storage implementacemi
+        // 8) Získání přehratelné URL — bezpečně napříč storage implementacemi
         let processedVideoUrl: string;
         if (hasGetPublicUrl(storage)) {
           const url = await storage.getPublicUrl(outputKey);

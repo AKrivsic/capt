@@ -37,14 +37,7 @@ export default function VideoDemoUploader({ onUploaded, onLimitReached }: Props)
       try {
         let previewUrl: string;
 
-        if (result.file) {
-          // Create blob URL from file
-          if (blobUrlRef.current) {
-            URL.revokeObjectURL(blobUrlRef.current);
-          }
-          blobUrlRef.current = URL.createObjectURL(result.file);
-          previewUrl = blobUrlRef.current;
-        } else if (result.previewUrl) {
+        if (result.previewUrl) {
           previewUrl = result.previewUrl;
         } else {
           // Fallback to API endpoint (no fake domains)

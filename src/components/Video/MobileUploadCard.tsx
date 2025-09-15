@@ -94,7 +94,7 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
         name: file.name,
         size: file.size,
         file: file, // Pass the original file for blob URL creation
-        previewUrl: URL.createObjectURL(file) // Create preview URL
+        previewUrl: `/api/demo/preview/${fileId}` // Use API endpoint instead of blob URL
       };
 
       onUploadComplete(uploadedFile);

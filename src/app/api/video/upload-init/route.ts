@@ -78,8 +78,18 @@ export async function POST(
         .toString(36)
         .slice(2)}-${fileName}`;
 
-      // Pro demo nevytváříme záznam v databázi
-      videoFile = { id: `demo-${Date.now()}` };
+      // Pro demo vytvoříme záznam v databázi s anonymním userId
+      const created = await prisma.videoFile.create({
+        data: {
+          userId: 'demo-user', // Special demo user ID
+          storageKey,
+          originalName: fileName,
+          fileSizeBytes: fileSize,
+          mimeType,
+        },
+        select: { id: true },
+      });
+      videoFile = created;
     } else {
       // Autentifikovaný upload
       const user = await prisma.user.findUnique({
