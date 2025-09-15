@@ -111,9 +111,9 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
             <div>
               <h4>Upload a 15s vertical video to preview AI subtitles</h4>
               <VideoDemoUploader
-                onUploaded={(previewUrl) => {
-                  console.log('Video uploaded:', previewUrl);
-                  setVideoPreviewUrl(previewUrl);
+                onUploaded={(data) => {
+                  console.log('Video uploaded:', data);
+                  setVideoPreviewUrl(data.previewUrl);
                 }}
                 onLimitReached={(reason) => {
                   console.log('Limit reached:', reason);
@@ -245,13 +245,15 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                   setErrorMsg(null);
 
                   try {
-                    // Extract video file ID from the preview URL
-                    const videoFileId = videoPreviewUrl.includes('/api/demo/preview/') 
-                      ? videoPreviewUrl.split('/api/demo/preview/')[1]
-                      : null;
+                    // Get video ID from store or extract from preview URL
+                    const { useVideoSelectionStore } = await import('@/store/videoSelection');
+                    const { extractVideoIdFromPreviewUrl } = await import('@/utils/video/extractId');
+                    
+                    const { videoId, previewUrl } = useVideoSelectionStore.getState();
+                    const effectiveVideoId = videoId ?? (previewUrl ? extractVideoIdFromPreviewUrl(previewUrl) : null);
 
-                    if (!videoFileId) {
-                      throw new Error('No video file ID found. Please upload a video first.');
+                    if (!effectiveVideoId) {
+                      throw new Error('Missing videoId. Re-upload the video to continue.');
                     }
 
                     // Demo video processing
@@ -259,7 +261,7 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
-                        videoFileId,
+                        videoFileId: effectiveVideoId,
                         style: STYLE_PRESETS[selectedStyle].name,
                         durationSec: 15,
                         isDemo: true,

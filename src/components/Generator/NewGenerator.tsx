@@ -379,13 +379,15 @@ export default function NewGenerator() {
           return;
         }
 
-        // Extract video file ID from the preview URL
-        const videoFileId = videoPreviewUrl.includes('/api/demo/preview/') 
-          ? videoPreviewUrl.split('/api/demo/preview/')[1]
-          : null;
+        // Get video ID from store or extract from preview URL
+        const { useVideoSelectionStore } = await import('@/store/videoSelection');
+        const { extractVideoIdFromPreviewUrl } = await import('@/utils/video/extractId');
+        
+        const { videoId, previewUrl } = useVideoSelectionStore.getState();
+        const effectiveVideoId = videoId ?? (previewUrl ? extractVideoIdFromPreviewUrl(previewUrl) : null);
 
-        if (!videoFileId) {
-          throw new Error('No video file ID found. Please upload a video first.');
+        if (!effectiveVideoId) {
+          throw new Error('Missing videoId. Re-upload the video to continue.');
         }
 
         // Get video duration (estimate or from metadata)
@@ -397,7 +399,7 @@ export default function NewGenerator() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            videoFileId,
+            videoFileId: effectiveVideoId,
             style: styleForApi,
             durationSec,
             isDemo: !session?.user,
@@ -618,7 +620,7 @@ export default function NewGenerator() {
                 </label>
                 {!videoPreviewUrl ? (
                   <VideoDemoUploader
-                    onUploaded={(url) => setVideoPreviewUrl(url)}
+                    onUploaded={(data) => setVideoPreviewUrl(data.previewUrl)}
                     onLimitReached={(reason) => {
                       setLimitReason(reason);
                       setShowLimitModal(true);

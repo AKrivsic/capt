@@ -3,9 +3,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import styles from '../Generator/NewGenerator.module.css';
 import MobileUploadCard from '../Video/MobileUploadCard';
+import { useVideoSelectionStore } from '@/store/videoSelection';
 
 interface Props {
-  onUploaded: (previewUrl: string) => void;
+  onUploaded: (data: { videoId: string; previewUrl: string }) => void;
   onLimitReached?: (reason: string) => void;
 }
 
@@ -35,17 +36,14 @@ export default function VideoDemoUploader({ onUploaded, onLimitReached }: Props)
   const handleUploadComplete = useCallback(
     (result: UploadResult) => {
       try {
-        let previewUrl: string;
-
-        if (result.previewUrl) {
-          previewUrl = result.previewUrl;
-        } else {
-          // Fallback to API endpoint (no fake domains)
-          previewUrl = `/api/demo/preview/${result.id}`;
-        }
-
+        const videoId = result.id;
+        const previewUrl = result.previewUrl ?? `/api/demo/preview/${result.id}`;
+        
+        // ulož do store
+        useVideoSelectionStore.getState().setSelection(videoId, previewUrl);
+        
         setUploadState('success');
-        onUploaded(previewUrl);
+        onUploaded({ videoId, previewUrl });
       } catch (error) {
         console.error('Error creating preview URL:', error);
         setUploadState('error');

@@ -96,9 +96,11 @@ export async function POST(req: NextRequest) {
         });
 
         if (!videoFile) {
+          console.log('Demo video not found in database', { videoId: videoFileId, where: 'generate', found: false });
           return Response.json({
             ok: false,
-            error: 'Demo video file not found. Please upload a video first.',
+            error: 'VIDEO_NOT_FOUND',
+            message: 'Upload the video again and retry.',
           }, { status: 404 });
         }
 
@@ -246,10 +248,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!videoFile) {
-      return Response.json(
-        { ok: false, error: 'Video file not found or access denied' },
-        { status: 404 }
-      );
+      console.log('User video not found in database', { videoId: videoFileId, where: 'generate', found: false });
+      return Response.json({
+        ok: false,
+        error: 'VIDEO_NOT_FOUND',
+        message: 'Upload the video again and retry.',
+      }, { status: 404 });
     }
 
     // Create job record
