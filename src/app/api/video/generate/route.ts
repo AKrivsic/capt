@@ -84,9 +84,12 @@ export async function POST(req: NextRequest) {
       const demoJobId = `demo-${Date.now()}`;
 
       try {
-        // 1) Find video file in database
+        // 1) Find video file in database (demo soubory mají userId: null)
         const videoFile = await prisma.videoFile.findFirst({
-          where: { id: videoFileId },
+          where: { 
+            id: videoFileId,
+            userId: null // Demo soubory nemají uživatele
+          },
           select: { storageKey: true, originalName: true }
         });
 

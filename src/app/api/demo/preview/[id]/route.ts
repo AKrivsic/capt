@@ -9,9 +9,12 @@ export async function GET(
   try {
     const { id } = await params;
     
-    // Find video file in database
+    // Find video file in database (demo soubory mají userId: null)
     const videoFile = await prisma.videoFile.findFirst({
-      where: { id },
+      where: { 
+        id,
+        userId: null // Demo soubory nemají uživatele
+      },
       select: { storageKey: true, originalName: true }
     });
 

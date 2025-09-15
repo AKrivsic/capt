@@ -78,10 +78,10 @@ export async function POST(
         .toString(36)
         .slice(2)}-${fileName}`;
 
-      // Pro demo vytvoříme záznam v databázi s anonymním userId
+      // Pro demo vytvoříme záznam v databázi s null userId (demo soubory)
       const created = await prisma.videoFile.create({
         data: {
-          userId: 'demo-user', // Special demo user ID
+          userId: null, // Demo soubory nemají uživatele
           storageKey,
           originalName: fileName,
           fileSizeBytes: fileSize,

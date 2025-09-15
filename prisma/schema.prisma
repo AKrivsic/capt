@@ -226,7 +226,7 @@ model WebhookEvent {
 
 model VideoFile {
   id           String   @id @default(cuid())
-  userId       String
+  userId       String?  // Nullable pro demo soubory
   storageKey   String   // S3/R2 object key
   originalName String
   durationSec  Float?   // video délka v sekundách  
@@ -234,7 +234,7 @@ model VideoFile {
   mimeType     String?  // MIME type (video/mp4, video/mov, atd.)
   createdAt    DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
   subtitleJobs SubtitleJob[]
 
   @@index([userId, createdAt])
