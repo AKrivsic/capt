@@ -11,7 +11,12 @@ const nextConfig: NextConfig = {
   // Increase API route body size limit
   experimental: {
     serverComponentsExternalPackages: [],
-  },
+    outputFileTracingIncludes: {
+      'app/api/video/generate/route.ts': ['node_modules/ffmpeg-static/**'],
+      'app/api/demo/video/route.ts': ['node_modules/ffmpeg-static/**'],
+      'app/api/demo/preview/[id]/route.ts': ['node_modules/ffmpeg-static/**'],
+    },
+  } as any,
   // Configure API routes
   api: {
     bodyParser: {
