@@ -10,6 +10,9 @@ import { join } from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { checkDemoVideoLimit, recordVideoUsage } from '@/lib/limits';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Minimal local validation without ffprobe (placeholder)
 function validateBasic(file: File): { ok: boolean; error?: string } {
   const maxBytes = 100 * 1024 * 1024; // 100MB
@@ -18,9 +21,6 @@ function validateBasic(file: File): { ok: boolean; error?: string } {
   if (!name.endsWith('.mp4')) return { ok: false, error: 'Only MP4 files are supported' };
   return { ok: true };
 }
-
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
