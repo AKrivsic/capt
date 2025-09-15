@@ -245,12 +245,21 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                   setErrorMsg(null);
 
                   try {
+                    // Extract video file ID from the preview URL
+                    const videoFileId = videoPreviewUrl.includes('/api/demo/preview/') 
+                      ? videoPreviewUrl.split('/api/demo/preview/')[1]
+                      : null;
+
+                    if (!videoFileId) {
+                      throw new Error('No video file ID found. Please upload a video first.');
+                    }
+
                     // Demo video processing
                     const res = await fetch('/api/video/generate', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
-                        videoFileId: 'demo',
+                        videoFileId,
                         style: STYLE_PRESETS[selectedStyle].name,
                         durationSec: 15,
                         isDemo: true,

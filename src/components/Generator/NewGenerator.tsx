@@ -379,10 +379,14 @@ export default function NewGenerator() {
           return;
         }
 
-        // Extract video file ID from the preview URL or use demo ID
-        const videoFileId = videoPreviewUrl.includes('demo-') 
-          ? videoPreviewUrl.split('/').pop()?.split('-')[0] || 'demo'
-          : 'demo'; // For demo videos
+        // Extract video file ID from the preview URL
+        const videoFileId = videoPreviewUrl.includes('/api/demo/preview/') 
+          ? videoPreviewUrl.split('/api/demo/preview/')[1]
+          : null;
+
+        if (!videoFileId) {
+          throw new Error('No video file ID found. Please upload a video first.');
+        }
 
         // Get video duration (estimate or from metadata)
         const durationSec = 15; // Demo videos are limited to 15s
