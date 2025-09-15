@@ -20,7 +20,7 @@ type GenerateBody = {
   isDemo?: boolean;
 };
 
-// ---- Storage helpers (type-guardy nad unionem MockR2Storage | R2Storage) ----
+// ---- Storage helpers for R2Storage ----
 function hasGetPublicUrl(
   s: unknown
 ): s is { getPublicUrl: (key: string) => Promise<string> | string } {

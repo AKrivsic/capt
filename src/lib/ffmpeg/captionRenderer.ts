@@ -192,7 +192,7 @@ export function createGlitchFilter(options: CaptionRenderOptions): FFmpegComplex
   const redFilter = `drawtext=${Object.entries(redParams).map(([k, v]) => `${k}=${v}`).join(':')}`;
 
   // Cyan offset layer
-  const cyanParams: Record<string, string | number> = { ...baseParams };
+  const cyanParams: Record<string, string | number > = { ...baseParams };
   cyanParams.fontcolor = 'cyan';
   cyanParams.x = `(w-text_w)/2-3`;
   cyanParams.y = `${baseY}-2`;

@@ -256,84 +256,9 @@ export function getR2Storage(): R2Storage {
   return r2Storage;
 }
 
-// Mock implementation for development
-export class MockR2Storage {
-  async getPresignedUploadUrl(key: string, contentType: string, expiresIn: number = 3600): Promise<string> {
-    console.log(`Mock presigned upload URL for ${key}, type: ${contentType}, expires in ${expiresIn}s`);
-    return `/api/mock/upload/${key}?expires=${Date.now() + expiresIn * 1000}&contentType=${encodeURIComponent(contentType)}`;
-  }
+// Mock storage removed - R2 configuration is required
 
-  async getPresignedDownloadUrl(key: string, expiresIn: number = 86400): Promise<string> {
-    console.log(`Mock presigned download URL for ${key}, expires in ${expiresIn}s`);
-    return `/api/mock/download/${key}?expires=${Date.now() + expiresIn * 1000}`;
-  }
-
-  async uploadFile(key: string, body: Buffer | Uint8Array, contentType: string = 'video/mp4'): Promise<void> {
-    console.log(`Mock upload file ${key}, size: ${body.length} bytes, type: ${contentType}`);
-  }
-
-  async downloadFile(key: string): Promise<Buffer> {
-    console.log(`Mock download file ${key}`);
-    return Buffer.from('mock file content');
-  }
-
-  async deleteFile(key: string): Promise<void> {
-    console.log(`Mock delete file ${key}`);
-  }
-
-  async fileExists(key: string): Promise<boolean> {
-    console.log(`Mock check file exists ${key}`);
-    // Mock returns false for demo files to test fallback
-    return !key.startsWith('demo/');
-  }
-
-  /**
-   * Get public URL for file (mock)
-   * @param key - File key in bucket
-   * @returns Public URL
-   */
-  async getPublicUrl(key: string): Promise<string> {
-    console.log(`Mock get public URL for ${key}`);
-    return `/api/mock/public/${key}`;
-  }
-
-  /**
-   * Get signed download URL (mock)
-   * @param key - File key in bucket
-   * @param ttlSeconds - Time to live in seconds
-   * @returns Signed download URL
-   */
-  async getSignedDownloadUrl(key: string, ttlSeconds: number = 86400): Promise<string> {
-    console.log(`Mock get signed download URL for ${key}, TTL: ${ttlSeconds}s`);
-    return `/api/mock/signed/${key}?expires=${Date.now() + ttlSeconds * 1000}`;
-  }
-
-  /**
-   * Get file URL (mock)
-   * @param key - File key in bucket
-   * @returns File URL
-   */
-  getFileUrl(key: string): string {
-    console.log(`Mock get file URL for ${key}`);
-    return `/api/mock/file/${key}`;
-  }
-
-  /**
-   * List files in directory (mock)
-   * @param prefix - Directory prefix
-   * @returns List of files
-   */
-  async listFiles(prefix: string): Promise<Array<{ key: string; size: number; lastModified: Date }>> {
-    console.log(`Mock list files with prefix ${prefix}`);
-    // Return empty array for demo files to simulate no files found
-    return [];
-  }
-}
-
-// Export appropriate storage based on environment
+// Export R2 storage - configuration is required
 export function getStorage() {
-  if (process.env.NODE_ENV === 'development' && !process.env.R2_ACCESS_KEY_ID) {
-    return new MockR2Storage();
-  }
   return getR2Storage();
 }

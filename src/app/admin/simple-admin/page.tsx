@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import styles from './simple-admin.module.css';
 
-// Empty array - will be populated from database
+// TODO: Load users from database instead of mock data
 const mockUsers: User[] = [];
 
 type Plan = "FREE" | "TEXT_STARTER" | "TEXT_PRO" | "VIDEO_LITE" | "VIDEO_PRO" | "VIDEO_UNLIMITED";

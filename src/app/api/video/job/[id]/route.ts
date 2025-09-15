@@ -104,6 +104,8 @@ async function generatePresignedDownloadUrl(storageKey: string): Promise<string>
   // };
   // return s3.getSignedUrl('getObject', params);
   
-  // Pro MVP mock URL - use API endpoint instead of fake domain
-  return `/api/mock/download/${storageKey}`;
+  // Use R2 storage for signed URLs
+  const { getStorage } = await import('@/lib/storage/r2');
+  const storage = getStorage();
+  return await storage.getSignedDownloadUrl(storageKey, 3600);
 }

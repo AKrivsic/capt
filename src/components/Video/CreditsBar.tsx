@@ -71,14 +71,13 @@ export default function CreditsBar({ credits, onCreditsUpdate }: Props) {
 
       const { } = await intentResponse.json();
 
-      // 2. Pro MVP - mock úspěšná platba
-      // V produkci by zde bylo Stripe payment
-      console.log('Mock payment for SKU:', sku);
+      // 2. Process actual Stripe payment
+      console.log('Processing payment for SKU:', sku);
       
-      // Simulace zpracování
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // TODO: Implement actual Stripe payment processing
+      throw new Error('Payment processing not implemented - requires Stripe integration');
 
-      // 3. Mock úspěšné dokončení
+      // 3. Payment completion
       const pack = CREDIT_PACKS[sku];
       const newCredits = credits + pack.credits;
       onCreditsUpdate(newCredits);

@@ -50,17 +50,8 @@ export class FFmpegRenderer implements SubtitleRenderer {
 
       onProgress?.({ phase: 'uploading', progress: 90 });
 
-      // Mock výsledek
-      const renderResult: RenderResult = {
-        storageKey: `rendered/${Date.now()}-${input.style.name.toLowerCase()}.mp4`,
-        durationSec: 30, // Mock délka
-        fileSizeBytes: 1024 * 1024 * 5, // 5MB mock
-        mimeType: 'video/mp4'
-      };
-
-      onProgress?.({ phase: 'uploading', progress: 100 });
-
-      return renderResult;
+      // TODO: Implement actual FFmpeg rendering
+      throw new Error('FFmpeg rendering not implemented - requires actual video processing');
 
     } catch (error) {
       throw new RenderError(
