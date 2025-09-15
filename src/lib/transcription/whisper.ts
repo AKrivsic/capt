@@ -101,34 +101,37 @@ export class WhisperProvider implements TranscriptionProvider {
   private async extractAudio(videoBuffer: Buffer): Promise<Buffer> {
     try {
       // Use FFmpeg to extract audio from video
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
-      
-      // Get ffmpeg path from ffmpeg-static
-      const ffmpegPath = (await import('ffmpeg-static')).default || 'ffmpeg';
       
       // Write video buffer to temp file
       const fs = await import('fs');
       const path = await import('path');
-      const tempVideoPath = path.join('/tmp', `temp-video-${Date.now()}.mp4`);
-      const tempAudioPath = path.join('/tmp', `temp-audio-${Date.now()}.wav`);
+      const { tmpdir } = await import('node:os');
+      const { writeFile, unlink } = await import('node:fs/promises');
       
-      fs.writeFileSync(tempVideoPath, videoBuffer);
+      const tempVideoPath = path.join(tmpdir(), `temp-video-${Date.now()}.mp4`);
+      const tempAudioPath = path.join(tmpdir(), `temp-audio-${Date.now()}.wav`);
       
-      // Extract audio using FFmpeg with ffmpeg-static path
-      const ffmpegCommand = `${ffmpegPath} -i "${tempVideoPath}" -vn -acodec pcm_s16le -ar 16000 -ac 1 "${tempAudioPath}" -y`;
-      await execAsync(ffmpegCommand);
-      
-      // Read audio file
-      const audioBuffer = fs.readFileSync(tempAudioPath);
-      
-      // Clean up temp files
-      fs.unlinkSync(tempVideoPath);
-      fs.unlinkSync(tempAudioPath);
-      
-      console.log(`Audio extraction completed: ${audioBuffer.length} bytes`);
-      return audioBuffer;
+      try {
+        await writeFile(tempVideoPath, videoBuffer);
+        
+        // Extract audio using new FFmpeg util
+        const { extractAudioPcmWav } = await import('@/server/media/ffmpeg');
+        await extractAudioPcmWav({ 
+          inputPath: tempVideoPath, 
+          outputPath: tempAudioPath, 
+          sampleRate: 16000, 
+          channels: 1 
+        });
+        
+        // Read audio file
+        const audioBuffer = fs.readFileSync(tempAudioPath);
+        console.log(`Audio extraction completed: ${audioBuffer.length} bytes`);
+        return audioBuffer;
+      } finally {
+        // Cleanup best-effort
+        await unlink(tempVideoPath).catch(() => {});
+        await unlink(tempAudioPath).catch(() => {});
+      }
     } catch (error) {
       console.error('Audio extraction failed:', error);
       throw new Error(`Failed to extract audio from video: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -137,6 +140,10 @@ export class WhisperProvider implements TranscriptionProvider {
 
   private async callWhisperAPI(audioBuffer: Buffer, language?: string): Promise<Transcript> {
     try {
+      if (!this.apiKey) {
+        throw new Error('OpenAI API key is required for transcription');
+      }
+      
       const openai = new (await import('openai')).default({
         apiKey: this.apiKey,
       });

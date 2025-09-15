@@ -12,6 +12,7 @@ import type { SubtitleStyle } from '@/types/subtitles';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Vercel serverless timeout headroom
 
 type GenerateBody = {
   videoFileId: string;
@@ -40,6 +41,7 @@ function hasGetFileUrl(
 }
 
 // -----------------------------------------------------------------------------
+
 
 export async function POST(req: NextRequest) {
   try {
