@@ -132,6 +132,7 @@ export async function POST(
     const storage = getStorage();
     const uploadUrl: string = await storage.getPresignedUploadUrl(
       storageKey,
+      mimeType,
       3600
     ); // 1 hodina
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hodina

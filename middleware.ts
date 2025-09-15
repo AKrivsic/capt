@@ -143,6 +143,7 @@ export async function middleware(req: NextRequest) {
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   
   // Content Security Policy
+  const R2_ORIGIN = process.env.NEXT_PUBLIC_R2_ENDPOINT_ORIGIN || "https://*.r2.cloudflarestorage.com";
   res.headers.set(
     "Content-Security-Policy",
     [
@@ -151,7 +152,8 @@ export async function middleware(req: NextRequest) {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
-      "connect-src 'self' https://api.openai.com https://plausible.io https://www.google.com https://*.getrewardful.com https://*.resend.com https://*.mailerlite.com",
+      "media-src 'self' blob: data: https:",
+      `connect-src 'self' ${R2_ORIGIN} https://api.openai.com https://plausible.io https://www.google.com https://*.getrewardful.com https://*.resend.com https://*.mailerlite.com`,
       "frame-src 'self' https://js.stripe.com",
       "object-src 'none'",
       "base-uri 'self'",

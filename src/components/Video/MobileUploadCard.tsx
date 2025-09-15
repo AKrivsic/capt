@@ -43,7 +43,7 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
     }
     
     if (file.size > maxSizeBytes) {
-      return 'File is too large. Maximum is 100MB.';
+      return 'File is too large. Maximum is 4MB.';
     }
     
     return null;

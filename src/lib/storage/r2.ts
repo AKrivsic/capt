@@ -38,12 +38,12 @@ export class R2Storage {
    * @param expiresIn - Expiration time in seconds (default: 1 hour)
    * @returns Presigned upload URL
    */
-  async getPresignedUploadUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  async getPresignedUploadUrl(key: string, contentType: string, expiresIn: number = 3600): Promise<string> {
     try {
       const command = new PutObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-        ContentType: 'video/mp4',
+        ContentType: contentType,
       });
 
       const url = await getSignedUrl(this.client, command, { expiresIn });
@@ -258,9 +258,9 @@ export function getR2Storage(): R2Storage {
 
 // Mock implementation for development
 export class MockR2Storage {
-  async getPresignedUploadUrl(key: string, expiresIn: number = 3600): Promise<string> {
-    console.log(`Mock presigned upload URL for ${key}, expires in ${expiresIn}s`);
-    return `/api/mock/upload/${key}?expires=${Date.now() + expiresIn * 1000}`;
+  async getPresignedUploadUrl(key: string, contentType: string, expiresIn: number = 3600): Promise<string> {
+    console.log(`Mock presigned upload URL for ${key}, type: ${contentType}, expires in ${expiresIn}s`);
+    return `/api/mock/upload/${key}?expires=${Date.now() + expiresIn * 1000}&contentType=${encodeURIComponent(contentType)}`;
   }
 
   async getPresignedDownloadUrl(key: string, expiresIn: number = 86400): Promise<string> {
