@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import ffmpegPath from 'ffmpeg-static';
+import { getFfmpegPath } from '@/server/media/ffmpeg';
 // @ts-expect-error - ffprobe-static doesn't have types
 import ffprobe from 'ffprobe-static';
 import { spawn } from 'node:child_process';
@@ -12,6 +12,7 @@ import { checkDemoVideoLimit, recordVideoUsage } from '@/lib/limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 // Minimal local validation without ffprobe (placeholder)
 function validateBasic(file: File): { ok: boolean; error?: string } {
@@ -107,8 +108,9 @@ export async function POST(req: NextRequest) {
     const fontArg = existsSync(fontPath) ? `:fontfile=${fontPath}` : '';
     const draw = `drawtext=text='captioni.com'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
     const args = ['-y','-i', inPath, '-vf', draw, '-preset','veryfast','-c:v','libx264','-crf','18','-pix_fmt','yuv420p', outPath];
+    const resolvedFfmpeg = await getFfmpegPath();
     await new Promise<void>((resolve, reject) => {
-      const ps = spawn(ffmpegPath!, args);
+      const ps = spawn(resolvedFfmpeg, args);
       let err = '';
       ps.stderr.on('data', d => { err += d.toString(); });
       ps.on('close', code => {

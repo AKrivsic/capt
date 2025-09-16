@@ -2,7 +2,7 @@ import 'server-only';
 
 import ffmpegStatic from 'ffmpeg-static';
 import { spawn } from 'node:child_process';
-import { access, chmod, copyFile } from 'node:fs/promises';
+import { access, chmod, readFile, writeFile, stat } from 'node:fs/promises';
 import { constants as FS } from 'node:fs';
 import { once } from 'node:events';
 import { basename, join } from 'node:path';
@@ -20,19 +20,57 @@ async function isExecutable(p?: string | null): Promise<boolean> {
   }
 }
 
-async function ensureTmpExecutable(srcPath: string): Promise<string> {
-  const name = basename(srcPath) || 'ffmpeg';
-  const dst = join(tmpdir(), name);
+async function fileSize(p: string): Promise<number | null> {
   try {
-    if (await isExecutable(dst)) return dst;
-    await chmod(dst, 0o755).catch(async () => {
-      await copyFile(srcPath, dst);
-      await chmod(dst, 0o755);
-    });
-    return dst;
+    const s = await stat(p);
+    return s.size ?? null;
   } catch {
-    if (await isExecutable(dst)) return dst;
+    return null;
+  }
+}
+
+async function canWriteTmp(): Promise<boolean> {
+  try {
+    const test = join(tmpdir(), `_ffprobe_${Date.now()}`);
+    await writeFile(test, 'ok');
+    await chmod(test, 0o644).catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function prepareTmpExec(srcPath: string): Promise<string> {
+  const dst = join(tmpdir(), 'ffmpeg');
+  try {
+    const buf = await readFile(srcPath);
+    await writeFile(dst, buf, { mode: 0o755 });
+    await chmod(dst, 0o755).catch(() => {});
+    await access(dst, FS.X_OK);
+    return dst;
+  } catch (e) {
+    // Detailed diagnostics
+    // eslint-disable-next-line no-console
+    console.error(
+      '[ffmpeg:prepareTmpExec]',
+      'srcPath=', srcPath,
+      'size=', await fileSize(srcPath),
+      'tmpWritable=', await canWriteTmp(),
+      'error=', e
+    );
     throw new Error(`Failed to prepare tmp ffmpeg at ${dst}`);
+  }
+}
+
+async function vendorPathForCurrentArch(): Promise<string | null> {
+  if (process.platform !== 'linux') return null;
+  const archDir = process.arch === 'arm64' ? 'linux-arm64' : 'linux-x64';
+  const pathCandidate = join(process.cwd(), 'vendor', 'ffmpeg', archDir, 'ffmpeg');
+  try {
+    await access(pathCandidate, FS.X_OK);
+    return pathCandidate;
+  } catch {
+    return pathCandidate;
   }
 }
 
@@ -51,16 +89,39 @@ export async function getFfmpegPath(): Promise<string> {
     return RESOLVED;
   }
 
-  if (staticPath) {
-    const tmpExec = await ensureTmpExecutable(staticPath);
-    if (await isExecutable(tmpExec)) {
-      RESOLVED = tmpExec;
+  // Try vendor binary based on current architecture
+  const vendorPath = await vendorPathForCurrentArch();
+  if (vendorPath) {
+    if (await isExecutable(vendorPath)) {
+      RESOLVED = vendorPath;
       return RESOLVED;
+    }
+    try {
+      const tmpExec = await prepareTmpExec(vendorPath);
+      if (await isExecutable(tmpExec)) {
+        RESOLVED = tmpExec;
+        return RESOLVED;
+      }
+    } catch {
+      // fallthrough; diagnostics already logged in prepareTmpExec
     }
   }
 
+  if (staticPath) {
+    try {
+      const tmpExec = await prepareTmpExec(staticPath);
+      if (await isExecutable(tmpExec)) {
+        RESOLVED = tmpExec;
+        return RESOLVED;
+      }
+    } catch {
+      // prepareTmpExec logs details; fallthrough to final error
+    }
+  }
+
+  const staticSize = staticPath ? await fileSize(staticPath) : null;
   throw new Error(
-    `No executable ffmpeg found. Tried FFMPEG_PATH=${envPath ?? 'unset'} and ffmpeg-static${staticPath ? ` (${staticPath})` : ''}.`
+    `No executable ffmpeg found. Tried FFMPEG_PATH=${envPath ?? 'unset'} and ffmpeg-static${staticPath ? ` (${staticPath}, size=${staticSize})` : ' (null)' }.`
   );
 }
 
