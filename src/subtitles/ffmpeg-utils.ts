@@ -41,12 +41,43 @@ export async function getFfprobePath(): Promise<string> {
   }
   
   // 2) fallback na ffprobe-static
-  const staticPath = require('ffprobe-static')?.path as string | undefined; // eslint-disable-line
-  if (!staticPath) {
+  const ffprobeStatic = require('ffprobe-static'); // eslint-disable-line
+  if (!ffprobeStatic || !ffprobeStatic.path) {
     console.error('[FFPROBE_DEBUG] FFPROBE_NOT_FOUND - no ffprobe-static path');
     throw new Error('FFPROBE_NOT_FOUND');
   }
-  console.log('[FFPROBE_DEBUG] Using ffprobe-static:', staticPath);
+  
+  // ffprobe-static.path může vracet špatnou cestu v serverless prostředí
+  // Zkusme najít správnou cestu
+  const staticPath = ffprobeStatic.path as string;
+  console.log('[FFPROBE_DEBUG] ffprobe-static.path returned:', staticPath);
+  
+  // Pokud cesta obsahuje .next/server, zkusme najít správnou cestu
+  if (staticPath.includes('.next/server')) {
+    console.log('[FFPROBE_DEBUG] Detected .next/server path, trying to find correct path');
+    
+    // Zkusme najít ffprobe v node_modules
+    const nodeModulesPath = path.join(process.cwd(), 'node_modules', 'ffprobe-static', 'bin', process.platform, process.arch, 'ffprobe');
+    try {
+      await access(nodeModulesPath, constants.X_OK);
+      console.log('[FFPROBE_DEBUG] Found ffprobe in node_modules:', nodeModulesPath);
+      return nodeModulesPath;
+    } catch {
+      console.log('[FFPROBE_DEBUG] node_modules path not found, trying alternative');
+    }
+    
+    // Zkusme alternativní cestu
+    const altPath = path.join(process.cwd(), 'node_modules', 'ffprobe-static', 'bin', 'linux', 'x64', 'ffprobe');
+    try {
+      await access(altPath, constants.X_OK);
+      console.log('[FFPROBE_DEBUG] Found ffprobe in alternative path:', altPath);
+      return altPath;
+    } catch {
+      console.log('[FFPROBE_DEBUG] Alternative path not found');
+    }
+  }
+  
+  console.log('[FFPROBE_DEBUG] Using original ffprobe-static path:', staticPath);
   return staticPath;
 }
 
