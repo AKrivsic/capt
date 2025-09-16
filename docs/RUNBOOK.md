@@ -50,6 +50,70 @@ vercel logs --follow --function=api/crons/daily
 tail -f /var/log/captioni-worker.log
 ```
 
+## Video Pipeline Troubleshooting
+
+### "No such file or directory" errors
+**Symptom:** FFmpeg fails with file not found errors
+**Root Cause:** Missing demo files or incorrect paths
+**Solution:**
+```bash
+# Check if demo files exist
+ls -la public/demo/videos/
+
+# Verify font files
+ls -la public/fonts/Inter-Regular.ttf
+
+# Test video generation
+curl -X POST $BASE/api/video/generate \
+  -H "content-type: application/json" \
+  -d '{"demoFile":"demo.mp4","text":"Test"}'
+```
+
+### "fontfile not found" errors
+**Symptom:** FFmpeg drawtext fails with font errors
+**Root Cause:** Missing or inaccessible font files
+**Solution:**
+```bash
+# Verify font file exists and is readable
+ls -la public/fonts/Inter-Regular.ttf
+file public/fonts/Inter-Regular.ttf
+
+# Test with different font
+curl -X POST $BASE/api/video/generate \
+  -H "content-type: application/json" \
+  -d '{"demoFile":"demo.mp4","text":"Test","style":"BARBIE"}'
+```
+
+### R2 storage failures
+**Symptom:** Upload/download operations fail
+**Root Cause:** R2 configuration or network issues
+**Solution:**
+```bash
+# Check R2 configuration
+echo $R2_ACCESS_KEY_ID
+echo $R2_ENDPOINT
+
+# Test R2 connection
+curl -X POST $BASE/api/video/upload-init \
+  -H "content-type: application/json" \
+  -d '{"fileName":"test.mp4","fileSize":1000000,"mimeType":"video/mp4"}'
+```
+
+### Worker queue failures
+**Symptom:** Video processing jobs stuck or failing
+**Root Cause:** Redis connection or worker issues
+**Solution:**
+```bash
+# Check Redis connection
+curl $BASE/api/queue/test
+
+# Check worker status
+curl $BASE/api/video/job/{jobId}
+
+# Restart worker (if running on separate server)
+pm2 restart captioni-worker
+```
+
 ## Incident Response
 
 ### Severity Levels

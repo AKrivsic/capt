@@ -211,7 +211,10 @@ EMAIL_SERVER_PASSWORD="your-mailtrap-password"
 
 ### Storage
 - `R2_*` - Cloudflare R2 file storage
-- Používá se v: `src/lib/storage/r2.ts`, video upload/processing
+- `R2_PUBLIC_BASE_URL` - Public R2 URLs (optional)
+- `FFMPEG_PATH` - Custom FFmpeg binary path (optional)
+- `DEBUG_FFMPEG` - Enable FFmpeg debug logging (optional)
+- Používá se v: `src/lib/storage/r2.ts`, video upload/processing, FFmpeg operations
 
 ### AI
 - `OPENAI_API_KEY` - GPT-4o-mini a Whisper API

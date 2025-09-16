@@ -44,6 +44,15 @@ CRON_SECRET="..."
 
 ### 3. Build Configuration
 
+**Important:** After deploying video pipeline fixes, clear Vercel cache:
+
+```bash
+# Clear cache and force rebuild
+vercel --prod --force
+
+# Or via Vercel dashboard: Settings > Functions > Clear Cache
+```
+
 ```json
 // vercel.json
 {
