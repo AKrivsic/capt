@@ -28,16 +28,25 @@ export async function getFfmpegPath(): Promise<string> {
 }
 
 export async function getFfprobePath(): Promise<string> {
+  console.log('[FFPROBE_DEBUG] getFfprobePath() called');
+  
   // 1) vendor/ffprobe pokud existuje v balíčku
   const vendor = path.join(process.cwd(), 'vendor', 'ffprobe', process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe');
   try { 
-    await access(vendor, constants.X_OK); 
+    await access(vendor, constants.X_OK);
+    console.log('[FFPROBE_DEBUG] Using vendor ffprobe:', vendor);
     return vendor; 
-  } catch {}
+  } catch {
+    console.log('[FFPROBE_DEBUG] Vendor ffprobe not found, trying ffprobe-static');
+  }
   
   // 2) fallback na ffprobe-static
   const staticPath = require('ffprobe-static')?.path as string | undefined; // eslint-disable-line
-  if (!staticPath) throw new Error('FFPROBE_NOT_FOUND');
+  if (!staticPath) {
+    console.error('[FFPROBE_DEBUG] FFPROBE_NOT_FOUND - no ffprobe-static path');
+    throw new Error('FFPROBE_NOT_FOUND');
+  }
+  console.log('[FFPROBE_DEBUG] Using ffprobe-static:', staticPath);
   return staticPath;
 }
 

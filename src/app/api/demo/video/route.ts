@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
     // ffprobe validate (≤15s, H.264, ≤1080x1920, ≤60fps)
     const probeArgs = ['-v','error','-show_streams','-of','json', inPath];
     const ffprobePath = await getFfprobePath();
+    console.log('[FFPROBE_DEBUG] Using ffprobe at:', ffprobePath);
     const probeJson = await new Promise<Record<string, unknown>>((resolve, reject) => {
       const ps = spawn(ffprobePath, probeArgs);
       let out = '';
