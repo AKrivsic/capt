@@ -104,8 +104,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Render watermark preview (text captioni.com top-right)
-    const fontPath = join(process.cwd(), 'public', 'fonts', 'Inter.ttf');
-    const fontArg = existsSync(fontPath) ? `:fontfile=${fontPath}` : '';
+    const fontPath = join(process.cwd(), 'public', 'fonts', 'Inter-Regular.ttf');
+    const fallbackFontPath = join(process.cwd(), 'public', 'fonts', 'Inter.ttf');
+    const actualFontPath = existsSync(fontPath) ? fontPath : fallbackFontPath;
+    const fontArg = existsSync(actualFontPath) ? `:fontfile='${actualFontPath}'` : '';
     const draw = `drawtext=text='captioni.com'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
     const args = ['-y','-i', inPath, '-vf', draw, '-preset','veryfast','-c:v','libx264','-crf','18','-pix_fmt','yuv420p', outPath];
     const resolvedFfmpeg = await getFfmpegPath();

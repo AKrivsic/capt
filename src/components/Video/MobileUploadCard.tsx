@@ -61,40 +61,34 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
         fileDuration: undefined // TODO: detekovat délku videa
       });
 
-      // 1. Získej presigned upload URL
-      const initResponse = await fetch('/api/video/upload-init', {
+      // Demo upload - direct to demo API
+      setUploadState('uploading');
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/demo/video', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type
-        })
+        body: formData
       });
 
-      if (!initResponse.ok) {
-        const error = await initResponse.json();
-        throw new Error(error.message || 'Failed to initialize upload');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Demo upload failed');
       }
 
-      const { uploadUrl, fileId } = await initResponse.json();
-
-      // 2. Upload souboru s progress tracking
-      setUploadState('uploading');
-      await uploadToPresignedUrl(file, uploadUrl, (progress) => {
-        setUploadProgress(progress.percentage);
-      });
-
+      const result = await response.json();
+      
       // 3. Úspěšné dokončení
       setUploadState('success');
       setUploadProgress(100);
 
       const uploadedFile: UploadedFile = {
-        id: fileId,
+        id: `demo-${Date.now()}`,
         name: file.name,
         size: file.size,
-        file: file, // Pass the original file for blob URL creation
-        previewUrl: `/api/demo/preview/${fileId}` // Use API endpoint instead of blob URL
+        file: file,
+        previewUrl: result.preview?.url || '/api/demo/preview/demo'
       };
 
       onUploadComplete(uploadedFile);
