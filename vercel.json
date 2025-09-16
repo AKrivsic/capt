@@ -7,7 +7,9 @@
     "src/app/api/video/upload-init/route.ts": {
       "maxDuration": 30
     },
-    "src/app/api/**": {
+    "app/api/**": {
+      "runtime": "nodejs20.x",
+      "architecture": "x64",
       "includeFiles": "node_modules/ffmpeg-static/**"
     }
   }

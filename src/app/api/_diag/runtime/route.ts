@@ -8,14 +8,21 @@ import { constants as FS } from 'node:fs';
 
 export async function GET() {
   try {
-    const p = await getFfmpegPath();
+    const p = await getFfmpegPath().catch(() => null);
     let executable = false;
-    try { 
-      await access(p, FS.X_OK); 
-      executable = true; 
-    } catch {}
-    return NextResponse.json({ ok: true, ffmpegPath: p, executable, runtime: 'nodejs' });
+    if (p) {
+      try { await access(p, FS.X_OK); executable = true; } catch {}
+    }
+    return NextResponse.json({
+      ok: true,
+      platform: process.platform,
+      arch: process.arch,
+      node: process.version,
+      ffmpegPath: p,
+      executable
+    });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
 }
+
