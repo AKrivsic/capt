@@ -12,24 +12,28 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     'src/app/api/demo/video/route.ts': [
       'vendor/ffmpeg/**',
+      'vendor/ffprobe/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
     'src/app/api/demo/preview/[id]/route.ts': [
       'vendor/ffmpeg/**',
+      'vendor/ffprobe/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
     'src/app/api/video/generate/route.ts': [
       'vendor/ffmpeg/**',
+      'vendor/ffprobe/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
     'src/queue/workflows/processSubtitleJob.ts': [
       'vendor/ffmpeg/**',
+      'vendor/ffprobe/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',
       'public/fonts/**',

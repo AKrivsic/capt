@@ -27,6 +27,20 @@ export async function getFfmpegPath(): Promise<string> {
   }
 }
 
+export async function getFfprobePath(): Promise<string> {
+  // 1) vendor/ffprobe pokud existuje v balíčku
+  const vendor = path.join(process.cwd(), 'vendor', 'ffprobe', process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe');
+  try { 
+    await access(vendor, constants.X_OK); 
+    return vendor; 
+  } catch {}
+  
+  // 2) fallback na ffprobe-static
+  const staticPath = require('ffprobe-static')?.path as string | undefined; // eslint-disable-line
+  if (!staticPath) throw new Error('FFPROBE_NOT_FOUND');
+  return staticPath;
+}
+
 export function escapeDrawtextText(input: string): string {
   // Escape characters required by drawtext - comprehensive escaping
   return input
