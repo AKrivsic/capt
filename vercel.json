@@ -4,14 +4,13 @@
     { "path": "/api/crons/daily", "schedule": "0 7 * * *" }
   ],
   "functions": {
-    "src/app/api/video/upload-init/route.ts": {
+    "app/api/video/upload-init/**": {
       "maxDuration": 30
     },
     "app/api/**": {
-      "includeFiles": [
-        "node_modules/ffmpeg-static/**",
-        "vendor/ffmpeg/**"
-      ]
+      "runtime": "nodejs20.x",
+      "includeFiles": "vendor/ffmpeg/**"
     }
   }
 }
+
