@@ -1,18 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import ffmpegStatic from 'ffmpeg-static';
 
 export function getFfmpegPath(): string {
   // Prefer vendored binary if present
   const vendorPath = path.join(process.cwd(), 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
   if (fs.existsSync(vendorPath)) return vendorPath;
   // Fallback to ffmpeg-static if installed
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const staticPath = require('ffmpeg-static');
-    if (typeof staticPath === 'string' && fs.existsSync(staticPath)) return staticPath;
-  } catch {
-    // ignore
-  }
+  if (typeof ffmpegStatic === 'string' && fs.existsSync(ffmpegStatic)) return ffmpegStatic;
   return 'ffmpeg';
 }
 
