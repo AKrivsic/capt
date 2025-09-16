@@ -30,6 +30,24 @@ describe('FFmpeg Utils', () => {
       const expected = "Test\\: \\'quoted\\' \\: text";
       expect(escapeDrawtextText(input)).toBe(expected);
     });
+
+    it('should escape backslashes', () => {
+      const input = "Path: C:\\Users\\test";
+      const expected = "Path\\: C\\\\Users\\\\test";
+      expect(escapeDrawtextText(input)).toBe(expected);
+    });
+
+    it('should escape square brackets', () => {
+      const input = "Text [with] brackets";
+      const expected = "Text \\[with\\] brackets";
+      expect(escapeDrawtextText(input)).toBe(expected);
+    });
+
+    it('should handle complex escaping', () => {
+      const input = "Complex: 'text' with \\backslashes\\ and [brackets]";
+      const expected = "Complex\\: \\'text\\' with \\\\backslashes\\\\ and \\[brackets\\]";
+      expect(escapeDrawtextText(input)).toBe(expected);
+    });
   });
 
   describe('ensureTmp', () => {

@@ -28,8 +28,13 @@ export async function getFfmpegPath(): Promise<string> {
 }
 
 export function escapeDrawtextText(input: string): string {
-  // Escape characters required by drawtext
-  return input.replace(/:/g, '\\:').replace(/'/g, "\\'");
+  // Escape characters required by drawtext - comprehensive escaping
+  return input
+    .replace(/\\/g, '\\\\')
+    .replace(/:/g, '\\:')
+    .replace(/'/g, "\\'")
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]');
 }
 
 export function ensureTmp(targetFilePath: string): void {
@@ -37,6 +42,14 @@ export function ensureTmp(targetFilePath: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
+}
+
+// New flexible version for variadic args
+export async function ensureTmpPath(...segments: string[]): Promise<string> {
+  const full = path.join('/tmp', ...segments);
+  const dir = path.dirname(full);
+  await fs.promises.mkdir(dir, { recursive: true });
+  return full;
 }
 
 export async function execFfmpeg(args: string[]): Promise<{ stdout: string; stderr: string }> {
@@ -52,7 +65,10 @@ export async function execFfmpeg(args: string[]): Promise<{ stdout: string; stde
       maxBuffer: 10 * 1024 * 1024 // 10MB buffer
     });
     
-    if (stderr && process.env.DEBUG_FFMPEG === '1') {
+    // Better error detection in stderr
+    if (stderr?.match(/Error/i)) {
+      console.warn('[ffmpeg] Error detected in stderr:', stderr);
+    } else if (stderr && process.env.DEBUG_FFMPEG === '1') {
       console.log('[ffmpeg] stderr:', stderr);
     }
     

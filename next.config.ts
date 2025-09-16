@@ -28,12 +28,18 @@ const nextConfig: NextConfig = {
       'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
-    'src/queue/workflows/processSubtitleJob.ts': [
-      'vendor/ffmpeg/**',
-      'node_modules/ffmpeg-static/**',
-      'node_modules/ffprobe-static/**',
-      'public/fonts/**',
-    ],
+      'src/queue/workflows/processSubtitleJob.ts': [
+        'vendor/ffmpeg/**',
+        'node_modules/ffmpeg-static/**',
+        'node_modules/ffprobe-static/**',
+        'public/fonts/**',
+      ],
+      'src/app/api/demo/video/route.ts': [
+        'vendor/ffmpeg/**',
+        'node_modules/ffmpeg-static/**',
+        'node_modules/ffprobe-static/**',
+        'public/fonts/**',
+      ],
   },
   serverExternalPackages: [],
   // Configure API routes
