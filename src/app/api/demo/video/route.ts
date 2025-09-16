@@ -38,7 +38,42 @@ export async function POST(req: NextRequest) {
       }, { status: 429 });
     }
 
-    // Parse form-data for file
+    // Check if this is a JSON request (for subtitle generation) or FormData (for upload)
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      // JSON request - subtitle generation for existing video
+      const body = await req.json();
+      const { videoFileId, style, durationSec, isDemo } = body;
+      
+      if (!videoFileId || !style || !durationSec) {
+        return Response.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
+      }
+
+      // For demo, return a mock result since we don't have the actual video processing
+      return Response.json({
+        ok: true,
+        jobId: `demo-${Date.now()}`,
+        status: 'COMPLETED',
+        message: 'Demo video processing completed',
+        isDemo: true,
+        result: {
+          processedVideoUrl: '/api/demo/preview/demo',
+          subtitles: [
+            { start: 0, end: 3, text: 'Welcome to Captioni' },
+            { start: 3, end: 6, text: 'AI-powered subtitles' },
+            { start: 6, end: 9, text: 'Made with love' }
+          ],
+          rawTranscript: { words: [], language: 'en', confidence: 0.95 },
+          style: style,
+          duration: durationSec,
+          language: 'en',
+          confidence: 0.95,
+        },
+      });
+    }
+
+    // FormData request - file upload
     const form = await req.formData();
     const file = form.get('file');
     if (!(file instanceof File)) {

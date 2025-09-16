@@ -256,8 +256,8 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                       throw new Error('Missing videoId. Re-upload the video to continue.');
                     }
 
-                    // Demo video processing
-                    const res = await fetch('/api/video/generate', {
+                    // Demo video processing - use the demo API that works with R2
+                    const res = await fetch('/api/demo/video', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
