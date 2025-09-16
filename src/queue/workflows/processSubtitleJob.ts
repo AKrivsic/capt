@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getStorage } from '@/lib/storage/r2';
 import { WhisperProvider } from '@/lib/transcription/whisper';
 // import { transcriptToChunks } from '@/queue/utils/transcriptUtils';
-import { writeFileSync, unlinkSync, readFileSync } from 'fs';
+import { writeFileSync, unlinkSync, readFileSync, existsSync } from 'fs';
 
 /**
  * Video subtitle processing workflow
@@ -80,7 +80,7 @@ export async function processSubtitleJob(
   const cleanupFiles = [inputPath, outPath];
   for (const filePath of cleanupFiles) {
     try {
-      if (fs.existsSync(filePath)) {
+      if (existsSync(filePath)) {
         unlinkSync(filePath);
         console.log(`Cleaned up temp file: ${filePath}`);
       }

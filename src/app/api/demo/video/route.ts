@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { checkDemoVideoLimit, recordVideoUsage } from '@/lib/limits';
 import { escapeDrawtextText } from '@/subtitles/ffmpeg-utils';
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (contentType.includes('application/json')) {
       // JSON request - subtitle generation for existing video
       const body = await req.json();
-      const { videoFileId, style, durationSec, isDemo } = body;
+      const { videoFileId, style, durationSec } = body;
       
       if (!videoFileId || !style || !durationSec) {
         return Response.json({ ok: false, error: 'Missing required fields' }, { status: 400 });

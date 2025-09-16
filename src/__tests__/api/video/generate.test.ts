@@ -21,15 +21,18 @@ jest.mock('@/lib/storage/r2', () => ({
 }));
 
 // Mock file system
-jest.mock('fs', () => ({
-  ...jest.requireActual('fs'),
-  promises: {
-    access: jest.fn().mockResolvedValue(undefined),
-    readFile: jest.fn().mockResolvedValue(Buffer.from('mock output data')),
-  },
-  existsSync: jest.fn().mockReturnValue(true),
-  unlinkSync: jest.fn(),
-}));
+jest.mock('fs', () => {
+  const actualFs = jest.requireActual('fs');
+  return {
+    ...actualFs,
+    promises: {
+      access: jest.fn().mockResolvedValue(undefined),
+      readFile: jest.fn().mockResolvedValue(Buffer.from('mock output data')),
+    },
+    existsSync: jest.fn().mockReturnValue(true),
+    unlinkSync: jest.fn(),
+  };
+});
 
 describe('/api/video/generate', () => {
   beforeEach(() => {
@@ -97,7 +100,7 @@ describe('/api/video/generate', () => {
 
   it('should handle missing demo file', async () => {
     // Mock file system to return false for existsSync
-    const fs = require('fs');
+    const fs = jest.requireMock('fs');
     fs.existsSync.mockReturnValue(false);
 
     const request = new NextRequest('http://localhost:3000/api/video/generate', {
@@ -120,7 +123,7 @@ describe('/api/video/generate', () => {
   });
 
   it('should handle R2 download failure', async () => {
-    const { getStorage } = require('@/lib/storage/r2');
+    const { getStorage } = jest.requireMock('@/lib/storage/r2');
     getStorage().downloadFile.mockRejectedValue(new Error('R2 download failed'));
 
     const request = new NextRequest('http://localhost:3000/api/video/generate', {
@@ -143,7 +146,7 @@ describe('/api/video/generate', () => {
   });
 
   it('should handle FFmpeg execution failure', async () => {
-    const { execFfmpeg } = require('@/subtitles/ffmpeg-utils');
+    const { execFfmpeg } = jest.requireMock('@/subtitles/ffmpeg-utils');
     execFfmpeg.mockRejectedValue(new Error('FFmpeg failed'));
 
     const request = new NextRequest('http://localhost:3000/api/video/generate', {
