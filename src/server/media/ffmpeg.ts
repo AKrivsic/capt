@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { access, chmod, readFile, writeFile, stat } from 'node:fs/promises';
 import { constants as FS } from 'node:fs';
 import { once } from 'node:events';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 let RESOLVED: string | null = null;
@@ -50,7 +50,6 @@ async function prepareTmpExec(srcPath: string): Promise<string> {
     return dst;
   } catch (e) {
     // Detailed diagnostics
-    // eslint-disable-next-line no-console
     console.error(
       '[ffmpeg:prepareTmpExec]',
       'srcPath=', srcPath,
