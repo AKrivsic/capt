@@ -27,55 +27,55 @@ src/
 
 ### Frontend komponenty
 
-| Soubor | Účel | Jak změnit/testovat |
-|--------|------|-------------------|
-| `src/components/Generator/` | Hlavní generátor obsahu | Test: `npm run dev` → `/` |
-| `src/components/Video/` | Video upload a processing | Test: `npm run dev` → `/video` |
-| `src/components/Dashboard/` | User dashboard | Test: `npm run dev` → `/dashboard` |
-| `src/components/Pricing/` | Pricing stránky | Test: `npm run dev` → `/pricing` |
+| Soubor                      | Účel                      | Jak změnit/testovat                |
+| --------------------------- | ------------------------- | ---------------------------------- |
+| `src/components/Generator/` | Hlavní generátor obsahu   | Test: `npm run dev` → `/`          |
+| `src/components/Video/`     | Video upload a processing | Test: `npm run dev` → `/video`     |
+| `src/components/Dashboard/` | User dashboard            | Test: `npm run dev` → `/dashboard` |
+| `src/components/Pricing/`   | Pricing stránky           | Test: `npm run dev` → `/pricing`   |
 
 ### API Routes
 
-| Endpoint | Účel | Auth | Test |
-|----------|------|------|------|
-| `src/app/api/generate/route.ts` | Text generation | Optional | `POST /api/generate` |
-| `src/app/api/video/process/route.ts` | Video processing | Required | `POST /api/video/process` |
-| `src/app/api/video/upload-init/route.ts` | File upload init | Required | `POST /api/video/upload-init` |
-| `src/app/api/auth/[...nextauth]/route.ts` | Authentication | - | `GET /api/auth/signin` |
-| `src/app/api/stripe/checkout/route.ts` | Payment checkout | Required | `POST /api/stripe/checkout` |
-| `src/app/api/stripe/webhook/route.ts` | Stripe webhooks | - | Stripe dashboard |
-| `src/app/api/crons/daily/route.ts` | Daily cron jobs | CRON_SECRET | `GET /api/crons/daily` |
+| Endpoint                                  | Účel             | Auth        | Test                          |
+| ----------------------------------------- | ---------------- | ----------- | ----------------------------- |
+| `src/app/api/generate/route.ts`           | Text generation  | Optional    | `POST /api/generate`          |
+| `src/app/api/video/process/route.ts`      | Video processing | Required    | `POST /api/video/process`     |
+| `src/app/api/video/upload-init/route.ts`  | File upload init | Required    | `POST /api/video/upload-init` |
+| `src/app/api/auth/[...nextauth]/route.ts` | Authentication   | -           | `GET /api/auth/signin`        |
+| `src/app/api/stripe/checkout/route.ts`    | Payment checkout | Required    | `POST /api/stripe/checkout`   |
+| `src/app/api/stripe/webhook/route.ts`     | Stripe webhooks  | -           | Stripe dashboard              |
+| `src/app/api/crons/daily/route.ts`        | Daily cron jobs  | CRON_SECRET | `GET /api/crons/daily`        |
 
 ### Queue System
 
-| Soubor | Účel | Jak spustit |
-|--------|------|-------------|
-| `src/queue/worker.ts` | Main BullMQ worker | `npm run worker` |
+| Soubor                                      | Účel                   | Jak spustit          |
+| ------------------------------------------- | ---------------------- | -------------------- |
+| `src/queue/worker.ts`                       | Main BullMQ worker     | `npm run worker`     |
 | `src/queue/workflows/processSubtitleJob.ts` | Video processing logic | Automaticky workerem |
-| `src/server/queue.ts` | Queue management | Import v API routes |
+| `src/server/queue.ts`                       | Queue management       | Import v API routes  |
 
 ### Database & Storage
 
-| Soubor | Účel | Jak změnit |
-|--------|------|------------|
-| `prisma/schema.prisma` | Database schema | `npm run prisma:migrate` |
-| `src/lib/prisma.ts` | Database client | Restart dev server |
-| `src/lib/storage/r2.ts` | Cloudflare R2 integration | Update env vars |
+| Soubor                  | Účel                      | Jak změnit               |
+| ----------------------- | ------------------------- | ------------------------ |
+| `prisma/schema.prisma`  | Database schema           | `npm run prisma:migrate` |
+| `src/lib/prisma.ts`     | Database client           | Restart dev server       |
+| `src/lib/storage/r2.ts` | Cloudflare R2 integration | Update env vars          |
 
 ### Authentication
 
-| Soubor | Účel | Konfigurace |
-|--------|------|-------------|
-| `src/lib/auth.ts` | NextAuth configuration | Google OAuth + Magic links |
-| `src/lib/session.ts` | Session helpers | Import v komponentách |
+| Soubor               | Účel                   | Konfigurace                |
+| -------------------- | ---------------------- | -------------------------- |
+| `src/lib/auth.ts`    | NextAuth configuration | Google OAuth + Magic links |
+| `src/lib/session.ts` | Session helpers        | Import v komponentách      |
 
 ### Business Logic
 
-| Soubor | Účel | Testování |
-|--------|------|-----------|
-| `src/constants/plans.ts` | Subscription plans | Update v Stripe |
-| `src/lib/limits.ts` | Usage limits | Test s různými plány |
-| `src/lib/tracking.ts` | Analytics tracking | Plausible dashboard |
+| Soubor                   | Účel               | Testování            |
+| ------------------------ | ------------------ | -------------------- |
+| `src/constants/plans.ts` | Subscription plans | Update v Stripe      |
+| `src/lib/limits.ts`      | Usage limits       | Test s různými plány |
+| `src/lib/tracking.ts`    | Analytics tracking | Plausible dashboard  |
 
 ## Orchestrace a Cron Jobs
 
@@ -93,11 +93,13 @@ export async function GET(req: Request) {
 ```
 
 **Soubory:**
+
 - `src/server/cron/noGen24h.ts` - MailerLite event tracking
 - `src/server/cron/resetUsage.ts` - Daily limit reset
 - `src/server/cron/cleanupR2.ts` - File cleanup
 
 **Testování:**
+
 ```bash
 # Lokálně
 curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/crons/daily
@@ -127,10 +129,22 @@ Worker → Download video → Whisper → FFmpeg → Upload result
 ```
 
 **Klíčové soubory:**
+
 - `src/app/api/video/upload-init/route.ts` - Upload setup
 - `src/app/api/video/process/route.ts` - Job creation
 - `src/queue/workflows/processSubtitleJob.ts` - Processing logic
 - `src/subtitles/renderSubtitledVideo.ts` - FFmpeg rendering
+
+### Demo/Ad‑hoc render přes `/api/video/generate`
+
+Pro rychlé testy bez fronty je k dispozici endpoint `POST /api/video/generate`.
+
+- Vstup: `{ r2Key?: string, demoFile?: string, text?: string, style?: string }`
+- Zdroj videa: preferuje Cloudflare R2 (`r2Key`), fallback na `public/<demoFile>` (default `public/demo/videos/demo.mp4`)
+- Rendering: FFmpeg `drawtext` s `fontfile` odkazem na `public/fonts/Inter-Regular.ttf`
+- Dočasné soubory: `/tmp/in-*.mp4`, `/tmp/out-*.mp4`
+- Výsledek: upload do R2 pod `demo/<timestamp>-<uuid>.mp4`, response: `{ ok: true, storageKey }`
+- Nasazení: route má `runtime='nodejs'`, `dynamic='force-dynamic'`, `maxDuration=60` a Next.js output tracing zahrnuje binárku FFmpeg a `public/fonts/**`
 
 ## Hlavní toky v kódu
 
@@ -276,21 +290,25 @@ npm run worker
 ## Performance tips
 
 ### Database
+
 - Používej `select` pro specifické sloupce
 - Přidej indexy pro často dotazované sloupce
 - Používej `findMany` s `take` pro pagination
 
 ### API
+
 - Implementuj rate limiting
 - Používej background jobs pro dlouhé operace
 - Cache výsledky kde možno
 
 ### Queue
+
 - Tune worker concurrency
 - Implementuj job prioritization
 - Monitoruj queue backlog
 
 ### Storage
+
 - Používej presigned URLs pro direct uploads
 - Implementuj file cleanup
 - Komprimuj soubory před uploadem
@@ -300,18 +318,22 @@ npm run worker
 ### Časté problémy
 
 1. **Database connection errors**
+
    - Zkontroluj `DATABASE_URL`
    - Spusť `npm run prisma:migrate`
 
 2. **Redis connection errors**
+
    - Zkontroluj `REDIS_URL`
    - Test: `curl /api/queue/test`
 
 3. **R2 upload errors**
+
    - Zkontroluj R2 credentials
    - Test: `curl /api/video/upload-init`
 
 4. **OpenAI API errors**
+
    - Zkontroluj `OPENAI_API_KEY`
    - Test: `curl /api/generate`
 
