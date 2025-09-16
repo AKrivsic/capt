@@ -2,40 +2,66 @@ import 'server-only';
 
 import ffmpegStatic from 'ffmpeg-static';
 import { spawn } from 'node:child_process';
-import { access } from 'node:fs/promises';
+import { access, chmod, copyFile } from 'node:fs/promises';
 import { constants as FS } from 'node:fs';
 import { once } from 'node:events';
+import { basename, join } from 'node:path';
+import { tmpdir } from 'node:os';
 
-let resolvedFfmpegPath: string | null = null;
+let RESOLVED: string | null = null;
 
-async function fileIsExecutable(p: string): Promise<boolean> {
-  try { 
-    await access(p, FS.X_OK); 
-    return true; 
-  } catch { 
-    return false; 
+async function isExecutable(p?: string | null): Promise<boolean> {
+  if (!p) return false;
+  try {
+    await access(p, FS.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureTmpExecutable(srcPath: string): Promise<string> {
+  const name = basename(srcPath) || 'ffmpeg';
+  const dst = join(tmpdir(), name);
+  try {
+    if (await isExecutable(dst)) return dst;
+    await chmod(dst, 0o755).catch(async () => {
+      await copyFile(srcPath, dst);
+      await chmod(dst, 0o755);
+    });
+    return dst;
+  } catch {
+    if (await isExecutable(dst)) return dst;
+    throw new Error(`Failed to prepare tmp ffmpeg at ${dst}`);
   }
 }
 
 export async function getFfmpegPath(): Promise<string> {
-  if (resolvedFfmpegPath) return resolvedFfmpegPath;
+  if (RESOLVED) return RESOLVED;
 
-  const envPath = process.env.FFMPEG_PATH;
-  if (envPath && await fileIsExecutable(envPath)) {
-    resolvedFfmpegPath = envPath;
-    return resolvedFfmpegPath;
+  const envPath = process.env.FFMPEG_PATH || null;
+  if (await isExecutable(envPath)) {
+    RESOLVED = envPath!;
+    return RESOLVED;
   }
 
-  if (!ffmpegStatic) {
-    throw new Error('ffmpeg-static not resolved and FFMPEG_PATH invalid/unset');
+  const staticPath = (ffmpegStatic as unknown as string) || null;
+  if (await isExecutable(staticPath)) {
+    RESOLVED = staticPath!;
+    return RESOLVED;
   }
 
-  if (await fileIsExecutable(ffmpegStatic)) {
-    resolvedFfmpegPath = ffmpegStatic;
-    return resolvedFfmpegPath;
+  if (staticPath) {
+    const tmpExec = await ensureTmpExecutable(staticPath);
+    if (await isExecutable(tmpExec)) {
+      RESOLVED = tmpExec;
+      return RESOLVED;
+    }
   }
 
-  throw new Error(`No executable ffmpeg found. Tried FFMPEG_PATH=${envPath ?? 'unset'} and ffmpeg-static.`);
+  throw new Error(
+    `No executable ffmpeg found. Tried FFMPEG_PATH=${envPath ?? 'unset'} and ffmpeg-static${staticPath ? ` (${staticPath})` : ''}.`
+  );
 }
 
 export interface ExtractAudioOpts {
@@ -49,8 +75,7 @@ export async function extractAudioPcmWav(opts: ExtractAudioOpts): Promise<void> 
   const { inputPath, outputPath, sampleRate = 16000, channels = 1 } = opts;
   const ffmpegPath = await getFfmpegPath();
 
-  // Jednorázový info log (pomůže ověřit, že běží ffmpeg-static, ne .next/chunks):
-  if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_FFMPEG_PATH === '1') {
+  if (process.env.DEBUG_FFMPEG_PATH === '1') {
     console.log('[ffmpeg] using binary at:', ffmpegPath);
   }
 
