@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { checkDemoVideoLimit, recordVideoUsage } from '@/lib/limits';
 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // ffprobe validate (≤15s, H.264, ≤1080x1920, ≤60fps)
     const probeArgs = ['-v','error','-show_streams','-of','json', inPath];
     const ffmpegPath = await getFfmpegPath();
-    const ffprobePath = ffmpegPath.replace('ffmpeg', 'ffprobe');
+    const ffprobePath = join(dirname(ffmpegPath), 'ffprobe');
     const probeJson = await new Promise<Record<string, unknown>>((resolve, reject) => {
       const ps = spawn(ffprobePath, probeArgs);
       let out = '';
