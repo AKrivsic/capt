@@ -2,15 +2,12 @@ import { NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import { getFfmpegPath, escapeDrawtextText, ensureTmp } from '@/subtitles/ffmpeg-utils';
+import { escapeDrawtextText, ensureTmp, execFfmpeg } from '@/subtitles/ffmpeg-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const execFileAsync = promisify(execFile);
 
 type Body = {
   r2Key?: string;
@@ -42,12 +39,15 @@ export async function POST(req: NextRequest) {
         return Response.json({ ok: false, error: message }, { status: 500 });
       }
     } else {
-      const rel = demoFile && demoFile.trim() !== '' ? demoFile : 'demo/videos/demo.mp4';
+      // Demo file handling with slugify for safety
+      const demoFileName = demoFile && demoFile.trim() !== '' ? demoFile : 'demo.mp4';
+      const slugifiedName = demoFileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const rel = `demo/videos/${slugifiedName}`;
       inputPath = path.join(process.cwd(), 'public', rel);
       try {
         await fs.promises.access(inputPath, fs.constants.R_OK);
       } catch {
-        return Response.json({ ok: false, error: 'DEMO_FILE_NOT_FOUND' }, { status: 404 });
+        return Response.json({ ok: false, error: `DEMO_FILE_NOT_FOUND: ${rel}` }, { status: 404 });
       }
     }
 
@@ -68,14 +68,12 @@ export async function POST(req: NextRequest) {
 
     const subtitleText = escapeDrawtextText(text && text.trim() ? text : 'Sample subtitle');
 
-    const ffmpeg = getFfmpegPath();
-
     const vf = `drawtext=fontfile='${fontPath}':text='${subtitleText}':fontsize=48:fontcolor=#FFFFFF:x=(w-text_w)/2:y=h-180:box=1:boxcolor=#1E1E1ECC:boxborderw=5:borderw=3:bordercolor=#9146FF:line_spacing=10:alpha='if(lt(t,0.25), t/0.25, 1)'`;
 
     ensureTmp(outputTmpPath);
 
     try {
-      const { stderr } = await execFileAsync(ffmpeg, [
+      const { stderr } = await execFfmpeg([
         '-y',
         '-i', inputPath,
         '-vf', vf,
@@ -85,7 +83,7 @@ export async function POST(req: NextRequest) {
         '-c:a', 'copy',
         '-movflags', '+faststart',
         outputTmpPath,
-      ], { env: process.env });
+      ]);
       if (stderr) {
         // Keep minimal logging in server output for troubleshooting
         console.log('[ffmpeg] stderr length:', stderr.length);

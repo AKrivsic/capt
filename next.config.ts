@@ -10,19 +10,25 @@ const nextConfig: NextConfig = {
   },
   // Increase API route body size limit
   outputFileTracingIncludes: {
-    'app/api/demo/video/route.ts': [
+    'src/app/api/demo/video/route.ts': [
       'vendor/ffmpeg/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
-    'app/api/demo/preview/[id]/route.ts': [
+    'src/app/api/demo/preview/[id]/route.ts': [
       'vendor/ffmpeg/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
-    'app/api/video/generate/route.ts': [
+    'src/app/api/video/generate/route.ts': [
+      'vendor/ffmpeg/**',
+      'node_modules/ffmpeg-static/**',
+      'node_modules/ffprobe-static/**',
+      'public/fonts/**',
+    ],
+    'src/queue/workflows/processSubtitleJob.ts': [
       'vendor/ffmpeg/**',
       'node_modules/ffmpeg-static/**',
       'node_modules/ffprobe-static/**',

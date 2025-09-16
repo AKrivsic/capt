@@ -76,12 +76,17 @@ export async function processSubtitleJob(
   await storage.uploadFile(resultStorageKey, outputBuffer, 'video/mp4');
   await onProgress(100);
 
-  // Cleanup temp files
-  try {
-    unlinkSync(inputPath);
-    unlinkSync(outPath);
-  } catch (err) {
-    console.warn('Failed to cleanup temp files:', err);
+  // Cleanup temp files with better error handling
+  const cleanupFiles = [inputPath, outPath];
+  for (const filePath of cleanupFiles) {
+    try {
+      if (fs.existsSync(filePath)) {
+        unlinkSync(filePath);
+        console.log(`Cleaned up temp file: ${filePath}`);
+      }
+    } catch (err) {
+      console.warn(`Failed to cleanup temp file ${filePath}:`, err);
+    }
   }
 
   return resultStorageKey;
