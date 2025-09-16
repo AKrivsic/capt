@@ -4,10 +4,16 @@
     { "path": "/api/crons/daily", "schedule": "0 7 * * *" }
   ],
   "functions": {
-    "app/api/video/upload-init/**": {
+    "src/app/api/video/upload-init/**": {
       "maxDuration": 30
     },
-    "app/api/**": {
+    "src/app/api/video/generate/**": {
+      "maxDuration": 60
+    },
+    "src/app/api/video/process/**": {
+      "maxDuration": 30
+    },
+    "src/app/api/**": {
       "includeFiles": "vendor/ffmpeg/**"
     }
   }

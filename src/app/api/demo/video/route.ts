@@ -6,9 +6,10 @@ import { spawn } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { checkDemoVideoLimit, recordVideoUsage } from '@/lib/limits';
+import { escapeDrawtextText } from '@/subtitles/ffmpeg-utils';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (contentType.includes('application/json')) {
       // JSON request - subtitle generation for existing video
       const body = await req.json();
-      const { videoFileId, style, durationSec, isDemo } = body;
+      const { videoFileId, style, durationSec } = body;
       
       if (!videoFileId || !style || !durationSec) {
         return Response.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
@@ -138,12 +139,19 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: 'Only H.264 is supported' }, { status: 400 });
     }
 
-    // Render watermark preview (text captioni.com top-right)
+    // Render watermark preview (text captioni.com top-right) with proper escaping
     const fontPath = join(process.cwd(), 'public', 'fonts', 'Inter-Regular.ttf');
     const fallbackFontPath = join(process.cwd(), 'public', 'fonts', 'Inter.ttf');
     const actualFontPath = existsSync(fontPath) ? fontPath : fallbackFontPath;
-    const fontArg = existsSync(actualFontPath) ? `:fontfile='${actualFontPath}'` : '';
-    const draw = `drawtext=text='captioni.com'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
+    
+    // Check font availability and return error if missing
+    if (!existsSync(actualFontPath)) {
+      return Response.json({ ok: false, error: 'FONT_MISSING' }, { status: 500 });
+    }
+    
+    const fontArg = `:fontfile='${actualFontPath}'`;
+    const watermarkText = escapeDrawtextText('captioni.com');
+    const draw = `drawtext=text='${watermarkText}'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
     const args = ['-y','-i', inPath, '-vf', draw, '-preset','veryfast','-c:v','libx264','-crf','18','-pix_fmt','yuv420p', outPath];
     const resolvedFfmpeg = await getFfmpegPath();
     await new Promise<void>((resolve, reject) => {

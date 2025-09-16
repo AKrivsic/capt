@@ -246,6 +246,7 @@ export function getR2Storage(): R2Storage {
       region: 'auto',
     };
 
+    // Runtime validation - don't crash during import/build
     if (!config.accessKeyId || !config.secretAccessKey || !config.endpoint) {
       throw new Error('R2 configuration is incomplete. Please check environment variables.');
     }
