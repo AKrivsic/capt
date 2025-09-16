@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server';
 import { getFfmpegPath } from '@/server/media/ffmpeg';
-// @ts-expect-error - ffprobe-static doesn't have types
-import ffprobe from 'ffprobe-static';
 import { spawn } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdtempSync, existsSync } from 'node:fs';
@@ -100,8 +98,9 @@ export async function POST(req: NextRequest) {
 
     // ffprobe validate (≤15s, H.264, ≤1080x1920, ≤60fps)
     const probeArgs = ['-v','error','-show_streams','-of','json', inPath];
+    const ffprobePath = getFfmpegPath().replace('ffmpeg', 'ffprobe');
     const probeJson = await new Promise<Record<string, unknown>>((resolve, reject) => {
-      const ps = spawn(ffprobe.path!, probeArgs);
+      const ps = spawn(ffprobePath, probeArgs);
       let out = '';
       let err = '';
       ps.stdout.on('data', d => out += d.toString());

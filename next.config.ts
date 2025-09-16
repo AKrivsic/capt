@@ -13,16 +13,19 @@ const nextConfig: NextConfig = {
     'app/api/demo/video/route.ts': [
       'vendor/ffmpeg/**',
       'node_modules/ffmpeg-static/**',
+      'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
     'app/api/demo/preview/[id]/route.ts': [
       'vendor/ffmpeg/**',
       'node_modules/ffmpeg-static/**',
+      'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
     'app/api/video/generate/route.ts': [
       'vendor/ffmpeg/**',
       'node_modules/ffmpeg-static/**',
+      'node_modules/ffprobe-static/**',
       'public/fonts/**',
     ],
   },
