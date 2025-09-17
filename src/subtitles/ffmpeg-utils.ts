@@ -7,24 +7,30 @@ const access = promisify(fs.access);
 const constants = fs.constants;
 
 export async function getFfmpegPath(): Promise<string> {
-  // Prefer vendored binary if present
+  // Prefer ffmpeg-static (has drawtext filter) over vendor binary
+  if (typeof ffmpegStatic === 'string') {
+    try {
+      await access(ffmpegStatic, constants.X_OK);
+      console.log('[FFMPEG_DEBUG] Using ffmpeg-static:', ffmpegStatic);
+      return ffmpegStatic;
+    } catch {
+      console.log('[FFMPEG_DEBUG] ffmpeg-static not accessible');
+    }
+  }
+  
+  // Fallback to vendor binary (may be missing drawtext filter)
   const vendorPath = path.join(process.cwd(), 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
   try {
     await access(vendorPath, constants.X_OK);
+    console.log('[FFMPEG_DEBUG] Using vendor ffmpeg:', vendorPath);
     return vendorPath;
   } catch {
-    // Fallback to ffmpeg-static if installed
-    if (typeof ffmpegStatic === 'string') {
-      try {
-        await access(ffmpegStatic, constants.X_OK);
-        return ffmpegStatic;
-      } catch {
-        // Final fallback
-        return 'ffmpeg';
-      }
-    }
-    return 'ffmpeg';
+    console.log('[FFMPEG_DEBUG] Vendor ffmpeg not found');
   }
+  
+  // Final fallback
+  console.log('[FFMPEG_DEBUG] Using system ffmpeg');
+  return 'ffmpeg';
 }
 
 export async function getFfprobePath(): Promise<string> {

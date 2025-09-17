@@ -1,6 +1,4 @@
 import { NextRequest } from 'next/server';
-import { getFfmpegPath } from '@/server/media/ffmpeg';
-import { getFfprobePath } from '@/subtitles/ffmpeg-utils';
 import { spawn } from 'node:child_process';
 import { createWriteStream, readFileSync } from 'node:fs';
 import { mkdtempSync, existsSync } from 'node:fs';
@@ -117,7 +115,13 @@ export async function POST(req: NextRequest) {
     const watermarkText = escapeDrawtextText('captioni.com');
     const draw = `drawtext=text='${watermarkText}'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
     const args = ['-y','-i', inPath, '-vf', draw, '-preset','veryfast','-c:v','libx264','-crf','18','-pix_fmt','yuv420p', outPath];
-    const resolvedFfmpeg = await getFfmpegPath();
+    
+    // Force use ffmpeg-static instead of vendor binary (vendor binary missing drawtext filter)
+    const ffmpegStatic = await import('ffmpeg-static');
+    const resolvedFfmpeg = ffmpegStatic.default as string;
+    if (!resolvedFfmpeg) {
+      throw new Error('FFMPEG_NOT_FOUND - ffmpeg-static not available');
+    }
     console.log('[FFMPEG_DEBUG] Using FFmpeg at:', resolvedFfmpeg);
     console.log('[FFMPEG_DEBUG] FFmpeg args:', args);
     
