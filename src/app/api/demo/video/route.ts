@@ -118,12 +118,26 @@ export async function POST(req: NextRequest) {
     const draw = `drawtext=text='${watermarkText}'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
     const args = ['-y','-i', inPath, '-vf', draw, '-preset','veryfast','-c:v','libx264','-crf','18','-pix_fmt','yuv420p', outPath];
     const resolvedFfmpeg = await getFfmpegPath();
+    console.log('[FFMPEG_DEBUG] Using FFmpeg at:', resolvedFfmpeg);
+    console.log('[FFMPEG_DEBUG] FFmpeg args:', args);
+    
     await new Promise<void>((resolve, reject) => {
       const ps = spawn(resolvedFfmpeg, args);
       let err = '';
+      let out = '';
       ps.stderr.on('data', d => { err += d.toString(); });
+      ps.stdout.on('data', d => { out += d.toString(); });
       ps.on('close', code => {
-        if (code === 0) resolve(); else reject(new Error(err || 'ffmpeg failed'));
+        console.log('[FFMPEG_DEBUG] FFmpeg exit code:', code);
+        if (err) console.log('[FFMPEG_DEBUG] FFmpeg stderr:', err);
+        if (out) console.log('[FFMPEG_DEBUG] FFmpeg stdout:', out);
+        if (code === 0) {
+          console.log('[FFMPEG_DEBUG] FFmpeg rendering successful');
+          resolve();
+        } else {
+          console.error('[FFMPEG_DEBUG] FFmpeg rendering failed with code:', code);
+          reject(new Error(`FFmpeg failed with code ${code}: ${err || 'Unknown error'}`));
+        }
       });
     });
     // TODO: Whisper transcription
