@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server';
 import { spawn } from 'node:child_process';
-import { createWriteStream, readFileSync } from 'node:fs';
+import { createWriteStream, readFileSync, access, constants } from 'node:fs';
 import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import path from 'node:path';
+import { promisify } from 'util';
+
+const fs = { access: promisify(access), constants };
 import { prisma } from '@/lib/prisma';
 import { checkDemoVideoLimit, recordVideoUsage } from '@/lib/limits';
 import { escapeDrawtextText } from '@/subtitles/ffmpeg-utils';
@@ -116,12 +120,47 @@ export async function POST(req: NextRequest) {
     const draw = `drawtext=text='${watermarkText}'${fontArg}:fontcolor=white@0.6:fontsize=28:x=w-tw-20:y=20`;
     const args = ['-y','-i', inPath, '-vf', draw, '-preset','veryfast','-c:v','libx264','-crf','18','-pix_fmt','yuv420p', outPath];
     
-    // Force use ffmpeg-static instead of vendor binary (vendor binary missing drawtext filter)
+    // Force use ffmpeg-static with intelligent path detection
     const ffmpegStatic = await import('ffmpeg-static');
-    const resolvedFfmpeg = ffmpegStatic.default as string;
+    let resolvedFfmpeg = ffmpegStatic.default as string;
+    
     if (!resolvedFfmpeg) {
       throw new Error('FFMPEG_NOT_FOUND - ffmpeg-static not available');
     }
+    
+    console.log('[FFMPEG_DEBUG] ffmpeg-static.path returned:', resolvedFfmpeg);
+    
+    // Check if path is incorrect (contains .next/server)
+    if (resolvedFfmpeg.includes('.next/server')) {
+      console.log('[FFMPEG_DEBUG] Detected .next/server path, trying to find correct path');
+      
+      const possiblePaths = [
+        path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'bin', process.platform, process.arch, 'ffmpeg'),
+        path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x64', 'ffmpeg'),
+        path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x86_64', 'ffmpeg'),
+        path.join('/var/task', 'node_modules', 'ffmpeg-static', 'bin', 'linux', 'x64', 'ffmpeg'),
+        path.join('/var/task', 'node_modules', 'ffmpeg-static', 'bin', process.platform, process.arch, 'ffmpeg'),
+        '/usr/bin/ffmpeg',
+        '/usr/local/bin/ffmpeg',
+      ];
+      
+      for (const testPath of possiblePaths) {
+        try {
+          await fs.access(testPath, fs.constants.X_OK);
+          console.log('[FFMPEG_DEBUG] Found ffmpeg at:', testPath);
+          resolvedFfmpeg = testPath;
+          break;
+        } catch {
+          console.log('[FFMPEG_DEBUG] Path not found:', testPath);
+        }
+      }
+      
+      if (resolvedFfmpeg.includes('.next/server')) {
+        console.error('[FFMPEG_DEBUG] No valid ffmpeg path found in any of the tested locations');
+        throw new Error('FFMPEG_NOT_FOUND - no valid path found');
+      }
+    }
+    
     console.log('[FFMPEG_DEBUG] Using FFmpeg at:', resolvedFfmpeg);
     console.log('[FFMPEG_DEBUG] FFmpeg args:', args);
     
