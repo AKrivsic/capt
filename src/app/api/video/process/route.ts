@@ -13,10 +13,10 @@ import { enqueueSubtitlesJob } from '@/server/queue';
 
 export async function POST(request: NextRequest): Promise<NextResponse<ProcessResponse | ApiErrorResponse>> {
   try {
-    // Check if Redis is available
+    // Check if Redis is available - no fallback, throw error
     if (!process.env.REDIS_URL) {
       return NextResponse.json(
-        { error: 'Service Unavailable', message: 'Queue unavailable in this environment' },
+        { error: 'Service Unavailable', message: 'REDIS_URL not configured' },
         { status: 503 }
       );
     }
@@ -147,4 +147,4 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
   }
 }
 
-// Mock processing odstraněn - nyní se používá BullMQ worker
+// API enqueue-only - no FFmpeg/Whisper processing in API routes

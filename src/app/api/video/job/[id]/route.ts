@@ -1,19 +1,13 @@
-/**
- * GET /api/video/job/:id
- * Vrací stav subtitle jobu
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import type { JobStatusResponse, ApiErrorResponse } from '@/types/api';
 
 export async function GET(
-  request: NextRequest, 
-  context: { params: Promise<{ id: string }> }
-): Promise<NextResponse<JobStatusResponse | ApiErrorResponse>> {
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Ověření autentizace
+    // Check authentication
     const session = await getServerSession();
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -22,10 +16,9 @@ export async function GET(
       );
     }
 
-    const params = await context.params;
     const jobId = params.id;
 
-    // Najdi uživatele
+    // Find user
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       select: { id: true }
@@ -38,7 +31,7 @@ export async function GET(
       );
     }
 
-    // Najdi job
+    // Find job
     const job = await prisma.subtitleJob.findFirst({
       where: {
         id: jobId,
@@ -46,7 +39,11 @@ export async function GET(
       },
       include: {
         videoFile: {
-          select: { durationSec: true }
+          select: {
+            id: true,
+            originalName: true,
+            storageKey: true
+          }
         }
       }
     });
@@ -58,29 +55,19 @@ export async function GET(
       );
     }
 
-    // Sestavení response
-    const response: JobStatusResponse = {
-      id: job.id,
-      status: job.status as JobStatusResponse['status'],
+    // Return job status
+    const response = {
+      jobId: job.id,
+      status: job.status,
       progress: job.progress,
-      createdAt: job.createdAt.toISOString(),
-      errorMessage: job.errorMessage || undefined,
+      style: job.style,
+      resultKey: job.resultKey,
+      error: job.error,
+      createdAt: job.createdAt,
+      completedAt: job.completedAt,
+      failedAt: job.failedAt,
+      videoFile: job.videoFile
     };
-
-    // Pokud je job dokončený, přidej download URL
-    if (job.status === 'COMPLETED' && job.resultStorageKey) {
-      // TODO: Vygeneruj presigned download URL
-      response.downloadUrl = await generatePresignedDownloadUrl(job.resultStorageKey);
-    }
-
-    // Odhad zbývajícího času
-    if (job.status === 'PROCESSING' && job.videoFile.durationSec) {
-      const estimatedTotal = job.videoFile.durationSec * 2; // 2x doba videa
-      const elapsed = job.startedAt ? 
-        (Date.now() - job.startedAt.getTime()) / 1000 : 0;
-      const remaining = Math.max(0, estimatedTotal - elapsed);
-      response.estimatedTimeRemaining = Math.ceil(remaining);
-    }
 
     return NextResponse.json(response);
 
@@ -91,21 +78,4 @@ export async function GET(
       { status: 500 }
     );
   }
-}
-
-// TODO: Implementovat presigned download URL
-async function generatePresignedDownloadUrl(storageKey: string): Promise<string> {
-  // Pro S3:
-  // const s3 = new AWS.S3();
-  // const params = {
-  //   Bucket: process.env.S3_BUCKET,
-  //   Key: storageKey,
-  //   Expires: 3600 // 1 hodina
-  // };
-  // return s3.getSignedUrl('getObject', params);
-  
-  // Use R2 storage for signed URLs
-  const { getStorage } = await import('@/lib/storage/r2');
-  const storage = getStorage();
-  return await storage.getSignedDownloadUrl(storageKey, 3600);
 }

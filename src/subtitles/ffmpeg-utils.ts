@@ -1,36 +1,33 @@
 import fs from 'fs';
 import path from 'path';
-import ffmpegStatic from 'ffmpeg-static';
 import { promisify } from 'util';
+import { execFile } from 'child_process';
 
 const access = promisify(fs.access);
 const constants = fs.constants;
+const execFileAsync = promisify(execFile);
+
+// Worker environment - FFmpeg path configuration
+export const FFMPEG_FONTFILE = '/app/public/fonts/Inter-Regular.ttf';
 
 export async function getFfmpegPath(): Promise<string> {
-  // Prefer ffmpeg-static (has drawtext filter) over vendor binary
-  if (typeof ffmpegStatic === 'string') {
+  // In Docker worker, use system FFmpeg
+  if (process.env.NODE_ENV === 'production' && process.env.WORKER_CONCURRENCY) {
+    return 'ffmpeg';
+  }
+  
+  // Development fallback
+  try {
+    await access('/usr/bin/ffmpeg', constants.X_OK);
+    return '/usr/bin/ffmpeg';
+  } catch {
     try {
-      await access(ffmpegStatic, constants.X_OK);
-      console.log('[FFMPEG_DEBUG] Using ffmpeg-static:', ffmpegStatic);
-      return ffmpegStatic;
+      await access('/usr/local/bin/ffmpeg', constants.X_OK);
+      return '/usr/local/bin/ffmpeg';
     } catch {
-      console.log('[FFMPEG_DEBUG] ffmpeg-static not accessible');
+      throw new Error('FFMPEG_NOT_FOUND: No FFmpeg binary found');
     }
   }
-  
-  // Fallback to vendor binary (may be missing drawtext filter)
-  const vendorPath = path.join(process.cwd(), 'vendor', 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
-  try {
-    await access(vendorPath, constants.X_OK);
-    console.log('[FFMPEG_DEBUG] Using vendor ffmpeg:', vendorPath);
-    return vendorPath;
-  } catch {
-    console.log('[FFMPEG_DEBUG] Vendor ffmpeg not found');
-  }
-  
-  // Final fallback
-  console.log('[FFMPEG_DEBUG] Using system ffmpeg');
-  return 'ffmpeg';
 }
 
 export async function getFfprobePath(): Promise<string> {
@@ -121,10 +118,6 @@ export async function ensureTmpPath(...segments: string[]): Promise<string> {
 }
 
 export async function execFfmpeg(args: string[]): Promise<{ stdout: string; stderr: string }> {
-  const { execFile } = await import('child_process');
-  const { promisify } = await import('util');
-  const execFileAsync = promisify(execFile);
-  
   const ffmpegPath = await getFfmpegPath();
   
   try {
