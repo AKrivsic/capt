@@ -55,14 +55,29 @@ export function getStorage() {
           throw new Error(`R2_DOWNLOAD_FAILED: No body in response for key ${key}`);
         }
 
+        // Convert stream to buffer
         const chunks: Uint8Array[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stream = response.Body as any;
         
-        for await (const chunk of stream) {
-          chunks.push(chunk);
+        if (stream.transformToByteArray) {
+          // AWS SDK v3 format
+          const arrayBuffer = await stream.transformToByteArray();
+          return Buffer.from(arrayBuffer);
+        } else {
+          // Fallback - read as stream
+          const reader = stream.getReader();
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+            }
+          } finally {
+            reader.releaseLock();
+          }
+          return Buffer.concat(chunks);
         }
-        
-        return Buffer.concat(chunks);
       } catch (error) {
         if (error instanceof Error && error.name === 'NoSuchKey') {
           throw new Error(`R2_FILE_NOT_FOUND: ${key}`);
@@ -120,6 +135,23 @@ export function getStorage() {
         return await getSignedUrl(client, command, { expiresIn });
       } catch (error) {
         throw new Error(`R2_PRESIGNED_UPLOAD_URL_FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    },
+
+    async deleteFile(key: string): Promise<void> {
+      try {
+        const config = getR2Config();
+        const client = getS3Client();
+        
+        const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+        const command = new DeleteObjectCommand({
+          Bucket: config.bucketName,
+          Key: key,
+        });
+
+        await client.send(command);
+      } catch (error) {
+        throw new Error(`R2_DELETE_FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
   };

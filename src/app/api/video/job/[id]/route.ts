@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -16,7 +16,7 @@ export async function GET(
       );
     }
 
-    const jobId = params.id;
+    const { id: jobId } = await params;
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -61,11 +61,11 @@ export async function GET(
       status: job.status,
       progress: job.progress,
       style: job.style,
-      resultKey: job.resultKey,
-      error: job.error,
+      resultKey: job.resultStorageKey,
+      error: job.errorMessage,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
-      failedAt: job.failedAt,
+      failedAt: job.status === 'FAILED' ? job.completedAt : null,
       videoFile: job.videoFile
     };
 

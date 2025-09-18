@@ -1,5 +1,5 @@
-import { Worker, QueueScheduler } from 'bullmq';
-import { connection } from '../queue/connection';
+import { Worker, Queue } from 'bullmq';
+import { redisConnection } from '../queue/connection';
 import { processSubtitleJob } from './processSubtitleJob';
 
 // Worker configuration
@@ -33,10 +33,10 @@ async function startWorker() {
     console.log(`[WORKER] Redis URL: ${process.env.REDIS_URL}`);
     console.log(`[WORKER] R2 Bucket: ${process.env.R2_BUCKET_NAME}`);
     
-    // Create queue scheduler
-    const queueScheduler = new QueueScheduler('subtitles', { connection });
-    await queueScheduler.waitUntilReady();
-    console.log('[WORKER] Queue scheduler ready');
+    // Create queue
+    const queue = new Queue('subtitles', { connection: redisConnection });
+    await queue.waitUntilReady();
+    console.log('[WORKER] Queue ready');
     
     // Create worker
     const worker = new Worker(
@@ -54,10 +54,10 @@ async function startWorker() {
         }
       },
       {
-        connection,
+        connection: redisConnection,
         concurrency: WORKER_CONCURRENCY,
-        removeOnComplete: 10,
-        removeOnFail: 5,
+        removeOnComplete: { count: 10 },
+        removeOnFail: { count: 5 },
         stalledInterval: 30 * 1000,
         maxStalledCount: 1,
       }
@@ -88,14 +88,14 @@ async function startWorker() {
     process.on('SIGTERM', async () => {
       console.log('[WORKER] Received SIGTERM, shutting down gracefully');
       await worker.close();
-      await queueScheduler.close();
+      await queue.close();
       process.exit(0);
     });
     
     process.on('SIGINT', async () => {
       console.log('[WORKER] Received SIGINT, shutting down gracefully');
       await worker.close();
-      await queueScheduler.close();
+      await queue.close();
       process.exit(0);
     });
     

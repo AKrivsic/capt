@@ -1,9 +1,8 @@
-import { Job } from 'bullmq';
 import { prisma } from '../lib/prisma';
 import { getStorage } from '../lib/storage/r2';
 import { execFfmpeg, escapeDrawtextText, ensureTmp, FFMPEG_FONTFILE } from '../subtitles/ffmpeg-utils';
 import { transcribeVideo } from '../lib/transcription/whisper';
-import path from 'path';
+import fs from 'fs';
 
 export interface SubtitleJobData {
   jobId: string;
@@ -15,8 +14,12 @@ export interface SubtitleJobResult {
   success: boolean;
   resultKey?: string;
   error?: string;
-  transcript?: any;
-  subtitles?: any[];
+  transcript?: {
+    words: Array<{ word: string; start: number; end: number }>;
+    language: string;
+    confidence: number;
+  };
+  subtitles?: Array<{ start: number; end: number; text: string }>;
 }
 
 export async function processSubtitleJob(data: SubtitleJobData): Promise<SubtitleJobResult> {
@@ -54,7 +57,7 @@ export async function processSubtitleJob(data: SubtitleJobData): Promise<Subtitl
     const outputPath = `/tmp/${jobId}-output.mp4`;
     
     ensureTmp(inputPath);
-    await require('fs').promises.writeFile(inputPath, videoBuffer);
+    await fs.promises.writeFile(inputPath, videoBuffer);
     
     console.log(`[WORKER] Video downloaded, starting transcription`);
     
@@ -81,7 +84,7 @@ export async function processSubtitleJob(data: SubtitleJobData): Promise<Subtitl
     });
     
     // Generate subtitles based on style
-    const subtitles = generateSubtitles(transcript, style);
+    const subtitles = generateSubtitles(transcript);
     console.log(`[WORKER] Generated ${subtitles.length} subtitle segments`);
     
     // Update progress
@@ -119,7 +122,7 @@ export async function processSubtitleJob(data: SubtitleJobData): Promise<Subtitl
     });
     
     // Upload result to R2
-    const outputBuffer = await require('fs').promises.readFile(outputPath);
+    const outputBuffer = await fs.promises.readFile(outputPath);
     const resultKey = `rendered/${jobId}-${Date.now()}.mp4`;
     
     await storage.uploadFile(resultKey, outputBuffer, 'video/mp4');
@@ -131,15 +134,15 @@ export async function processSubtitleJob(data: SubtitleJobData): Promise<Subtitl
       data: { 
         status: 'COMPLETED',
         progress: 100,
-        resultKey,
+        resultStorageKey: resultKey,
         completedAt: new Date()
       }
     });
     
     // Cleanup temporary files
     try {
-      await require('fs').promises.unlink(inputPath);
-      await require('fs').promises.unlink(outputPath);
+      await fs.promises.unlink(inputPath);
+      await fs.promises.unlink(outputPath);
     } catch (error) {
       console.warn(`[WORKER] Failed to cleanup temp files:`, error);
     }
@@ -161,8 +164,8 @@ export async function processSubtitleJob(data: SubtitleJobData): Promise<Subtitl
       where: { id: jobId },
       data: { 
         status: 'FAILED',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        failedAt: new Date()
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        completedAt: new Date()
       }
     });
     
@@ -173,7 +176,7 @@ export async function processSubtitleJob(data: SubtitleJobData): Promise<Subtitl
   }
 }
 
-function generateSubtitles(transcript: any, style: string): Array<{ start: number; end: number; text: string }> {
+function generateSubtitles(transcript: { words: Array<{ word: string; start: number; end: number }> }): Array<{ start: number; end: number; text: string }> {
   // Simple subtitle generation based on transcript words
   // This is a basic implementation - can be enhanced with style-specific logic
   
@@ -191,7 +194,7 @@ function generateSubtitles(transcript: any, style: string): Array<{ start: numbe
     const words = transcript.words.slice(i, i + wordsPerSubtitle);
     const start = words[0]?.start || 0;
     const end = Math.min(words[words.length - 1]?.end || start + maxDuration, start + maxDuration);
-    const text = words.map((w: any) => w.word).join(' ');
+    const text = words.map((w) => w.word).join(' ');
     
     subtitles.push({ start, end, text });
   }
