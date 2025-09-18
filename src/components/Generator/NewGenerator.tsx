@@ -391,18 +391,16 @@ export default function NewGenerator() {
         }
 
         // Get video duration (estimate or from metadata)
-        const durationSec = 15; // Demo videos are limited to 15s
+        // const durationSec = 15; // Demo videos are limited to 15s
 
         const styleForApi = STYLE_MAP[selectedStyle] ?? STYLE_PRESETS[selectedStyle].name;
 
-        const res = await fetch('/api/video/generate', {
+        const res = await fetch('/api/video/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            videoFileId: effectiveVideoId,
+            fileId: effectiveVideoId,
             style: styleForApi,
-            durationSec,
-            isDemo: !session?.user,
           }),
         });
 

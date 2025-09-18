@@ -198,3 +198,54 @@ export class WhisperProvider implements TranscriptionProvider {
     }
   }
 }
+
+// Export convenience function for worker
+export async function transcribeVideo(videoBuffer: Buffer): Promise<{ words: Array<{ word: string; start: number; end: number }>; language: string; confidence: number }> {
+  // For worker, we'll use the internal Whisper API directly
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY not configured');
+  }
+
+  try {
+    // Create FormData for OpenAI API
+    const formData = new FormData();
+    const uint8Array = new Uint8Array(videoBuffer);
+    const blob = new Blob([uint8Array], { type: 'video/mp4' });
+    formData.append('file', blob, 'video.mp4');
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'auto');
+    formData.append('response_format', 'verbose_json');
+    formData.append('timestamp_granularities[]', 'word');
+
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
+
+    const transcription = await response.json();
+    
+    // Convert OpenAI format to our format
+    const words = transcription.words?.map((w: { word: string; start: number; end: number }) => ({
+      word: w.word,
+      start: w.start,
+      end: w.end
+    })) || [];
+
+    return {
+      words,
+      language: transcription.language || 'en',
+      confidence: 0.95
+    };
+  } catch (error) {
+    console.error('Whisper transcription error:', error);
+    throw new Error(`Whisper transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
