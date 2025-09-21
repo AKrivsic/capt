@@ -13,14 +13,8 @@ export default function VideoDemoPreview({ src }: Props) {
 
   async function handleUnlock() {
     setMessage(null);
-    const res = await fetch('/api/demo/video/unlock', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    const json = await res.json();
-    if (json.ok) setMessage('Magic link sent. Check your inbox.');
-    else setMessage(json.error || 'Failed to send link');
+    // Redirect to signup instead of demo unlock
+    window.location.href = '/auth/signin?callbackUrl=/dashboard';
   }
 
   return (
