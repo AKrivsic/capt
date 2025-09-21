@@ -44,8 +44,21 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
 
     let userId: string;
     if (isDemo) {
-      // Demo processing - použij fiktivní demo user ID
-      userId = 'demo-user-12345';
+      // Demo processing - vytvoř nebo najdi demo uživatele
+      const demoUser = await prisma.user.upsert({
+        where: { id: 'demo-user-12345' },
+        update: {},
+        create: {
+          id: 'demo-user-12345',
+          email: 'demo@captioni.com',
+          name: 'Demo User',
+          plan: 'FREE',
+          videoCredits: 999999, // Unlimited for demo
+          marketingConsent: false,
+          marketingConsentAt: new Date()
+        }
+      });
+      userId = demoUser.id;
     } else {
       // Najdi uživatele
       const user = await prisma.user.findUnique({
