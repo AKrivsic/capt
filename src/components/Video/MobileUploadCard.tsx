@@ -49,61 +49,7 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
     return null;
   }, [acceptedTypes, maxSizeBytes]);
 
-  const uploadFile = useCallback(async (file: File) => {
-    setUploadState('preparing');
-    setUploadProgress(0);
-    setErrorMessage('');
-
-    try {
-      uploadTracking.started({
-        fileSize: file.size,
-        fileType: file.type,
-        fileDuration: undefined // TODO: detekovat délku videa
-      });
-
-      // Demo upload - direct to demo API
-      setUploadState('uploading');
-      
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/demo/video', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Demo upload failed');
-      }
-
-      const result = await response.json();
-      
-      // 3. Úspěšné dokončení
-      setUploadState('success');
-      setUploadProgress(100);
-
-      const uploadedFile: UploadedFile = {
-        id: `demo-${Date.now()}`,
-        name: file.name,
-        size: file.size,
-        file: file,
-        previewUrl: result.preview?.url || '/api/demo/preview/demo'
-      };
-
-      onUploadComplete(uploadedFile);
-
-    } catch (error) {
-      console.error('Upload error:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Upload error';
-      setUploadState('error');
-      setErrorMessage(errorMsg);
-      uploadTracking.failed(errorMsg);
-      onError?.(errorMsg);
-    }
-  }, [onUploadComplete, onError]);
-
-  const uploadToPresignedUrl = async (
+  const uploadToPresignedUrl = useCallback(async (
     file: File, 
     url: string, 
     onProgress: UploadProgressCallback
@@ -137,7 +83,89 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
       xhr.setRequestHeader('Content-Type', file.type);
       xhr.send(file);
     });
-  };
+  }, []);
+
+  const uploadFile = useCallback(async (file: File) => {
+    setUploadState('preparing');
+    setUploadProgress(0);
+    setErrorMessage('');
+
+    try {
+      uploadTracking.started({
+        fileSize: file.size,
+        fileType: file.type,
+        fileDuration: undefined // TODO: detekovat délku videa
+      });
+
+      // Step 1: Get presigned upload URL from R2
+      setUploadState('uploading');
+      setUploadProgress(10);
+      
+      const initResponse = await fetch('/api/video/upload-init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type
+        })
+      });
+
+      if (!initResponse.ok) {
+        const error = await initResponse.json();
+        throw new Error(error.message || 'Failed to initialize upload');
+      }
+
+      const { uploadUrl, fileId } = await initResponse.json();
+      setUploadProgress(30);
+
+      // Step 2: Upload file to R2 using presigned URL
+      await uploadToPresignedUrl(file, uploadUrl, (progress) => {
+        setUploadProgress(30 + Math.floor(60 * progress.percentage / 100));
+      });
+
+      setUploadProgress(90);
+
+      // Step 3: Process video (enqueue job)
+      const processResponse = await fetch('/api/video/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileId,
+          style: 'BARBIE' // Default style for demo
+        })
+      });
+
+      if (!processResponse.ok) {
+        const error = await processResponse.json();
+        throw new Error(error.message || 'Failed to process video');
+      }
+
+      const { jobId } = await processResponse.json();
+      
+      // 4. Úspěšné dokončení
+      setUploadState('success');
+      setUploadProgress(100);
+
+      const uploadedFile: UploadedFile = {
+        id: fileId,
+        name: file.name,
+        size: file.size,
+        file: file,
+        url: `/api/video/job/${jobId}` // Job tracking URL
+      };
+
+      onUploadComplete(uploadedFile);
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Upload error';
+      setUploadState('error');
+      setErrorMessage(errorMsg);
+      uploadTracking.failed(errorMsg);
+      onError?.(errorMsg);
+    }
+  }, [onUploadComplete, onError, uploadToPresignedUrl]);
 
   const handleFileSelect = useCallback(async (file: File) => {
     const validationError = validateFile(file);
