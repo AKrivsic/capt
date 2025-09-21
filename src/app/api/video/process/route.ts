@@ -21,14 +21,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
       );
     }
 
-    // Ověření autentizace
+    // Ověření autentizace (volitelné pro demo)
     const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'You must be logged in' },
-        { status: 401 }
-      );
-    }
+    const isDemo = !session?.user?.email;
 
     // Validace input dat
     const body = await request.json();
@@ -47,32 +42,40 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
 
     const { fileId, style } = validationResult.data;
 
-    // Najdi uživatele
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true, videoCredits: true }
-    });
+    let userId: string;
+    if (isDemo) {
+      // Demo processing - použij fiktivní demo user ID
+      userId = 'demo-user-12345';
+    } else {
+      // Najdi uživatele
+      const user = await prisma.user.findUnique({
+        where: { email: session!.user!.email as string },
+        select: { id: true, videoCredits: true }
+      });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User Not Found', message: 'User not found' },
-        { status: 404 }
-      );
-    }
+      if (!user) {
+        return NextResponse.json(
+          { error: 'User Not Found', message: 'User not found' },
+          { status: 404 }
+        );
+      }
 
-    // Kontrola kreditů
-    if (user.videoCredits <= 0) {
-      return NextResponse.json(
-        { error: 'Insufficient Credits', message: 'Insufficient credits' },
-        { status: 402 }
-      );
+      // Kontrola kreditů
+      if (user.videoCredits <= 0) {
+        return NextResponse.json(
+          { error: 'Insufficient Credits', message: 'Insufficient credits' },
+          { status: 402 }
+        );
+      }
+
+      userId = user.id;
     }
 
     // Najdi video soubor
     const videoFile = await prisma.videoFile.findFirst({
       where: {
         id: fileId,
-        userId: user.id
+        userId: isDemo ? null : userId // Demo soubory mají userId = null
       }
     });
 
@@ -98,12 +101,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
       );
     }
 
-    // Transakce: vytvoř job a odečti kredity
+    // Transakce: vytvoř job a odečti kredity (pouze pro autentifikované uživatele)
     const result = await prisma.$transaction(async (tx) => {
       // Vytvoř subtitle job
       const job = await tx.subtitleJob.create({
         data: {
-          userId: user.id,
+          userId: userId, // Vždy máme userId (demo nebo real)
           videoFileId: fileId,
           style,
           status: 'QUEUED',
@@ -111,11 +114,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
         }
       });
 
-      // Odečti kredit
-      await tx.user.update({
-        where: { id: user.id },
-        data: { videoCredits: { decrement: 1 } }
-      });
+      // Odečti kredit pouze pro autentifikované uživatele
+      if (!isDemo) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { videoCredits: { decrement: 1 } }
+        });
+      }
 
       return job;
     });
