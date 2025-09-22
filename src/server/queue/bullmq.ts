@@ -1,5 +1,5 @@
 // src/server/queue/bullmq.ts
-import { Queue, Worker, QueueEvents, WorkerOptions, QueueOptions } from 'bullmq';
+import { Queue, Worker, QueueEvents, QueueOptions } from 'bullmq';
 import IORedis from 'ioredis';
 
 const REDIS_URL = process.env.REDIS_URL!;
@@ -24,7 +24,7 @@ export const getQueueEvents = (name: string) =>
 
 export const getWorker = <T = unknown>(
   name: string,
-  processor: (job: { data: T }) => Promise<unknown>,
+  processor: (job: { data: T; id?: string }) => Promise<unknown>,
   concurrency = WORKER_CONCURRENCY
 ) =>
   new Worker<T>(name, processor, {

@@ -31,11 +31,11 @@ async function startWorker() {
     console.log(`[WORKER] Queue prefix: ${BULL_CONF.BULLMQ_PREFIX}`);
     
     // Create worker using centralized config
-    const worker = getWorker('subtitles', async (job) => {
+    const worker = getWorker('subtitles', async (job: { data: unknown; id?: string }) => {
       console.log(`[WORKER] Processing job ${job.id}:`, job.data);
       
       try {
-        const result = await processSubtitleJob(job.data);
+        const result = await processSubtitleJob(job.data as unknown);
         console.log(`[WORKER] Job ${job.id} completed successfully`);
         return result;
       } catch (error) {
