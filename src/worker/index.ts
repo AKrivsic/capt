@@ -1,9 +1,5 @@
-import { Worker, Queue } from 'bullmq';
-import { redisConnection } from '../queue/connection';
+import { getWorker, BULL_CONF, maskRedisUrl } from '../server/queue/bullmq';
 import { processSubtitleJob } from './processSubtitleJob';
-
-// Worker configuration
-const WORKER_CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || '4', 10);
 
 // Validate required environment variables
 function validateEnv() {
@@ -29,43 +25,32 @@ async function startWorker() {
     // Validate environment
     validateEnv();
     
-    console.log(`[WORKER] Starting subtitle worker with concurrency: ${WORKER_CONCURRENCY}`);
-    console.log(`[WORKER] Redis URL: ${process.env.REDIS_URL}`);
+    console.log(`[WORKER] Starting subtitle worker with concurrency: ${BULL_CONF.WORKER_CONCURRENCY}`);
+    console.log(`[WORKER] Redis URL: ${maskRedisUrl(BULL_CONF.REDIS_URL)}`);
     console.log(`[WORKER] R2 Bucket: ${process.env.R2_BUCKET_NAME}`);
+    console.log(`[WORKER] Queue prefix: ${BULL_CONF.BULLMQ_PREFIX}`);
     
-    // Create queue
-    const queue = new Queue('subtitles', { connection: redisConnection });
-    await queue.waitUntilReady();
-    console.log('[WORKER] Queue ready');
-    
-    // Create worker
-    const worker = new Worker(
-      'subtitles',
-      async (job) => {
-        console.log(`[WORKER] Processing job ${job.id}:`, job.data);
-        
-        try {
-          const result = await processSubtitleJob(job.data);
-          console.log(`[WORKER] Job ${job.id} completed successfully`);
-          return result;
-        } catch (error) {
-          console.error(`[WORKER] Job ${job.id} failed:`, error);
-          throw error;
-        }
-      },
-      {
-        connection: redisConnection,
-        concurrency: WORKER_CONCURRENCY,
-        removeOnComplete: { count: 10 },
-        removeOnFail: { count: 5 },
-        stalledInterval: 30 * 1000,
-        maxStalledCount: 1,
+    // Create worker using centralized config
+    const worker = getWorker('subtitles', async (job) => {
+      console.log(`[WORKER] Processing job ${job.id}:`, job.data);
+      
+      try {
+        const result = await processSubtitleJob(job.data);
+        console.log(`[WORKER] Job ${job.id} completed successfully`);
+        return result;
+      } catch (error) {
+        console.error(`[WORKER] Job ${job.id} failed:`, error);
+        throw error;
       }
-    );
+    }, BULL_CONF.WORKER_CONCURRENCY);
     
     // Worker event handlers
     worker.on('ready', () => {
-      console.log('[WORKER] Worker ready and waiting for jobs');
+      console.log('[WORKER] Ready', {
+        redis: maskRedisUrl(BULL_CONF.REDIS_URL),
+        prefix: BULL_CONF.BULLMQ_PREFIX,
+        concurrency: BULL_CONF.WORKER_CONCURRENCY,
+      });
     });
     
     worker.on('active', (job) => {
@@ -88,14 +73,12 @@ async function startWorker() {
     process.on('SIGTERM', async () => {
       console.log('[WORKER] Received SIGTERM, shutting down gracefully');
       await worker.close();
-      await queue.close();
       process.exit(0);
     });
     
     process.on('SIGINT', async () => {
       console.log('[WORKER] Received SIGINT, shutting down gracefully');
       await worker.close();
-      await queue.close();
       process.exit(0);
     });
     

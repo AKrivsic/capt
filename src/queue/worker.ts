@@ -1,5 +1,5 @@
-import { Worker, Job } from 'bullmq';
-import { getRedis } from '@/server/queue';
+// Deprecated: Use src/server/queue/bullmq.ts and src/worker/index.ts instead
+import { getWorker, BULL_CONF } from '../server/queue/bullmq';
 import { prisma } from '@/lib/prisma';
 import { processSubtitleJob } from './workflows/processSubtitleJob';
 import { jobTracking } from '@/lib/tracking';
@@ -16,44 +16,42 @@ import { jobTracking } from '@/lib/tracking';
  * 
  * Configuration:
  * - Concurrency: Number of parallel jobs (default: 4)
- * - Prefix: Queue namespace (default: 'captioni')
+ * - Prefix: Queue namespace (default: 'bull')
  * - Retry: 3 attempts with exponential backoff
  */
-const concurrency = Number(process.env.WORKER_CONCURRENCY ?? 4);
-const prefix = process.env.BULLMQ_PREFIX ?? 'captioni';
 
-export const subtitleWorker = new Worker(
+export const subtitleWorker = getWorker(
   'subtitles',
-  async (job: Job) => {
-    const { jobId, fileId, style } = job.data as { jobId: string; fileId: string; style: string };
+  async (job: { data: { subtitleJobId: string; fileId: string; style: string } }) => {
+    const { subtitleJobId, fileId, style } = job.data as { subtitleJobId: string; fileId: string; style: string };
 
-    console.log(`Processing job ${jobId} for file ${fileId} with style ${style}`);
+    console.log(`Processing job ${subtitleJobId} for file ${fileId} with style ${style}`);
 
     // Idempotence guard
-    const existing = await prisma.subtitleJob.findUnique({ where: { id: jobId } });
+    const existing = await prisma.subtitleJob.findUnique({ where: { id: subtitleJobId } });
     if (!existing || existing.status === 'COMPLETED') {
-      console.log(`Job ${jobId} already completed or not found, skipping`);
+      console.log(`Job ${subtitleJobId} already completed or not found, skipping`);
       return;
     }
 
     await prisma.subtitleJob.update({
-      where: { id: jobId },
+      where: { id: subtitleJobId },
       data: { status: 'PROCESSING', startedAt: new Date(), progress: 10 }
     });
 
     try {
       const storageKey = await processSubtitleJob(
-        { jobId, fileId, style },
+        { jobId: subtitleJobId, fileId, style },
         async (p) => { 
           await prisma.subtitleJob.update({ 
-            where: { id: jobId }, 
+            where: { id: subtitleJobId }, 
             data: { progress: p } 
           }); 
         }
       );
 
       await prisma.subtitleJob.update({
-        where: { id: jobId },
+        where: { id: subtitleJobId },
         data: { 
           status: 'COMPLETED', 
           progress: 100, 
@@ -63,14 +61,14 @@ export const subtitleWorker = new Worker(
       });
 
       // Trackování dokončení
-      jobTracking.completed({ jobId });
-      console.log(`Job ${jobId} completed successfully with storage key: ${storageKey}`);
+      jobTracking.completed({ jobId: subtitleJobId });
+      console.log(`Job ${subtitleJobId} completed successfully with storage key: ${storageKey}`);
 
     } catch (err: unknown) {
-      console.error(`Job ${jobId} failed:`, err);
+      console.error(`Job ${subtitleJobId} failed:`, err);
       
       await prisma.subtitleJob.update({
-        where: { id: jobId },
+        where: { id: subtitleJobId },
         data: { 
           status: 'FAILED', 
           errorMessage: err instanceof Error ? err.message : 'Failed', 
@@ -79,15 +77,11 @@ export const subtitleWorker = new Worker(
       });
 
       // Trackování chyby
-      jobTracking.failed('Processing failed', { jobId });
+      jobTracking.failed('Processing failed', { jobId: subtitleJobId });
       throw err;
     }
   },
-  { 
-    connection: getRedis(), 
-    prefix, 
-    concurrency 
-  }
+  BULL_CONF.WORKER_CONCURRENCY
 );
 
 // Event listenery pro logy
@@ -116,6 +110,6 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-console.log(`Subtitle worker started with concurrency: ${concurrency}`);
-console.log(`Listening for jobs on queue: subtitles (prefix: ${prefix})`);
+console.log(`Subtitle worker started with concurrency: ${BULL_CONF.WORKER_CONCURRENCY}`);
+console.log(`Listening for jobs on queue: subtitles (prefix: ${BULL_CONF.BULLMQ_PREFIX})`);
 

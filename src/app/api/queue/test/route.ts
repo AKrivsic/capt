@@ -1,54 +1,30 @@
 import { NextResponse } from 'next/server';
-import { enqueueSubtitlesJob } from '@/server/queue';
-import { randomUUID } from 'crypto';
+import { getQueue, BULL_CONF, maskRedisUrl } from '@/server/queue/bullmq';
 
-export async function POST() {
-  // Only allow in development
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json(
-      { error: 'Not available in production' },
-      { status: 403 }
-    );
-  }
-
-  // Check if Redis is available
-  if (!process.env.REDIS_URL) {
-    return NextResponse.json(
-      { error: 'Service Unavailable', message: 'Queue unavailable in this environment' },
-      { status: 503 }
-    );
-  }
-
+export async function GET() {
   try {
-    const jobId = randomUUID();
-    const testJobId = `subtitle:${jobId}`;
+    const queue = getQueue('subtitles');
+    const counts = await queue.getJobCounts();
+    const [waiting, active, failed, completed] = await Promise.all([
+      queue.getWaiting(), 
+      queue.getActive(), 
+      queue.getFailed(), 
+      queue.getCompleted()
+    ]);
     
-    await enqueueSubtitlesJob(
-      { 
-        jobId, 
-        fileId: 'TEST_FILE_ID', 
-        style: 'BARBIE' 
-      }, 
-      { 
-        jobId: testJobId,
-        priority: 5 
-      }
-    );
-
-    console.log(`Test job enqueued: ${testJobId}`);
-
-    return NextResponse.json({ 
-      ok: true, 
-      jobId: testJobId,
-      message: 'Test job enqueued successfully' 
+    return NextResponse.json({
+      redis: maskRedisUrl(BULL_CONF.REDIS_URL),
+      prefix: BULL_CONF.BULLMQ_PREFIX,
+      counts,
+      waitingIds: waiting.map(j => j.id),
+      activeIds: active.map(j => j.id),
+      failed: failed.slice(0, 5).map(j => ({ id: j.id, reason: j.failedReason })),
+      completedIds: completed.slice(0, 5).map(j => j.id),
     });
-
   } catch (error) {
-    console.error('Test queue error:', error);
     return NextResponse.json(
-      { error: 'Failed to enqueue test job' },
+      { error: 'Queue test failed', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
 }
-

@@ -145,8 +145,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
     
     // Enqueue job do BullMQ
     await enqueueSubtitlesJob(
-      { jobId: result.id, fileId, style },
-      { jobId: `subtitle:${result.id}`, priority: 5 }
+      { subtitleJobId: result.id, fileId, style },
+      { jobId: result.id, priority: 5 }
     );
 
     const response: ProcessResponse = {

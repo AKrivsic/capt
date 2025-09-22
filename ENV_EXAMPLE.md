@@ -8,7 +8,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/captioni"
 
 # Redis (Upstash)
 REDIS_URL="rediss://default:password@host:port"
-BULL_PREFIX="captioni"
+BULLMQ_PREFIX="bull"
 
 # Upstash Redis (for rate limiting)
 KV_REST_API_REDIS_URL="rediss://default:password@host:port"
@@ -41,7 +41,7 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 1. Vytvořte účet na [Upstash](https://upstash.com/)
 2. Vytvořte Redis databázi
 3. Zkopírujte `REDIS_URL` z dashboardu
-4. Nastavte `BULL_PREFIX` na `captioni`
+4. Nastavte `BULLMQ_PREFIX` na `bull` (default)
 
 ## Upstash Redis Setup (for Rate Limiting)
 
