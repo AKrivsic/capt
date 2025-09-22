@@ -35,7 +35,15 @@ async function startWorker() {
       console.log(`[WORKER] Processing job ${job.id}:`, job.data);
       
       try {
-        const result = await processSubtitleJob(job.data as unknown);
+        // Transform data to match processSubtitleJob interface
+        const jobData = job.data as { subtitleJobId: string; fileId: string; style: string };
+        const transformedData = {
+          jobId: jobData.subtitleJobId,
+          fileId: jobData.fileId,
+          style: jobData.style
+        };
+        
+        const result = await processSubtitleJob(transformedData);
         console.log(`[WORKER] Job ${job.id} completed successfully`);
         return result;
       } catch (error) {
