@@ -108,10 +108,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
     });
 
     if (existingJob) {
-      return NextResponse.json(
-        { error: 'Job Already Running', message: 'Job is already running for this file' },
-        { status: 409 }
-      );
+      // Idempotent response: return existing jobId instead of 409
+      const response: ProcessResponse = { jobId: existingJob.id };
+      return NextResponse.json(response);
     }
 
     // Transakce: vytvoř job a odečti kredity (pouze pro autentifikované uživatele)
