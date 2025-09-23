@@ -124,35 +124,17 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
         setUploadProgress(30 + Math.floor(60 * progress.percentage / 100));
       });
 
-      setUploadProgress(90);
-
-      // Step 3: Process video (enqueue job)
-      const processResponse = await fetch('/api/video/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileId,
-          style: 'BARBIE' // Default style for demo
-        })
-      });
-
-      if (!processResponse.ok) {
-        const error = await processResponse.json();
-        throw new Error(error.message || 'Failed to process video');
-      }
-
-      const { jobId } = await processResponse.json();
-      
-      // 4. Úspěšné dokončení
-      setUploadState('success');
       setUploadProgress(100);
+      
+      // Úspěšné dokončení - video je nahráno, ale ještě není zpracováno
+      setUploadState('success');
 
       const uploadedFile: UploadedFile = {
         id: fileId,
         name: file.name,
         size: file.size,
         file: file,
-        url: `/api/video/job/${jobId}` // Job tracking URL
+        previewUrl: `/api/demo/preview/${fileId}` // Preview URL pro náhled
       };
 
       onUploadComplete(uploadedFile);
@@ -281,7 +263,7 @@ export default function MobileUploadCard({ onUploadComplete, onError }: Props) {
             <div className={styles.successIcon}>✅</div>
             <h3 className={styles.successTitle}>Video uploaded!</h3>
             <p className={styles.successDescription}>
-              Continue by selecting subtitle style
+              Now select your subtitle style to continue
             </p>
           </>
         )}
