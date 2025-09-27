@@ -8,10 +8,11 @@ import { getSessionServer } from "@/lib/session";
 // Note: These functions are not yet implemented in limits.ts
 // For now, we'll use the fallback rate limiting logic below
 import { assertSameOrigin } from "@/lib/origin";
-import { getUserPreferences, type PrefSummary } from "@/lib/prefs";
+import { getUserPreferences } from "@/lib/prefs";
 import { PLAN_LIMITS, isUnlimited } from "@/constants/plans";
 import { mlMarkEvent } from "@/lib/mailerlite";
 import { prisma } from "@/lib/prisma";
+import { buildMessages, type PromptInput } from "@/lib/prompt";
 
 // ====== enums & vstup ======
 const OutputEnum = z.enum([
@@ -55,153 +56,6 @@ const OPENAI_PROXY_URL = process.env.OPENAI_PROXY_URL || "https://api.openai.com
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 12_000);
 
-// ====== style notes & platformy ======
-const styleNotes: Record<Input["style"], string> = {
-  Barbie: "Playful, glamorous, pink-forward, upbeat, confident, friendly.",
-  Edgy: "Bold, rebellious, punchy, concise, slightly provocative.",
-  Glamour: "Elegant, luxurious, polished, aspirational.",
-  Baddie: "Confident, bossy, flirty, unapologetic, iconic.",
-  Innocent: "Sweet, soft, wholesome, cute, gentle.",
-  Funny: "Witty, clever, playful punchlines, meme-aware.",
-  Rage: "Explosive, raw, high-energy. Perfect for rage-quits, epic fails, and over-the-top reactions. Caps-lock vibes, glitchy, in-your-face.",
-  Meme: "Hyper-relatable, internet-native humor. Quick punchlines, ironic tone, layered references. Built to go viral and make your friends tag each other.",
-  Streamer: "Smooth, professional, gamer-friendly. Engaging but clear, designed for highlights, callouts, and building loyal chat vibes.",
-};
-
-function platformNote(p: Input["platform"]): string {
-  switch (p) {
-    case "instagram":
-      return "IG: short lines, emojis welcome, strong hook. Return only requested type; add hashtags only if the user requested hashtags.";
-    case "tiktok":
-      return "TikTok: viral vibe, hooks, punchy lines, trends-aware. Return only the requested type.";
-    case "x":
-      return "X/Twitter: concise, no fluff, punchy phrasing, no extra spacing. Return only the requested type.";
-    case "onlyfans":
-      return "OnlyFans: brand-safe, suggestive not explicit, friendly CTA. Return only the requested type.";
-  }
-}
-
-function targetByType(t: OutputType): string {
-  switch (t) {
-    case "caption":
-      return "Write a social caption (1–3 short lines). Include fitting emojis if natural. Return only the caption, no quotes. Each variant MUST be meaningfully different in tone/wording/structure.";
-    case "bio":
-      return "Write a short account bio (platform limits apply). Return only the bio text, no quotes. Each variant MUST be distinct.";
-    case "hashtags":
-      return "Return ONLY 20–30 relevant hashtags as a SINGLE space-separated line. No numbers, commentary, bullets, or intro. Each variant MUST use a different set/mix of tags.";
-    case "dm":
-      return "Write a short, friendly DM opener (2–4 lines). No links unless explicitly requested. No personal data requests. Each variant MUST be clearly different (opening hook, angle, emojis).";
-    case "comments":
-      return "Write 5 short, natural comments users might post. One per line. Return only the 5 lines. All 5 lines MUST be unique. If multiple variants are requested, each variant MUST differ.";
-    case "story":
-      return "Write a 2–3 slide story script (max 3). Each slide on a new line with a short headline. Return only these lines. Slides MUST be unique. If multiple variants are requested, each variant MUST differ.";
-    case "hook":
-      return "Write 5 scroll-stopping hooks. One per line. Return only the 5 lines. All 5 hooks MUST be unique. If multiple variants are requested, each variant MUST differ.";
-  }
-}
-
-// ====== preference komprese ======
-function readStringArray(obj: unknown, key: string): string[] | null {
-  if (obj && typeof obj === "object" && key in (obj as Record<string, unknown>)) {
-    const val = (obj as Record<string, unknown>)[key];
-    if (Array.isArray(val) && val.every((v) => typeof v === "string")) {
-      return val as string[];
-    }
-  }
-  return null;
-}
-function readTopStyles(obj: unknown): string[] {
-  if (!obj || typeof obj !== "object") return [];
-  const maybe = (obj as { topStyles?: Array<{ style: string }> }).topStyles;
-  if (!Array.isArray(maybe)) return [];
-  return maybe.filter((x) => typeof x?.style === "string").map((x) => x.style);
-}
-
-function compressPrefs(p: PrefSummary | null | undefined): string {
-  if (!p) return "";
-
-  const styles = readTopStyles(p).slice(0, 3).join(" > ");
-
-  const nLen = (p as unknown as { avgCaptionLen?: number }).avgCaptionLen;
-  const len =
-    typeof nLen === "number"
-      ? nLen <= 80
-        ? "short"
-        : nLen <= 160
-        ? "medium"
-        : "long"
-      : null;
-
-  const nEmoji = (p as unknown as { emojiRatio?: number }).emojiRatio;
-  const emoji =
-    typeof nEmoji === "number"
-      ? nEmoji >= 0.6
-        ? "high"
-        : nEmoji >= 0.3
-        ? "medium"
-        : "low"
-      : null;
-
-  const topTones = readStringArray(p, "topTones") ?? [];
-  const disliked =
-    readStringArray(p, "dislikedPhrases") ??
-    readStringArray(p, "disliked") ??
-    [];
-
-  const tones = topTones.slice(0, 3).join(", ");
-  const avoids = disliked
-    .map((s) => s.trim())
-    .filter((s) => Boolean(s))
-    .map((s) => (s.length > 15 ? s.slice(0, 15) : s))
-    .slice(0, 5);
-
-  const chunks: string[] = [];
-  if (styles) chunks.push(`Top styles: ${styles}.`);
-  if (len) chunks.push(`Length: ${len}.`);
-  if (emoji) chunks.push(`Emojis: ${emoji}.`);
-  if (tones) chunks.push(`Tone: ${tones}.`);
-  if (avoids.length) chunks.push(`Avoid: ${avoids.join(", ")}.`);
-
-  return chunks.join(" ");
-}
-
-function clamp(str: string, max = 900): string {
-  return str.length <= max ? str : str.slice(0, max - 1) + "…";
-}
-
-// === message builder ===
-type ChatMessage =
-  | { role: "system"; content: string }
-  | { role: "user"; content: string };
-
-function buildMessages(
-  i: Input,
-  type: OutputType,
-  prefs?: PrefSummary | null
-): ChatMessage[] {
-  const prefLine = compressPrefs(prefs);
-
-  const systemContent = clamp(
-    [
-      "You are Captioni — an expert social content copywriter.",
-      `Platform: ${i.platform}. ${platformNote(i.platform)}`,
-      `Style: ${i.style}. Voice: ${styleNotes[i.style]}.`,
-      prefLine || null,
-      targetByType(type),
-      "Avoid NSFW. Keep it brand-safe.",
-      "Return only the requested format. Never wrap the whole output in quotes.",
-      "Every choice you generate MUST be semantically distinct. Vary structure, vocabulary, and emoji usage.",
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    900
-  );
-
-  return [
-    { role: "system", content: systemContent },
-    { role: "user", content: `Topic/Vibe: ${i.vibe}` },
-  ];
-}
 
 // ====== RL fallback ======
 const rl = new Map<string, { count: number; day: string }>();
@@ -812,7 +666,7 @@ export async function POST(req: NextRequest) {
           reqHeaders,
           JSON.stringify({
             model: MODEL,
-            messages: buildMessages(input, type, prefs),
+            messages: buildMessages(input as PromptInput, type, prefs),
             temperature,
             max_tokens,
             n: n, // Použij n z genParamsFor (DEFAULT_VARIANTS)

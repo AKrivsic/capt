@@ -1,0 +1,120 @@
+// src/lib/prompt.ts
+
+import { styleNotes, type StyleType } from "@/constants/styleNotes";
+import { platformNote, type PlatformType } from "@/constants/platformNotes";
+import { targetByType, type OutputType } from "@/constants/targetByType";
+import type { PrefSummary } from "@/lib/prefs";
+
+// ====== preference komprese ======
+function readStringArray(obj: unknown, key: string): string[] | null {
+  if (obj && typeof obj === "object" && key in (obj as Record<string, unknown>)) {
+    const val = (obj as Record<string, unknown>)[key];
+    if (Array.isArray(val) && val.every((v) => typeof v === "string")) {
+      return val as string[];
+    }
+  }
+  return null;
+}
+
+function readTopStyles(obj: unknown): string[] {
+  if (!obj || typeof obj !== "object") return [];
+  const maybe = (obj as { topStyles?: Array<{ style: string }> }).topStyles;
+  if (!Array.isArray(maybe)) return [];
+  return maybe.filter((x) => typeof x?.style === "string").map((x) => x.style);
+}
+
+export function compressPrefs(p: PrefSummary | null | undefined): string {
+  if (!p) return "";
+
+  const styles = readTopStyles(p).slice(0, 3).join(" > ");
+
+  const nLen = (p as unknown as { avgCaptionLen?: number }).avgCaptionLen;
+  const len =
+    typeof nLen === "number"
+      ? nLen <= 80
+        ? "short"
+        : nLen <= 160
+        ? "medium"
+        : "long"
+      : null;
+
+  const nEmoji = (p as unknown as { emojiRatio?: number }).emojiRatio;
+  const emoji =
+    typeof nEmoji === "number"
+      ? nEmoji >= 0.6
+        ? "high"
+        : nEmoji >= 0.3
+        ? "medium"
+        : "low"
+      : null;
+
+  const topTones = readStringArray(p, "topTones") ?? [];
+  const disliked =
+    readStringArray(p, "dislikedPhrases") ??
+    readStringArray(p, "disliked") ??
+    [];
+
+  const tones = topTones.slice(0, 3).join(", ");
+  const avoids = disliked
+    .map((s) => s.trim())
+    .filter((s) => Boolean(s))
+    .map((s) => (s.length > 15 ? s.slice(0, 15) : s))
+    .slice(0, 5);
+
+  const chunks: string[] = [];
+  if (styles) chunks.push(`Top styles: ${styles}.`);
+  if (len) chunks.push(`Length: ${len}.`);
+  if (emoji) chunks.push(`Emojis: ${emoji}.`);
+  if (tones) chunks.push(`Tone: ${tones}.`);
+  if (avoids.length) chunks.push(`Avoid: ${avoids.join(", ")}.`);
+
+  return chunks.join(" ");
+}
+
+export function clamp(str: string, max = 900): string {
+  return str.length <= max ? str : str.slice(0, max - 1) + "…";
+}
+
+// === message builder ===
+export type ChatMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string };
+
+export interface PromptInput {
+  style: StyleType;
+  platform: PlatformType;
+  outputs: OutputType[];
+  vibe: string;
+  variants?: number;
+  demo?: boolean;
+}
+
+export function buildMessages(
+  input: PromptInput,
+  type: OutputType,
+  prefs?: PrefSummary | null
+): ChatMessage[] {
+  const prefLine = compressPrefs(prefs);
+
+  const systemContent = clamp(
+    [
+      "You are Captioni — an expert social content copywriter.",
+      `Platform: ${input.platform}. ${platformNote(input.platform)}`,
+      `Style: ${input.style}. Voice: ${styleNotes[input.style]}.`,
+      prefLine || null,
+      targetByType(type),
+      "Avoid NSFW. Keep it brand-safe.",
+      "Return only the requested format. Never wrap the whole output in quotes.",
+      "Every variant MUST explore a different angle, tone, or structure. Vary structure, vocabulary, emoji usage, and perspective.",
+      "Favor authenticity over polish. Use humor, internet slang, or inside jokes when relevant to the vibe. Prioritize text that sparks comments, shares, or reactions.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    900
+  );
+
+  return [
+    { role: "system", content: systemContent },
+    { role: "user", content: `Topic/Vibe: ${input.vibe}` },
+  ];
+}
