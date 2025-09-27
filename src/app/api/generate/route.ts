@@ -25,15 +25,15 @@ import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
 
 // ====== enums & vstup ======
 const OutputEnum = z.enum([
-  "Caption",
-  "Bio",
-  "Hashtags",
-  "DM",
-  "Comments",
-  "Story",
-  "Hook",
+  "caption",
+  "bio",
+  "hashtags",
+  "dm",
+  "comments",
+  "story",
+  "hook",
 ]);
-const PlatformEnum = z.enum(["Instagram", "TikTok", "X/Twitter", "OnlyFans"]);
+const PlatformEnum = z.enum(["instagram", "tiktok", "x", "onlyfans"]);
 const AllowedStyles = z.enum([
   "Barbie",
   "Edgy",
@@ -114,13 +114,13 @@ type GenParams = {
 
 // Defaultní počty variant pro každý typ
 const DEFAULT_VARIANTS: Record<OutputType, number> = {
-  Caption: 3,
-  Bio: 3,
-  Hashtags: 1,
-  DM: 3,
-  Comments: 5,
-  Story: 2,
-  Hook: 5,
+  caption: 3,
+  bio: 3,
+  hashtags: 1,
+  dm: 3,
+  comments: 5,
+  story: 2,
+  hook: 5,
 };
 
 // Typy, u kterých se počet variant NEPŘEPISUJE přes input.variants
@@ -139,20 +139,20 @@ const DEFAULT_VARIANTS: Record<OutputType, number> = {
 
 function genParamsFor(type: OutputType): GenParams {
   switch (type) {
-    case "Hashtags":
-      return { n: DEFAULT_VARIANTS.Hashtags, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
-    case "Bio":
-      return { n: DEFAULT_VARIANTS.Bio, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
-    case "Comments":
-      return { n: DEFAULT_VARIANTS.Comments, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
-    case "Story":
-      return { n: DEFAULT_VARIANTS.Story, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
-    case "Hook":
-      return { n: DEFAULT_VARIANTS.Hook, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
-    case "DM":
-      return { n: DEFAULT_VARIANTS.DM, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
+    case "hashtags":
+      return { n: DEFAULT_VARIANTS.hashtags, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
+    case "bio":
+      return { n: DEFAULT_VARIANTS.bio, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
+    case "comments":
+      return { n: DEFAULT_VARIANTS.comments, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
+    case "story":
+      return { n: DEFAULT_VARIANTS.story, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
+    case "hook":
+      return { n: DEFAULT_VARIANTS.hook, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
+    case "dm":
+      return { n: DEFAULT_VARIANTS.dm, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
     default:
-      return { n: DEFAULT_VARIANTS.Caption, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
+      return { n: DEFAULT_VARIANTS.caption, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
   }
 }
 
@@ -312,22 +312,22 @@ function simpleFallback(type: OutputType, i: Input, salt = 0): string {
   const t = truncate(i.vibe + (salt % 3 === 0 ? " ✦" : salt % 3 === 1 ? " — let’s go" : " •"), 160);
 
   switch (type) {
-    case "Caption":
+    case "caption":
       return salt % 2 === 0 ? `${e} ${t}` : `${t} ${e}`;
-    case "Bio":
+    case "bio":
       return salt % 2 === 0 ? `${truncate(i.vibe, 120)} | ${e}` : `${e} ${truncate(i.vibe, 118)}`;
-    case "Hashtags":
+    case "hashtags":
       return toHashtags(i.vibe + (salt === 0 ? "" : ` ${salt}`), 22);
-    case "DM":
+    case "dm":
       return salt % 2 === 0
         ? `Hey! ${truncate(i.vibe, 90)} — had to share this vibe. Up for it?`
         : `Hi! ${truncate(i.vibe, 90)}. Wanna try something fun together? ${e}`;
-    case "Comments":
+    case "comments":
       if (salt % 2 === 0) {
         return ["Obsessed 🤍", "Instant save!", "So clean 😍", "Mood.", `Iconic ${e}`].join("\n");
       }
       return ["This slaps 🔥", "Chef's kiss", "Need more!", "Okayyyy 😮‍💨", `Serving looks ${e}`].join("\n");
-    case "Story":
+    case "story":
       if (salt % 2 === 0) {
         return `${truncate(i.vibe, 60)}
 Behind the magic
@@ -336,7 +336,7 @@ Tap for the reveal`;
       return `${truncate(i.vibe, 60)}
 Quick tip you'll use
 Swipe up for more`;
-    case "Hook":
+    case "hook":
       if (salt % 2 === 0) {
         return [
           `${t}?`,
@@ -358,12 +358,12 @@ Swipe up for more`;
 
 // ====== CTA injektor (jemné CTA pro caption/story) ======
 function injectCTA(type: OutputType, variants: string[]): string[] {
-  if (type !== "Caption" && type !== "Story") return variants;
+  if (type !== "caption" && type !== "story") return variants;
 
   return variants.map((v, idx) => {
     if (idx !== 0) return v; // CTA jen do první varianty
 
-    if (type === "Caption") {
+    if (type === "caption") {
       return v + "\n👉 Don't miss out — follow for more fun!";
     }
 
@@ -638,22 +638,43 @@ export async function POST(req: NextRequest) {
   }
 
   const out: Record<OutputType, string[]> = {
-    Caption: [],
-    Bio: [],
-    Hashtags: [],
-    DM: [],
-    Comments: [],
-    Story: [],
-    Hook: [],
+    caption: [],
+    bio: [],
+    hashtags: [],
+    dm: [],
+    comments: [],
+    story: [],
+    hook: [],
+  };
+
+  // ====== Type mapping for frontend compatibility ======
+  const typeMapping: Record<string, TargetTypeKey> = {
+    caption: "Caption",
+    bio: "Bio", 
+    hashtags: "Hashtags",
+    dm: "DM",
+    comments: "Comments",
+    story: "Story",
+    hook: "Hook"
+  };
+
+  const platformMapping: Record<string, keyof typeof platformNotes> = {
+    instagram: "Instagram",
+    tiktok: "TikTok", 
+    x: "X/Twitter",
+    onlyfans: "OnlyFans"
   };
 
   // ====== Post-processing and regeneration utilities ======
   async function regen(type: string): Promise<string> {
+    const mappedType = typeMapping[type];
+    const mappedPlatform = platformMapping[input.platform];
+    
     const systemContent = [
       "You are Captioni — an expert social content copywriter.",
-      `Platform: ${input.platform}. ${platformNotes[input.platform]}`,
+      `Platform: ${mappedPlatform}. ${platformNotes[mappedPlatform]}`,
       `Style: ${input.style}. Voice: ${styleNotes[input.style]}.`,
-      targetByType[type as TargetTypeKey],
+      targetByType[mappedType],
       "Avoid NSFW. Keep it brand-safe.",
       `Return only the ${type} in the exact required format, nothing else.`,
     ].join("\n");
@@ -696,14 +717,14 @@ export async function POST(req: NextRequest) {
   ): Promise<string> {
     let out = sanitizeProfanity(raw || '');
 
-    if (type === 'Story') {
+    if (type === 'story') {
       out = fixStoryFormat(out);
     }
 
-    if (type === 'Hashtags') {
+    if (type === 'hashtags') {
       const fixed = validateAndCleanHashtags(out);
       if (!fixed) {
-        const retry = await regen('Hashtags');
+        const retry = await regen('hashtags');
         const retryFixed = validateAndCleanHashtags(sanitizeProfanity(retry || ''));
         if (!retryFixed) throw new Error('HASHTAGS_INVALID');
         return retryFixed;
@@ -711,10 +732,10 @@ export async function POST(req: NextRequest) {
       return fixed;
     }
 
-    if (type === 'Comments') {
+    if (type === 'comments') {
       const ok = ensureFiveCommentsBlock(out);
       if (!ok) {
-        const retry = await regen('Comments');
+        const retry = await regen('comments');
         const retryOk = ensureFiveCommentsBlock(sanitizeProfanity(retry || ''));
         if (!retryOk) throw new Error('COMMENTS_INVALID');
         return retryOk;
@@ -736,12 +757,19 @@ export async function POST(req: NextRequest) {
       } = genParamsFor(type);
 
       try {
+        const mappedInput: PromptInput = {
+          ...input,
+          platform: platformMapping[input.platform],
+          outputs: input.outputs.map(o => typeMapping[o])
+        };
+        const mappedType = typeMapping[type];
+
         const res = await callOpenAIWithRetry(
           OPENAI_PROXY_URL,
           reqHeaders,
           JSON.stringify({
             model: MODEL,
-            messages: buildMessages(input as PromptInput, type, prefs),
+            messages: buildMessages(mappedInput, mappedType, prefs),
             temperature,
             max_tokens,
             n: n, // Použij n z genParamsFor (DEFAULT_VARIANTS)
@@ -776,7 +804,7 @@ export async function POST(req: NextRequest) {
         );
         
         // Apply CTA injection for applicable types
-        if (type === "Caption" || type === "Story") {
+        if (type === "caption" || type === "story") {
           out[type] = injectCTA(type, processed);
         } else {
           out[type] = processed;
@@ -800,7 +828,7 @@ export async function POST(req: NextRequest) {
         );
         
         // Apply CTA injection for applicable types
-        if (type === "Caption" || type === "Story") {
+        if (type === "caption" || type === "story") {
           out[type] = injectCTA(type, processed);
         } else {
           out[type] = processed;
@@ -815,7 +843,7 @@ export async function POST(req: NextRequest) {
           const regenerated = await regen(requestedType);
           const processed = await postprocessOne(requestedType, regenerated, regen);
           
-          if (requestedType === "Caption" || requestedType === "Story") {
+          if (requestedType === "caption" || requestedType === "story") {
             out[requestedType] = injectCTA(requestedType, [processed]);
           } else {
             out[requestedType] = [processed];
@@ -825,7 +853,7 @@ export async function POST(req: NextRequest) {
           const fallback = simpleFallback(requestedType, input, 0);
           const processed = sanitizeProfanity(fallback);
           
-          if (requestedType === "Caption" || requestedType === "Story") {
+          if (requestedType === "caption" || requestedType === "story") {
             out[requestedType] = injectCTA(requestedType, [processed]);
           } else {
             out[requestedType] = [processed];
