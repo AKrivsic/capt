@@ -1,8 +1,8 @@
 // src/lib/prompt.ts
 
 import { styleNotes, type StyleType } from "@/constants/styleNotes";
-import { platformNote, type PlatformType } from "@/constants/platformNotes";
-import { targetByType, type OutputType } from "@/constants/targetByType";
+import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
+import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
 import type { PrefSummary } from "@/lib/prefs";
 
 // ====== preference komprese ======
@@ -82,8 +82,8 @@ export type ChatMessage =
 
 export interface PromptInput {
   style: StyleType;
-  platform: PlatformType;
-  outputs: OutputType[];
+  platform: PlatformKey;
+  outputs: TargetTypeKey[];
   vibe: string;
   variants?: number;
   demo?: boolean;
@@ -91,7 +91,7 @@ export interface PromptInput {
 
 export function buildMessages(
   input: PromptInput,
-  type: OutputType,
+  type: TargetTypeKey,
   prefs?: PrefSummary | null
 ): ChatMessage[] {
   const prefLine = compressPrefs(prefs);
@@ -99,14 +99,16 @@ export function buildMessages(
   const systemContent = clamp(
     [
       "You are Captioni — an expert social content copywriter.",
-      `Platform: ${input.platform}. ${platformNote(input.platform)}`,
+      `Platform: ${input.platform}. ${platformNotes[input.platform]}`,
       `Style: ${input.style}. Voice: ${styleNotes[input.style]}.`,
       prefLine || null,
-      targetByType(type),
+      targetByType[type],
       "Avoid NSFW. Keep it brand-safe.",
       "Return only the requested format. Never wrap the whole output in quotes.",
-      "Every variant MUST explore a different angle, tone, or structure. Vary structure, vocabulary, emoji usage, and perspective.",
+      "Every variant MUST explore a different angle, tone, or structure (e.g., sarcastic, angry, ironic, exaggerated). Avoid rephrasing the same sentence. Vary structure, vocabulary, emoji usage, and perspective.",
       "Favor authenticity over polish. Use humor, internet slang, or inside jokes when relevant to the vibe. Prioritize text that sparks comments, shares, or reactions.",
+      "If the user input contains profanity, soften it to brand-safe (e.g., 'f**k', 'WTH').",
+      "For each requested output type, return that type exactly once in the requested format and align with the current platform guidance.",
     ]
       .filter(Boolean)
       .join("\n"),

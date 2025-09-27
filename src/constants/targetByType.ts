@@ -1,35 +1,20 @@
 // src/constants/targetByType.ts
 
-export type OutputType = 
-  | "caption"
-  | "bio" 
-  | "hashtags"
-  | "dm"
-  | "comments"
-  | "story"
-  | "hook";
+export const targetByType = {
+  Caption:
+    "Write a social caption (1–3 short lines). Include fitting emojis if natural. Return only the caption, no quotes. Each variant MUST be meaningfully different in tone/wording/structure. Follow the current platform guidance for length/energy.",
+  Bio:
+    "Write a short account bio (platform limits apply). Return only the bio text, no quotes. Each variant MUST be distinct. Align tone with the platform guidance.",
+  Hashtags:
+    "Return ONLY 20–30 relevant hashtags as a SINGLE space-separated line. Mix broad tags (#gaming, #cs2) with niche/trending ones (#ragequit, #fpslife). Never split hashtags into individual words (#THIS #IS #NOT...). No filler or stopwords. All hashtags must be a single token starting with #. Use lowercase for generic tags and keep acronyms/game names as is (e.g., #CS2). Each variant MUST use a different set or mix of tags.",
+  DM:
+    "Write a short, friendly DM opener (2–4 lines). Return only if requested in outputs. Keep it personal and conversational. Each variant MUST use a different opening angle (sympathy, joke, invite to chat, playful banter).",
+  Comments:
+    "Write 5 short, natural comments users might post. One per line. Return only the 5 lines. All 5 lines MUST be unique and tied to the topic/vibe. Include slang/emojis/memes if natural. Avoid generic compliments unless they fit the vibe. Follow platform tone.",
+  Story:
+    "Write a 2–3 slide story script (max 3). One slide per line with a short headline. Do NOT prefix with 'Slide 1:' etc. Keep it brand-safe (soften profanity: 'f**k', 'WTH'). End the last slide with a subtle CTA or punchline. Follow platform tone.",
+  Hook:
+    "Write 5 scroll-stopping hooks. One per line. Return only the 5 lines. All 5 hooks MUST be unique and platform-appropriate."
+} as const;
 
-export function targetByType(type: OutputType): string {
-  switch (type) {
-    case "caption":
-      return "Write a social caption (1–3 short lines). Include fitting emojis if natural. Return only the caption, no quotes. Each variant MUST be meaningfully different in tone/wording/structure.";
-    
-    case "bio":
-      return "Write a short account bio (platform limits apply). Return only the bio text, no quotes. Each variant MUST be distinct.";
-    
-    case "hashtags":
-      return "Return ONLY 20–30 hashtags as a SINGLE space-separated line. Mix broad tags with niche/trending ones. Never split hashtags into individual words. No filler or stopwords. Each variant MUST use a different set or mix of tags.";
-    
-    case "dm":
-      return "Write a short, friendly DM opener (2–4 lines). Always generate the DM text if requested. Keep it personal and conversational. Each variant MUST use a different opening angle (sympathy, joke, invite to chat, playful banter).";
-    
-    case "comments":
-      return "Write 5 short, natural comments users might post. One per line. Return only the 5 lines. All 5 lines MUST be unique. Comments must sound like real user reactions to this vibe/topic. Include slang, emojis, memes if natural. Avoid generic compliments unless they fit the vibe.";
-    
-    case "story":
-      return "Write a 2–3 slide story script (max 3). Each slide on a new line with a short headline. Each slide must feel dynamic and distinct. Use a mix of emojis, caps, irony, or dramatic tone depending on style. End the last slide with a subtle CTA or punchline.";
-    
-    case "hook":
-      return "Write 5 scroll-stopping hooks. One per line. Return only the 5 lines. All 5 hooks MUST be unique. If multiple variants are requested, each variant MUST differ.";
-  }
-}
+export type TargetTypeKey = keyof typeof targetByType;

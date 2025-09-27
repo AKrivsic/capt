@@ -13,18 +13,27 @@ import { PLAN_LIMITS, isUnlimited } from "@/constants/plans";
 import { mlMarkEvent } from "@/lib/mailerlite";
 import { prisma } from "@/lib/prisma";
 import { buildMessages, type PromptInput } from "@/lib/prompt";
+import {
+  sanitizeProfanity,
+  fixStoryFormat,
+  validateAndCleanHashtags,
+  ensureFiveCommentsBlock
+} from '@/lib/validators';
+import { platformNotes } from "@/constants/platformNotes";
+import { styleNotes } from "@/constants/styleNotes";
+import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
 
 // ====== enums & vstup ======
 const OutputEnum = z.enum([
-  "caption",
-  "bio",
-  "hashtags",
-  "dm",
-  "comments",
-  "story",
-  "hook",
+  "Caption",
+  "Bio",
+  "Hashtags",
+  "DM",
+  "Comments",
+  "Story",
+  "Hook",
 ]);
-const PlatformEnum = z.enum(["instagram", "tiktok", "x", "onlyfans"]);
+const PlatformEnum = z.enum(["Instagram", "TikTok", "X/Twitter", "OnlyFans"]);
 const AllowedStyles = z.enum([
   "Barbie",
   "Edgy",
@@ -105,13 +114,13 @@ type GenParams = {
 
 // Defaultní počty variant pro každý typ
 const DEFAULT_VARIANTS: Record<OutputType, number> = {
-  caption: 3,
-  bio: 3,
-  hashtags: 1,
-  dm: 3,
-  comments: 5,
-  story: 2,
-  hook: 5,
+  Caption: 3,
+  Bio: 3,
+  Hashtags: 1,
+  DM: 3,
+  Comments: 5,
+  Story: 2,
+  Hook: 5,
 };
 
 // Typy, u kterých se počet variant NEPŘEPISUJE přes input.variants
@@ -130,20 +139,20 @@ const DEFAULT_VARIANTS: Record<OutputType, number> = {
 
 function genParamsFor(type: OutputType): GenParams {
   switch (type) {
-    case "hashtags":
-      return { n: DEFAULT_VARIANTS.hashtags, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
-    case "bio":
-      return { n: DEFAULT_VARIANTS.bio, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
-    case "comments":
-      return { n: DEFAULT_VARIANTS.comments, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
-    case "story":
-      return { n: DEFAULT_VARIANTS.story, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
-    case "hook":
-      return { n: DEFAULT_VARIANTS.hook, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
-    case "dm":
-      return { n: DEFAULT_VARIANTS.dm, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
+    case "Hashtags":
+      return { n: DEFAULT_VARIANTS.Hashtags, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
+    case "Bio":
+      return { n: DEFAULT_VARIANTS.Bio, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
+    case "Comments":
+      return { n: DEFAULT_VARIANTS.Comments, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
+    case "Story":
+      return { n: DEFAULT_VARIANTS.Story, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
+    case "Hook":
+      return { n: DEFAULT_VARIANTS.Hook, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
+    case "DM":
+      return { n: DEFAULT_VARIANTS.DM, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
     default:
-      return { n: DEFAULT_VARIANTS.caption, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
+      return { n: DEFAULT_VARIANTS.Caption, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
   }
 }
 
@@ -284,18 +293,6 @@ function keywordify(vibe: string): string[] {
   return uniq;
 }
 
-function sanitizeHashtags(line: string): string {
-  const tags = line
-    .trim()
-    .split(/\s+/)
-    .map((t) => (t.startsWith("#") ? t : `#${t}`))
-    .map((t) => t.replace(/[^#a-z0-9_]/gi, ""))
-    .filter((t) => t.length >= 3 && !BANNED_TAGS.has(t.slice(1).toLowerCase()))
-    .slice(0, 30);
-  if (tags.length === 0)
-    return "#content #post #daily #community #share #create #story #vibes";
-  return tags.join(" ");
-}
 
 function toHashtags(vibe: string, count = 18): string {
   const kws = keywordify(vibe)
@@ -315,31 +312,31 @@ function simpleFallback(type: OutputType, i: Input, salt = 0): string {
   const t = truncate(i.vibe + (salt % 3 === 0 ? " ✦" : salt % 3 === 1 ? " — let’s go" : " •"), 160);
 
   switch (type) {
-    case "caption":
+    case "Caption":
       return salt % 2 === 0 ? `${e} ${t}` : `${t} ${e}`;
-    case "bio":
+    case "Bio":
       return salt % 2 === 0 ? `${truncate(i.vibe, 120)} | ${e}` : `${e} ${truncate(i.vibe, 118)}`;
-    case "hashtags":
+    case "Hashtags":
       return toHashtags(i.vibe + (salt === 0 ? "" : ` ${salt}`), 22);
-    case "dm":
+    case "DM":
       return salt % 2 === 0
         ? `Hey! ${truncate(i.vibe, 90)} — had to share this vibe. Up for it?`
         : `Hi! ${truncate(i.vibe, 90)}. Wanna try something fun together? ${e}`;
-    case "comments":
+    case "Comments":
       if (salt % 2 === 0) {
         return ["Obsessed 🤍", "Instant save!", "So clean 😍", "Mood.", `Iconic ${e}`].join("\n");
       }
-      return ["This slaps 🔥", "Chef’s kiss", "Need more!", "Okayyyy 😮‍💨", `Serving looks ${e}`].join("\n");
-    case "story":
+      return ["This slaps 🔥", "Chef's kiss", "Need more!", "Okayyyy 😮‍💨", `Serving looks ${e}`].join("\n");
+    case "Story":
       if (salt % 2 === 0) {
-        return `Slide 1: ${truncate(i.vibe, 60)}
-Slide 2: Behind the magic
-Slide 3: Tap for the reveal`;
+        return `${truncate(i.vibe, 60)}
+Behind the magic
+Tap for the reveal`;
       }
-      return `Slide 1: ${truncate(i.vibe, 60)}
-Slide 2: Quick tip you’ll use
-Slide 3: Swipe up for more`;
-    case "hook":
+      return `${truncate(i.vibe, 60)}
+Quick tip you'll use
+Swipe up for more`;
+    case "Hook":
       if (salt % 2 === 0) {
         return [
           `${t}?`,
@@ -353,7 +350,7 @@ Slide 3: Swipe up for more`;
         `Real talk: ${truncate(i.vibe, 70)}`,
         `Before you scroll — ${truncate(i.vibe, 60)}`,
         `Try this if you ${truncate(i.vibe, 45)}`,
-        `I did ${truncate(i.vibe, 50)} so you don’t have to`,
+        `I did ${truncate(i.vibe, 50)} so you don't have to`,
         `The fastest way to ${truncate(i.vibe, 40)}`,
       ].join("\n");
   }
@@ -361,13 +358,13 @@ Slide 3: Swipe up for more`;
 
 // ====== CTA injektor (jemné CTA pro caption/story) ======
 function injectCTA(type: OutputType, variants: string[]): string[] {
-  if (type !== "caption" && type !== "story") return variants;
+  if (type !== "Caption" && type !== "Story") return variants;
 
   return variants.map((v, idx) => {
     if (idx !== 0) return v; // CTA jen do první varianty
 
-    if (type === "caption") {
-      return v + "\n👉 Don’t miss out — follow for more fun!";
+    if (type === "Caption") {
+      return v + "\n👉 Don't miss out — follow for more fun!";
     }
 
     // STORY: přidej CTA na konec posledního slidu (posledního neprázdného řádku)
@@ -641,14 +638,92 @@ export async function POST(req: NextRequest) {
   }
 
   const out: Record<OutputType, string[]> = {
-    caption: [],
-    bio: [],
-    hashtags: [],
-    dm: [],
-    comments: [],
-    story: [],
-    hook: [],
+    Caption: [],
+    Bio: [],
+    Hashtags: [],
+    DM: [],
+    Comments: [],
+    Story: [],
+    Hook: [],
   };
+
+  // ====== Post-processing and regeneration utilities ======
+  async function regen(type: string): Promise<string> {
+    const systemContent = [
+      "You are Captioni — an expert social content copywriter.",
+      `Platform: ${input.platform}. ${platformNotes[input.platform]}`,
+      `Style: ${input.style}. Voice: ${styleNotes[input.style]}.`,
+      targetByType[type as TargetTypeKey],
+      "Avoid NSFW. Keep it brand-safe.",
+      `Return only the ${type} in the exact required format, nothing else.`,
+    ].join("\n");
+
+    try {
+      const res = await callOpenAIWithRetry(
+        OPENAI_PROXY_URL,
+        reqHeaders,
+        JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: systemContent },
+            { role: "user", content: `Topic/Vibe: ${input.vibe}` }
+          ],
+          temperature: 0.8,
+          max_tokens: 200,
+          n: 1,
+        }),
+        controller.signal
+      );
+
+      const data: unknown = await res.json();
+      const parsedData = data as ChatCompletionResponse;
+      const texts: string[] = Array.isArray(parsedData.choices)
+        ? parsedData.choices
+            .map((c) => c?.message?.content)
+            .filter((t): t is string => typeof t === "string" && t.length > 0)
+        : [];
+      
+      return texts[0] || "";
+    } catch {
+      return "";
+    }
+  }
+
+  async function postprocessOne(
+    type: string,
+    raw: string,
+    regen: (type: string) => Promise<string>
+  ): Promise<string> {
+    let out = sanitizeProfanity(raw || '');
+
+    if (type === 'Story') {
+      out = fixStoryFormat(out);
+    }
+
+    if (type === 'Hashtags') {
+      const fixed = validateAndCleanHashtags(out);
+      if (!fixed) {
+        const retry = await regen('Hashtags');
+        const retryFixed = validateAndCleanHashtags(sanitizeProfanity(retry || ''));
+        if (!retryFixed) throw new Error('HASHTAGS_INVALID');
+        return retryFixed;
+      }
+      return fixed;
+    }
+
+    if (type === 'Comments') {
+      const ok = ensureFiveCommentsBlock(out);
+      if (!ok) {
+        const retry = await regen('Comments');
+        const retryOk = ensureFiveCommentsBlock(sanitizeProfanity(retry || ''));
+        if (!retryOk) throw new Error('COMMENTS_INVALID');
+        return retryOk;
+      }
+      return ok;
+    }
+
+    return out;
+  }
 
   try {
     for (const type of input.outputs) {
@@ -685,25 +760,77 @@ export async function POST(req: NextRequest) {
               .filter((t): t is string => typeof t === "string" && t.length > 0)
           : [];
 
-        // ✅ deduplikace + CTA + (u hashtags) sanitizace
-        let unique = ensureUniqueVariants(texts, n, type, input);
-        if (type === "hashtags") {
-          unique = unique.map(sanitizeHashtags);
+        // ✅ deduplikace + post-processing
+        const unique = ensureUniqueVariants(texts, n, type, input);
+        
+        // Apply post-processing to each variant
+        const processed = await Promise.all(
+          unique.map(async (variant) => {
+            try {
+              return await postprocessOne(type, variant, regen);
+            } catch {
+              // If post-processing fails, return original variant with basic sanitization
+              return sanitizeProfanity(variant);
+            }
+          })
+        );
+        
+        // Apply CTA injection for applicable types
+        if (type === "Caption" || type === "Story") {
+          out[type] = injectCTA(type, processed);
         } else {
-          unique = injectCTA(type, unique);
+          out[type] = processed;
         }
-        out[type] = unique;
       } catch {
-        // ✅ fallbacky + CTA + (u hashtags) sanitizace
-        let arr = Array.from({ length: n }, (_, idx) =>
+        // ✅ fallbacky + post-processing
+        const arr = Array.from({ length: n }, (_, idx) =>
           simpleFallback(type, input, idx)
         );
-        if (type === "hashtags") {
-          arr = arr.map(sanitizeHashtags);
+        
+        // Apply post-processing to fallback variants
+        const processed = await Promise.all(
+          arr.map(async (variant) => {
+            try {
+              return await postprocessOne(type, variant, regen);
+            } catch {
+              // If post-processing fails, return original variant with basic sanitization
+              return sanitizeProfanity(variant);
+            }
+          })
+        );
+        
+        // Apply CTA injection for applicable types
+        if (type === "Caption" || type === "Story") {
+          out[type] = injectCTA(type, processed);
         } else {
-          arr = injectCTA(type, arr);
+          out[type] = processed;
         }
-        out[type] = arr;
+      }
+    }
+
+    // Check for missing requested output types and regenerate if needed
+    for (const requestedType of input.outputs) {
+      if (out[requestedType].length === 0) {
+        try {
+          const regenerated = await regen(requestedType);
+          const processed = await postprocessOne(requestedType, regenerated, regen);
+          
+          if (requestedType === "Caption" || requestedType === "Story") {
+            out[requestedType] = injectCTA(requestedType, [processed]);
+          } else {
+            out[requestedType] = [processed];
+          }
+        } catch {
+          // If regeneration fails, use fallback
+          const fallback = simpleFallback(requestedType, input, 0);
+          const processed = sanitizeProfanity(fallback);
+          
+          if (requestedType === "Caption" || requestedType === "Story") {
+            out[requestedType] = injectCTA(requestedType, [processed]);
+          } else {
+            out[requestedType] = [processed];
+          }
+        }
       }
     }
 

@@ -1,16 +1,14 @@
 // src/constants/platformNotes.ts
 
-export type PlatformType = "instagram" | "tiktok" | "x" | "onlyfans";
+export const platformNotes = {
+  Instagram:
+    "IG: short lines, strong hook, emojis welcome. Keep it punchy and readable on mobile. Return only the requested type; add hashtags only if the user requested hashtags.",
+  TikTok:
+    "TikTok: viral vibe, quick hooks, trend-aware, high-energy delivery. Keep lines short and scannable. Return only the requested type.",
+  "X/Twitter":
+    "X/Twitter: concise and punchy. No fluff, no extra spacing. One-liners or tight micro-paragraphs. Return only the requested type.",
+  OnlyFans:
+    "OnlyFans: brand-safe, suggestive not explicit, warm and friendly CTA. Keep it personable and supportive. Return only the requested type."
+} as const;
 
-export function platformNote(platform: PlatformType): string {
-  switch (platform) {
-    case "instagram":
-      return "IG: short lines, emojis welcome, strong hook. Return only requested type; add hashtags only if the user requested hashtags.";
-    case "tiktok":
-      return "TikTok: viral vibe, hooks, punchy lines, trends-aware. Return only the requested type.";
-    case "x":
-      return "X/Twitter: concise, no fluff, punchy phrasing, no extra spacing. Return only the requested type.";
-    case "onlyfans":
-      return "OnlyFans: brand-safe, suggestive not explicit, friendly CTA. Return only the requested type.";
-  }
-}
+export type PlatformKey = keyof typeof platformNotes;
