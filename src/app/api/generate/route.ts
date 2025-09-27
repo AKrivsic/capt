@@ -17,7 +17,12 @@ import {
   sanitizeProfanity,
   fixStoryFormat,
   validateAndCleanHashtags,
-  ensureFiveCommentsBlock
+  ensureFiveCommentsBlock,
+  normalizeHashtagsCs2,
+  ensureDifferentOpenings,
+  ensureBioQuality,
+  validateCommentsBlock,
+  validateStoryKeywords
 } from '@/lib/validators';
 import { platformNotes } from "@/constants/platformNotes";
 import { styleNotes } from "@/constants/styleNotes";
@@ -717,15 +722,12 @@ export async function POST(req: NextRequest) {
   ): Promise<string> {
     let out = sanitizeProfanity(raw || '');
 
-    if (type === 'story') {
-      out = fixStoryFormat(out);
-    }
-
     if (type === 'hashtags') {
+      out = normalizeHashtagsCs2(out);
       const fixed = validateAndCleanHashtags(out);
       if (!fixed) {
         const retry = await regen('hashtags');
-        const retryFixed = validateAndCleanHashtags(sanitizeProfanity(retry || ''));
+        const retryFixed = validateAndCleanHashtags(normalizeHashtagsCs2(sanitizeProfanity(retry || '')));
         if (!retryFixed) throw new Error('HASHTAGS_INVALID');
         return retryFixed;
       }
@@ -733,17 +735,118 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === 'comments') {
-      const ok = ensureFiveCommentsBlock(out);
-      if (!ok) {
+      // 1) základní formát (5 řádků), 2) zákaz frází + topická vazba
+      const five = ensureFiveCommentsBlock(out);
+      if (!five) {
         const retry = await regen('comments');
-        const retryOk = ensureFiveCommentsBlock(sanitizeProfanity(retry || ''));
-        if (!retryOk) throw new Error('COMMENTS_INVALID');
+        const retryFive = ensureFiveCommentsBlock(sanitizeProfanity(retry || ''));
+        if (!retryFive) throw new Error('COMMENTS_INVALID');
+        out = retryFive;
+      } else {
+        out = five;
+      }
+      const topicalOk = validateCommentsBlock(out);
+      if (!topicalOk) {
+        const retry = await regen('comments');
+        const retryOk = validateCommentsBlock(sanitizeProfanity(retry || ''));
+        if (!retryOk) throw new Error('COMMENTS_CONTEXT_INVALID');
         return retryOk;
       }
-      return ok;
+      return topicalOk;
     }
 
+    if (type === 'story') {
+      // odeber "Slide X:", limit 3, vynucení topic keywords
+      out = fixStoryFormat(out);
+      const topicalOk = validateStoryKeywords(out);
+      if (!topicalOk) {
+        const retry = await regen('story');
+        const retryOk = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || '')));
+        if (!retryOk) throw new Error('STORY_TOPIC_INVALID');
+        return retryOk;
+      }
+      return topicalOk;
+    }
+
+    if (type === 'bio') {
+      // Bio – zpracuj pole variant pokud vracíš více možností
+      const variants = [out]; // pro single variant
+      const cleaned = ensureBioQuality(variants.map(v => sanitizeProfanity(v)));
+      if (!cleaned) {
+        const retry = await regen('bio');
+        const retryClean = ensureBioQuality([sanitizeProfanity(retry || '')]);
+        if (!retryClean) throw new Error('BIO_INVALID');
+        return retryClean[0];
+      }
+      return cleaned[0];
+    }
+
+    if (type === 'caption') {
+      // Caption – vynucení odlišných openingů mezi variantami
+      const variants = [out]; // pro single variant
+      const uniqueOpenings = ensureDifferentOpenings(variants.map(v => v.trim()).filter(Boolean));
+      if (!uniqueOpenings) {
+        const retry = await regen('caption');
+        const retryUnique = ensureDifferentOpenings([sanitizeProfanity(retry || '')]);
+        if (!retryUnique) throw new Error('CAPTION_OPENINGS_INVALID');
+        return retryUnique[0];
+      }
+      return uniqueOpenings[0];
+    }
+
+    // Default: jen brand-safe
     return out;
+  }
+
+  async function postprocessMultipleVariants(
+    type: string,
+    variants: string[],
+    regen: (type: string) => Promise<string>
+  ): Promise<string[]> {
+    if (type === 'caption') {
+      // Ensure different openings across all caption variants
+      const uniqueOpenings = ensureDifferentOpenings(variants);
+      if (!uniqueOpenings) {
+        // If openings are not unique, regenerate all variants
+        const newVariants = await Promise.all(
+          variants.map(async (_, idx) => {
+            try {
+              const retry = await regen('caption');
+              return sanitizeProfanity(retry || '');
+            } catch {
+              return sanitizeProfanity(variants[idx] || '');
+            }
+          })
+        );
+        const retryUnique = ensureDifferentOpenings(newVariants);
+        return retryUnique || newVariants;
+      }
+      return uniqueOpenings;
+    }
+
+    if (type === 'bio') {
+      // Ensure bio quality across all variants
+      const cleaned = ensureBioQuality(variants);
+      if (!cleaned) {
+        // If bio quality is not met, regenerate all variants
+        const newVariants = await Promise.all(
+          variants.map(async (_, idx) => {
+            try {
+              const retry = await regen('bio');
+              return sanitizeProfanity(retry || '');
+            } catch {
+              return sanitizeProfanity(variants[idx] || '');
+            }
+          })
+        );
+        const retryClean = ensureBioQuality(newVariants);
+        return retryClean || newVariants;
+      }
+      return cleaned;
+    }
+
+    // For other types, just sanitize each variant
+    return variants.map(v => sanitizeProfanity(v));
   }
 
   try {
@@ -791,17 +894,37 @@ export async function POST(req: NextRequest) {
         // ✅ deduplikace + post-processing
         const unique = ensureUniqueVariants(texts, n, type, input);
         
-        // Apply post-processing to each variant
-        const processed = await Promise.all(
-          unique.map(async (variant) => {
-            try {
-              return await postprocessOne(type, variant, regen);
-            } catch {
-              // If post-processing fails, return original variant with basic sanitization
-              return sanitizeProfanity(variant);
-            }
-          })
-        );
+        // Apply enhanced post-processing based on type
+        let processed: string[];
+        
+        if (type === "caption" || type === "bio") {
+          // For caption and bio, process all variants together to ensure quality across variants
+          try {
+            processed = await postprocessMultipleVariants(type, unique, regen);
+          } catch {
+            // If enhanced processing fails, fall back to basic processing
+            processed = await Promise.all(
+              unique.map(async (variant) => {
+                try {
+                  return await postprocessOne(type, variant, regen);
+                } catch {
+                  return sanitizeProfanity(variant);
+                }
+              })
+            );
+          }
+        } else {
+          // For other types, process each variant individually
+          processed = await Promise.all(
+            unique.map(async (variant) => {
+              try {
+                return await postprocessOne(type, variant, regen);
+              } catch {
+                return sanitizeProfanity(variant);
+              }
+            })
+          );
+        }
         
         // Apply CTA injection for applicable types
         if (type === "caption" || type === "story") {
@@ -815,17 +938,37 @@ export async function POST(req: NextRequest) {
           simpleFallback(type, input, idx)
         );
         
-        // Apply post-processing to fallback variants
-        const processed = await Promise.all(
-          arr.map(async (variant) => {
-            try {
-              return await postprocessOne(type, variant, regen);
-            } catch {
-              // If post-processing fails, return original variant with basic sanitization
-              return sanitizeProfanity(variant);
-            }
-          })
-        );
+        // Apply enhanced post-processing to fallback variants
+        let processed: string[];
+        
+        if (type === "caption" || type === "bio") {
+          // For caption and bio, process all variants together to ensure quality across variants
+          try {
+            processed = await postprocessMultipleVariants(type, arr, regen);
+          } catch {
+            // If enhanced processing fails, fall back to basic processing
+            processed = await Promise.all(
+              arr.map(async (variant) => {
+                try {
+                  return await postprocessOne(type, variant, regen);
+                } catch {
+                  return sanitizeProfanity(variant);
+                }
+              })
+            );
+          }
+        } else {
+          // For other types, process each variant individually
+          processed = await Promise.all(
+            arr.map(async (variant) => {
+              try {
+                return await postprocessOne(type, variant, regen);
+              } catch {
+                return sanitizeProfanity(variant);
+              }
+            })
+          );
+        }
         
         // Apply CTA injection for applicable types
         if (type === "caption" || type === "story") {
