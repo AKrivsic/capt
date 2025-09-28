@@ -70,8 +70,8 @@ export default function TextDemo({ onClose }: TextDemoProps) {
         throw new Error(data.message || 'Generation failed');
       }
 
-      if (data.ok && data.result && data.result[outputType] && data.result[outputType].length > 0) {
-        setResult(data.result[outputType][0]);
+      if (data.ok && data.data && data.data[outputType] && data.data[outputType].length > 0) {
+        setResult(data.data[outputType][0]);
         trackGenerationComplete('FREE');
       } else {
         throw new Error('No result generated');

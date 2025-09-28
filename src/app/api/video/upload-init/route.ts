@@ -95,7 +95,7 @@ export async function POST(
       // Autentifikovaný upload
       const user = await prisma.user.findUnique({
         where: { email: session!.user!.email as string },
-        select: { id: true, videoCredits: true },
+        select: { id: true },
       });
 
       if (!user) {
@@ -105,13 +105,8 @@ export async function POST(
         );
       }
 
-      // Kontrola kreditů
-      if (user.videoCredits <= 0) {
-        return NextResponse.json<ApiErrorResponse>(
-          { error: 'Insufficient Credits', message: 'Insufficient credits' },
-          { status: 402 }
-        );
-      }
+      // Kontrola kreditů se provádí až při zpracování videa (process route)
+      // Zde pouze ověřujeme, že uživatel existuje
 
       storageKey = `videos/${user.id}/${Date.now()}-${fileName}`;
 
