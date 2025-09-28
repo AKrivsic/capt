@@ -285,3 +285,177 @@ export function logProcessing(type: string, action: string, details: string, raw
 export function deduplicateForUI(variants: string[]): string {
   return variants.length > 0 ? variants[0] : '';
 }
+
+// — STORY validace: 2-3 řádky, BAN check, topicalita, emoji limit
+export function validateStoryQuality(s: string, topicRx: RegExp | null): string | null {
+  const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2 || lines.length > 3) return null;
+  
+  // BAN fráze check
+  if (STORY_BANNED.some(rx => rx.test(s))) return null;
+  
+  // Topicalita (min 1 řádek obsahuje topic keyword)
+  if (topicRx) {
+    const topical = lines.filter(l => topicRx.test(l)).length;
+    if (topical < 1) return null;
+  }
+  
+  // Emoji limit: max 2 per slide
+  for (const line of lines) {
+    const emojiCount = (line.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+    if (emojiCount > 2) return null;
+  }
+  
+  return lines.join('\n');
+}
+
+// — BIO validace: 3 varianty, ≤90 chars, 0-2 emoji, různé úhly
+export function validateBioQuality(s: string): string[] | null {
+  const variants = s.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
+  if (variants.length !== 3) return null;
+  
+  const validVariants: string[] = [];
+  
+  for (const variant of variants) {
+    // Délka check (≤90 chars)
+    if (variant.length > 90) {
+      // Zkrať na 90 znaků (preferuj bez useknutí slova)
+      let shortened = variant;
+      if (shortened.length > 90) {
+        const lastSpace = shortened.lastIndexOf(' ', 87); // nech 3 znaky pro případné "..."
+        if (lastSpace > 70) {
+          shortened = shortened.slice(0, lastSpace);
+        } else {
+          shortened = shortened.slice(0, 87) + '...';
+        }
+      }
+      validVariants.push(shortened);
+    } else {
+      validVariants.push(variant);
+    }
+    
+    // Emoji limit (0-2 emoji)
+    const emojiCount = (variant.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+    if (emojiCount > 2) return null;
+    
+    // BAN check: žádné otazníky k publiku, žádné agresivní CTA
+    if (/who'?s with me\?/i.test(variant) || /follow now/i.test(variant) || /comment below/i.test(variant)) {
+      return null;
+    }
+  }
+  
+  return validVariants;
+}
+
+// — STORY fallback: 3 krátké věty s topicalitou
+export function buildStoryFallback(keywords: string[], style: string): string {
+  const k1 = keywords[0] || 'today';
+  const k2 = keywords[1] || 'moment';
+  
+  const templates = {
+    Rage: [
+      `${k1} broke my patience 💥`,
+      `${k2} > skills, rage meter MAX 😤`,
+      `queue therapy at 8? bring memes 🔥`
+    ],
+    Edgy: [
+      `${k1} said "not today"`,
+      `${k2} peek > my aim`,
+      `alt+F4 speedrun unlocked`
+    ],
+    Glamour: [
+      `${k1} served looks today`,
+      `${k2} moment was pure elegance`,
+      `more highlights coming soon`
+    ],
+    Innocent: [
+      `${k1} was quite the adventure`,
+      `${k2} made me smile`,
+      `hope you're having a lovely day`
+    ],
+    Meme: [
+      `${k1} did me dirty (as expected) 😭`,
+      `${k2} > my skills, but we persist`,
+      `queue therapy? more like queue comedy`
+    ],
+    Funny: [
+      `${k1} said "hold my beer"`,
+      `${k2} moment was peak comedy`,
+      `clips daily, laughs guaranteed`
+    ],
+    Streamer: [
+      `${k1} clutch at 0:13`,
+      `${k2} peek saved the round`,
+      `highlights daily, clips incoming`
+    ],
+    Baddie: [
+      `${k1} couldn't handle this`,
+      `${k2} moment was fire`,
+      `more content coming soon`
+    ],
+    Barbie: [
+      `${k1} was absolutely fabulous`,
+      `${k2} moment was so cute`,
+      `stay tuned for more fun`
+    ]
+  };
+  
+  const fallback = templates[style as keyof typeof templates] || templates.Rage;
+  return fallback.join('\n');
+}
+
+// — BIO fallback: 3 šablony s různými úhly
+export function buildBioFallback(keywords: string[], style: string): string[] {
+  const k1 = keywords[0] || 'gaming';
+  const k2 = keywords[1] || 'content';
+  
+  const templates = {
+    Rage: [
+      `Tilted highlights, calm vibes`,
+      `Clutch & fails daily`,
+      `Rage meter: MAX 🔥`
+    ],
+    Edgy: [
+      `${k1} enthusiast, ${k2} creator`,
+      `Dark humor & bright highlights`,
+      `Edgy content, sharp wit`
+    ],
+    Glamour: [
+      `Elegant ${k1} moments`,
+      `Sophisticated ${k2} daily`,
+      `Grace under pressure`
+    ],
+    Innocent: [
+      `Sweet ${k1} adventures`,
+      `Wholesome ${k2} content`,
+      `Spreading good vibes`
+    ],
+    Meme: [
+      `${k1} memes & ${k2} daily`,
+      `Meme lord, content creator`,
+      `Peak comedy guaranteed`
+    ],
+    Funny: [
+      `Comedy gold ${k1} moments`,
+      `Laughs & ${k2} daily`,
+      `Humor is my superpower`
+    ],
+    Streamer: [
+      `${k1} clips & ${k2} highlights`,
+      `Streaming daily, gaming nightly`,
+      `Content creator, moment hunter`
+    ],
+    Baddie: [
+      `Confident ${k1} vibes`,
+      `${k2} queen, attitude daily`,
+      `Baddie energy, best content`
+    ],
+    Barbie: [
+      `Pink ${k1} dreams`,
+      `Fabulous ${k2} daily`,
+      `Barbie energy, best vibes`
+    ]
+  };
+  
+  return templates[style as keyof typeof templates] || templates.Rage;
+}

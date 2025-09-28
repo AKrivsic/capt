@@ -21,8 +21,6 @@ import {
   ensureFiveCommentsBlock,
   validateCommentsBlock,
   fixStoryFormat,
-  validateStoryKeywords,
-  validateStoryNotGeneric,
   ensureDifferentOpenings,
   extractTopicKeywords,
   makeTopicRegex,
@@ -33,7 +31,11 @@ import {
   validateCleanHashtags,
   validateCaptionOpenings,
   logProcessing,
-  deduplicateForUI
+  deduplicateForUI,
+  validateStoryQuality,
+  validateBioQuality,
+  buildStoryFallback,
+  buildBioFallback
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
@@ -733,7 +735,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  async function postprocessOne(platform: string, type: string, raw: string, regen: (type: string, extraInstruction?: string) => Promise<string>, vibe: string): Promise<string> {
+  async function postprocessOne(platform: string, type: string, raw: string, regen: (type: string, extraInstruction?: string) => Promise<string>, vibe: string, style: string): Promise<string> {
     // Kanonizace typu
     const canonType = canonizeType(type);
     if (!isValidType(canonType)) {
@@ -811,34 +813,32 @@ export async function POST(req: NextRequest) {
     }
 
     if (canonType === "story") {
-      const first = validateStoryKeywords(fixStoryFormat(out), topicRx);
-      const firstOk = first && validateStoryNotGeneric(first);
+      // Nová validace: 2-3 řádky, BAN check, topicalita, emoji limit
+      const formatted = fixStoryFormat(out);
+      const validated = validateStoryQuality(formatted, topicRx);
       
-      if (firstOk) {
-        logProcessing(canonType, "SUCCESS", `${first.split('\n').length} slides`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, firstOk);
+      if (validated) {
+        logProcessing(canonType, "SUCCESS", `${validated.split('\n').length} slides`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
       }
 
-      logProcessing(canonType, "REGENERATING", "Missing topic or generic content");
-      const retry = await regen("Story", "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels. Avoid generic lines like 'Behind the magic' or 'Tap for the reveal'.");
-      const second = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
-      const secondOk = second && validateStoryNotGeneric(second);
+      logProcessing(canonType, "REGENERATING", "Quality validation failed");
+      const retry = await regen("Story", "Return 2-3 slides, one sentence per line. At least 1 slide must reference the vibe. Style adaptation per guidelines. End with subtle point/CTA. BAN: generic CTAs, 'Behind the magic', etc. Max 2 emoji per slide.");
+      const retryFormatted = fixStoryFormat(sanitizeProfanity(retry || ""));
+      const retryValidated = validateStoryQuality(retryFormatted, topicRx);
       
-      if (secondOk) {
-        logProcessing(canonType, "REGENERATED", `${second.split('\n').length} slides`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, secondOk);
+      if (retryValidated) {
+        logProcessing(canonType, "REGENERATED", `${retryValidated.split('\n').length} slides`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, retryValidated);
       }
 
-      logProcessing(canonType, "FALLBACK", "Using keyword fallback");
-      const s1 = `${(kws[0]||'Today')} broke my patience 💥`;
-      const s2 = `${(kws[1] ? `${kws[1]} > skills` : `mood`)} — rage meter MAX 😤`;
-      const s3 = `queue therapy later? bring memes 🔥`;
-      const fallback = [s1,s2,s3].slice(0,3).join('\n');
-      const fbOk = validateStoryKeywords(fallback, topicRx);
-      if (!fbOk) throw new Error("STORY_TOPIC_INVALID");
+      logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
+      const fallback = buildStoryFallback(kws, style || "Rage");
+      const fbValidated = validateStoryQuality(fallback, topicRx);
+      if (!fbValidated) throw new Error("STORY_TOPIC_INVALID");
       
-      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbOk.split('\n').length} slides`);
-      return applyPlatformConstraints(platform as PlatformKey, canonType, fbOk);
+      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.split('\n').length} slides`);
+      return applyPlatformConstraints(platform as PlatformKey, canonType, fbValidated);
     }
 
     if (canonType === "caption") {
@@ -871,7 +871,34 @@ export async function POST(req: NextRequest) {
       return applyPlatformConstraints(platform as PlatformKey, canonType, fbVariants.join("\n\n"));
     }
 
-    // Bio, Hook, DM - pouze základní sanitizace
+    if (canonType === "bio") {
+      // Nová validace: 3 varianty, ≤90 chars, 0-2 emoji, různé úhly
+      const validated = validateBioQuality(out);
+      
+      if (validated) {
+        logProcessing(canonType, "SUCCESS", `${validated.length} variants`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, validated.join('\n'));
+      }
+
+      logProcessing(canonType, "REGENERATING", "Quality validation failed");
+      const retry = await regen("Bio", "Return 3 bio variants (≤90 chars each), one per line. Each distinct: (1) Identity/role, (2) Value prop, (3) Mood/style. 0-2 emoji max per variant. Optional micro-hints like 'clips daily'. BAN: vulgarity, questions to audience, aggressive CTAs.");
+      const retryValidated = validateBioQuality(sanitizeProfanity(retry || ""));
+      
+      if (retryValidated) {
+        logProcessing(canonType, "REGENERATED", `${retryValidated.length} variants`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, retryValidated.join('\n'));
+      }
+
+      logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
+      const fallback = buildBioFallback(kws, style || "Rage");
+      const fbValidated = validateBioQuality(fallback.join('\n'));
+      if (!fbValidated) throw new Error("BIO_QUALITY_INVALID");
+      
+      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.length} variants`);
+      return applyPlatformConstraints(platform as PlatformKey, canonType, fbValidated.join('\n'));
+    }
+
+    // Hook, DM - pouze základní sanitizace
     logProcessing(canonType, "SUCCESS", "Basic processing");
     return applyPlatformConstraints(platform as PlatformKey, canonType, out);
   }
@@ -933,7 +960,8 @@ export async function POST(req: NextRequest) {
                 typeMapping[type],
                 variant,
                 regen,
-                input.vibe
+                input.vibe,
+                input.style
               );
             } catch (error) {
               console.log(`[POSTPROCESS] ${type}: ERROR - ${error}`);
@@ -966,7 +994,8 @@ export async function POST(req: NextRequest) {
                 typeMapping[type],
                 variant,
                 regen,
-                input.vibe
+                input.vibe,
+                input.style
               );
             } catch (error) {
               console.log(`[POSTPROCESS] ${type}: ERROR - ${error}`);
@@ -997,7 +1026,8 @@ export async function POST(req: NextRequest) {
             typeMapping[requestedType],
             regenerated,
             regen,
-            input.vibe
+            input.vibe,
+            input.style
           );
           
           if (requestedType === "caption" || requestedType === "story") {
