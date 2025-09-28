@@ -815,7 +815,7 @@ export async function POST(req: NextRequest) {
     if (canonType === "story") {
       // Nová validace: 2-3 řádky, BAN check, topicalita, emoji limit
       const formatted = fixStoryFormat(out);
-      const validated = validateStoryQuality(formatted, topicRx);
+      const validated = validateStoryQuality(formatted, topicRx, style);
       
       if (validated) {
         logProcessing(canonType, "SUCCESS", `${validated.split('\n').length} slides`);
@@ -823,9 +823,9 @@ export async function POST(req: NextRequest) {
       }
 
       logProcessing(canonType, "REGENERATING", "Quality validation failed");
-      const retry = await regen("Story", "Return 2-3 slides, one sentence per line. At least 1 slide must reference the vibe. Style adaptation per guidelines. End with subtle point/CTA. BAN: generic CTAs, 'Behind the magic', etc. Max 2 emoji per slide.");
+      const retry = await regen("Story", "Return only the Story in the exact required format, nothing else. Return 2-3 short slides, one per line, at least 1 topical, no generic CTAs, last line = subtle punchline/CTA tied to the vibe.");
       const retryFormatted = fixStoryFormat(sanitizeProfanity(retry || ""));
-      const retryValidated = validateStoryQuality(retryFormatted, topicRx);
+      const retryValidated = validateStoryQuality(retryFormatted, topicRx, style);
       
       if (retryValidated) {
         logProcessing(canonType, "REGENERATED", `${retryValidated.split('\n').length} slides`);
@@ -834,7 +834,7 @@ export async function POST(req: NextRequest) {
 
       logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
       const fallback = buildStoryFallback(kws, style || "Rage");
-      const fbValidated = validateStoryQuality(fallback, topicRx);
+      const fbValidated = validateStoryQuality(fallback, topicRx, style);
       if (!fbValidated) throw new Error("STORY_TOPIC_INVALID");
       
       logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.split('\n').length} slides`);
@@ -873,7 +873,7 @@ export async function POST(req: NextRequest) {
 
     if (canonType === "bio") {
       // Nová validace: 3 varianty, ≤90 chars, 0-2 emoji, různé úhly
-      const validated = validateBioQuality(out);
+      const validated = validateBioQuality(out, style);
       
       if (validated) {
         logProcessing(canonType, "SUCCESS", `${validated.length} variants`);
@@ -881,8 +881,8 @@ export async function POST(req: NextRequest) {
       }
 
       logProcessing(canonType, "REGENERATING", "Quality validation failed");
-      const retry = await regen("Bio", "Return 3 bio variants (≤90 chars each), one per line. Each distinct: (1) Identity/role, (2) Value prop, (3) Mood/style. 0-2 emoji max per variant. Optional micro-hints like 'clips daily'. BAN: vulgarity, questions to audience, aggressive CTAs.");
-      const retryValidated = validateBioQuality(sanitizeProfanity(retry || ""));
+      const retry = await regen("Bio", "Return only the Bio in the exact required format, nothing else. Return exactly 3 single-line bios (≤90 chars each), distinct angles, 0-2 emojis, no questions/CTAs, brand-safe.");
+      const retryValidated = validateBioQuality(sanitizeProfanity(retry || ""), style);
       
       if (retryValidated) {
         logProcessing(canonType, "REGENERATED", `${retryValidated.length} variants`);
@@ -891,7 +891,7 @@ export async function POST(req: NextRequest) {
 
       logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
       const fallback = buildBioFallback(kws, style || "Rage");
-      const fbValidated = validateBioQuality(fallback.join('\n'));
+      const fbValidated = validateBioQuality(fallback.join('\n'), style);
       if (!fbValidated) throw new Error("BIO_QUALITY_INVALID");
       
       logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.length} variants`);

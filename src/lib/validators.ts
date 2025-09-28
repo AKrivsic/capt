@@ -188,6 +188,18 @@ const STORY_BANNED = [
   /more in stories/i
 ];
 
+// Bio banned phrases - violent imagery a agresivní CTA
+const BIO_BANNED = [
+  /crime scene/i,
+  /bloodbath/i,
+  /killfeed/i,
+  /follow now/i,
+  /comment below/i,
+  /dm me/i,
+  /who'?s with me\?/i,
+  /what do you think\?/i
+];
+
 export function validateStoryNotGeneric(s: string) {
   return STORY_BANNED.some(rx => rx.test(s)) ? null : s;
 }
@@ -287,7 +299,7 @@ export function deduplicateForUI(variants: string[]): string {
 }
 
 // — STORY validace: 2-3 řádky, BAN check, topicalita, emoji limit
-export function validateStoryQuality(s: string, topicRx: RegExp | null): string | null {
+export function validateStoryQuality(s: string, topicRx: RegExp | null, style?: string): string | null {
   const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length < 2 || lines.length > 3) return null;
   
@@ -300,19 +312,37 @@ export function validateStoryQuality(s: string, topicRx: RegExp | null): string 
     if (topical < 1) return null;
   }
   
-  // Emoji limit: max 2 per slide
+  // Emoji limit: max 2 per slide (Glamour/Innocent prefer 0-1)
+  const maxEmojiPerSlide = (style === "Glamour" || style === "Innocent") ? 1 : 2;
   for (const line of lines) {
     const emojiCount = (line.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
-    if (emojiCount > 2) return null;
+    if (emojiCount > maxEmojiPerSlide) return null;
+  }
+  
+  // ALL-CAPS check pro Rage/Edgy (max 1 věta celkem)
+  if (style === "Rage" || style === "Edgy") {
+    const allCapsLines = lines.filter(line => line === line.toUpperCase() && line.length > 5);
+    if (allCapsLines.length > 1) return null;
+  }
+  
+  // Caps lock check pro Glamour/Innocent
+  if (style === "Glamour" || style === "Innocent") {
+    const hasCapsLock = lines.some(line => line !== line.toLowerCase() && /[A-Z]/.test(line));
+    if (hasCapsLock) return null;
   }
   
   return lines.join('\n');
 }
 
 // — BIO validace: 3 varianty, ≤90 chars, 0-2 emoji, různé úhly
-export function validateBioQuality(s: string): string[] | null {
+export function validateBioQuality(s: string, style?: string): string[] | null {
   const variants = s.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
   if (variants.length !== 3) return null;
+  
+  // Unikátnost check: první 3-4 slova se nesmí shodovat
+  const firstWords = variants.map(v => v.split(/\s+/).slice(0, 3).join(' ').toLowerCase());
+  const uniqueFirstWords = Array.from(new Set(firstWords));
+  if (uniqueFirstWords.length !== variants.length) return null;
   
   const validVariants: string[] = [];
   
@@ -334,33 +364,32 @@ export function validateBioQuality(s: string): string[] | null {
       validVariants.push(variant);
     }
     
-    // Emoji limit (0-2 emoji)
+    // Emoji limit (0-2 emoji, Glamour/Innocent prefer 0)
     const emojiCount = (variant.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
-    if (emojiCount > 2) return null;
+    const maxEmoji = (style === "Glamour" || style === "Innocent") ? 1 : 2;
+    if (emojiCount > maxEmoji) return null;
     
-    // BAN check: žádné otazníky k publiku, žádné agresivní CTA
-    if (/who'?s with me\?/i.test(variant) || /follow now/i.test(variant) || /comment below/i.test(variant)) {
-      return null;
-    }
+    // BAN check: violent imagery, otazníky k publiku, agresivní CTA
+    if (BIO_BANNED.some(rx => rx.test(variant))) return null;
   }
   
   return validVariants;
 }
 
-// — STORY fallback: 3 krátké věty s topicalitou
+// — STORY fallback: 3 krátké věty s in-world detaily
 export function buildStoryFallback(keywords: string[], style: string): string {
   const k1 = keywords[0] || 'today';
   const k2 = keywords[1] || 'moment';
   
   const templates = {
     Rage: [
-      `${k1} broke my patience 💥`,
-      `${k2} > skills, rage meter MAX 😤`,
+      `${k1} BROKE my patience 💥`,
+      `${k2} peek > my aim, classic`,
       `queue therapy at 8? bring memes 🔥`
     ],
     Edgy: [
       `${k1} said "not today"`,
-      `${k2} peek > my aim`,
+      `${k2} peek > my skills, expected`,
       `alt+F4 speedrun unlocked`
     ],
     Glamour: [
