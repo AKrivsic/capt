@@ -18,6 +18,7 @@ import {
   sanitizeProfanity,
   extractHashtagsOnly,
   validateAndCleanHashtags,
+  generateHashtagsFromKeywords,
   ensureFiveCommentsBlock,
   validateCommentsBlock,
   fixStoryFormat,
@@ -25,7 +26,7 @@ import {
   validateStoryNotGeneric,
   ensureDifferentOpenings,
   extractTopicKeywords,
-  makeTopicRegex,
+  makeTopicRegex
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
@@ -730,99 +731,134 @@ export async function POST(req: NextRequest) {
 
     console.log(`[POSTPROCESS] ${type}: ${(raw || '').length} chars, preview: "${(raw || '').slice(0, 20)}..."`);
 
-    let out = sanitizeProfanity(raw || "");
-    let didRegen = false;
+    const out = sanitizeProfanity(raw || "");
+    const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
 
     if (type === "Hashtags") {
-      // 1) vyzobat jen #tokeny, 2) validovat, 3) případně 1× regenerovat
+      // 1) extrakce → validace
       const cleaned = extractHashtagsOnly(out);
-      const fixed = validateAndCleanHashtags(cleaned);
+      let fixed = validateAndCleanHashtags(cleaned);
       if (fixed) {
         console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split(' ').length} hashtags`);
         return applyPlatformConstraints(platform as PlatformKey, type, fixed);
       }
 
+      // 2) 1× řízená regenerace
       console.log(`[POSTPROCESS] ${type}: REGENERATING - invalid hashtags`);
-      const retry = await regen(
-        "Hashtags",
-        "Return only 18–28 hashtags as a single space-separated line. No other text."
-      );
-      const retryClean = extractHashtagsOnly(sanitizeProfanity(retry || ""));
-      const retryFixed = validateAndCleanHashtags(retryClean);
-      if (!retryFixed) throw new Error("HASHTAGS_INVALID");
-      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryFixed.split(' ').length} hashtags`);
-      didRegen = true;
-      out = retryFixed;
+      const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No other text.");
+      fixed = validateAndCleanHashtags(extractHashtagsOnly(sanitizeProfanity(retry || "")));
+      if (fixed) {
+        console.log(`[POSTPROCESS] ${type}: REGENERATED - ${fixed.split(' ').length} hashtags`);
+        return applyPlatformConstraints(platform as PlatformKey, type, fixed);
+      }
+
+      // 3) FAIL-SAFE fallback z keywords
+      console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback from keywords`);
+      const fallback = generateHashtagsFromKeywords(extractTopicKeywords(vibe || ""));
+      fixed = validateAndCleanHashtags(fallback);
+      if (!fixed) throw new Error("HASHTAGS_INVALID");
+      console.log(`[POSTPROCESS] ${type}: FALLBACK - ${fixed.split(' ').length} hashtags`);
+      return applyPlatformConstraints(platform as PlatformKey, type, fixed);
     }
 
-    else if (type === "Comments") {
-      const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
-      const five = ensureFiveCommentsBlock(out)
-        || ensureFiveCommentsBlock(await regen("Comments", "Return only 5 lines, no extras."));
+    if (type === "Comments") {
+      let five = ensureFiveCommentsBlock(out);
+      if (!five) {
+        console.log(`[POSTPROCESS] ${type}: REGENERATING - not 5 lines`);
+        const retry = await regen("Comments", "Return only 5 short comments, one per line. No extra text.");
+        five = ensureFiveCommentsBlock(sanitizeProfanity(retry || ""));
+      }
       if (!five) throw new Error("COMMENTS_INVALID");
 
-      const topical = validateCommentsBlock(five, topicRx, 1)
-        || validateCommentsBlock(
-          sanitizeProfanity(await regen("Comments",
-            "Return 5 short comments tied to the topic. One per line. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'."
-          )),
-          topicRx,
-          1
+      let topical = validateCommentsBlock(five, topicRx, 1);
+      if (!topical) {
+        console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic relevance`);
+        const retry = await regen("Comments",
+          "Return 5 short comments tied to the topic. One per line. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'."
         );
+        topical = validateCommentsBlock(sanitizeProfanity(retry || ""), topicRx, 1);
+      }
+      if (!topical) {
+        // FAIL-SAFE: vyrob 5 basic topical komentů
+        console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback comments`);
+        const kws = extractTopicKeywords(vibe || "");
+        const gen = [
+          `${kws[0] ? kws[0]+' ' : ''}did me dirty today 😭`,
+          `skill issue? nah, ${kws[0] || 'server'} issue 😂`,
+          `alt+F4 speedrun unlocked 💥`,
+          `my ping said "not today" 💀`,
+          `we need a patch note and a hug`
+        ].filter(Boolean).slice(0,5).join('\n');
+        topical = validateCommentsBlock(gen, topicRx, 1);
+      }
       if (!topical) throw new Error("COMMENTS_CONTEXT_INVALID");
       console.log(`[POSTPROCESS] ${type}: SUCCESS - ${topical.split('\n').length} comments`);
-      out = topical;
+      return applyPlatformConstraints(platform as PlatformKey, type, topical);
     }
 
-    else if (type === "Story") {
-      const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
-      const fixed = validateStoryKeywords(fixStoryFormat(out), topicRx);
-      if (fixed) {
-        const notGeneric = validateStoryNotGeneric(fixed);
-        if (notGeneric) {
-          console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split('\n').length} slides`);
-          return applyPlatformConstraints(platform as PlatformKey, type, notGeneric);
-        }
+    if (type === "Story") {
+      const first = validateStoryKeywords(fixStoryFormat(out), topicRx);
+      const firstOk = first && validateStoryNotGeneric(first);
+      if (firstOk) {
+        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${first.split('\n').length} slides`);
+        return applyPlatformConstraints(platform as PlatformKey, type, firstOk);
       }
-      
+
       console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic or generic content`);
       const retry = await regen(
         "Story",
         "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels. Avoid generic lines like 'Behind the magic' or 'Tap for the reveal'."
       );
-      const retryFixed = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
-      const retryNotGeneric = retryFixed && validateStoryNotGeneric(retryFixed);
-      if (!retryNotGeneric) throw new Error("STORY_TOPIC_INVALID");
-      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryFixed.split('\n').length} slides`);
-      didRegen = true;
-      out = retryNotGeneric;
-    }
-
-    else if (type === "Caption") {
-      const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
-      const unique = ensureDifferentOpenings(variants);
-      if (unique) {
-        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${unique.length} variants`);
-        return applyPlatformConstraints(platform as PlatformKey, type, unique.join("\n\n"));
+      const second = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
+      const secondOk = second && validateStoryNotGeneric(second);
+      if (secondOk) {
+        console.log(`[POSTPROCESS] ${type}: REGENERATED - ${second.split('\n').length} slides`);
+        return applyPlatformConstraints(platform as PlatformKey, type, secondOk);
       }
 
-      console.log(`[POSTPROCESS] ${type}: REGENERATING - duplicate openings`);
-      const retry = await regen(
-        "Caption",
-        "Return multiple caption variants separated by a blank line. Each variant must start with a different opening."
-      );
-      const retryUnique = ensureDifferentOpenings(
-        sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean)
-      );
-      if (!retryUnique) throw new Error("CAPTION_OPENINGS_INVALID");
-      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryUnique.length} variants`);
-      didRegen = true;
-      out = retryUnique.join("\n\n");
+      // FAIL-SAFE: vygeneruj stručnou story z keywords
+      console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback story`);
+      const kws = extractTopicKeywords(vibe || "");
+      const s1 = `${(kws[0]||'Today')} broke my patience 💥`;
+      const s2 = `${kws[1] ? `${kws[1]} > skills` : `mood`} — rage meter MAX 😤`;
+      const s3 = `queue therapy later? bring memes 🔥`;
+      const fallback = [s1,s2,s3].slice(0,3).join('\n');
+      const fbOk = validateStoryKeywords(fallback, topicRx);
+      if (!fbOk) throw new Error("STORY_TOPIC_INVALID");
+      console.log(`[POSTPROCESS] ${type}: FALLBACK - ${fbOk.split('\n').length} slides`);
+      return applyPlatformConstraints(platform as PlatformKey, type, fbOk);
     }
 
-    // Bio/Hook/DM – zatím stačí sanitizace; platform constraints aplikuj pro všechny typy níže
-    console.log(`[POSTPROCESS] ${type}: SUCCESS - basic processing${didRegen ? ' (regenerated)' : ''}`);
-    
+    if (type === "Caption") {
+      const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
+      let unique = ensureDifferentOpenings(variants);
+      if (!unique) {
+        console.log(`[POSTPROCESS] ${type}: REGENERATING - duplicate openings`);
+        const retry = await regen("Caption",
+          "Return multiple caption variants separated by a blank line. Each variant must start with a different opening."
+        );
+        unique = ensureDifferentOpenings(
+          sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean)
+        );
+      }
+      if (!unique) {
+        // FAIL-SAFE: 3 rychlé varianty z keywords
+        console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback captions`);
+        const k = extractTopicKeywords(vibe || "");
+        const caps = [
+          `${(k[0]||'today').toUpperCase()} DID ME DIRTY 😤🔥`,
+          `logged in brave, logged out tilted`,
+          `${k[1]||'lag'} peek > my aim 💀`
+        ];
+        unique = ensureDifferentOpenings(caps);
+      }
+      if (!unique) throw new Error("CAPTION_OPENINGS_INVALID");
+      console.log(`[POSTPROCESS] ${type}: SUCCESS - ${unique.length} variants`);
+      return applyPlatformConstraints(platform as PlatformKey, type, unique.join("\n\n"));
+    }
+
+    // Bio / Hook / DM – sanitizace stačí (limit drží prompt)
+    console.log(`[POSTPROCESS] ${type}: SUCCESS - basic processing`);
     return applyPlatformConstraints(platform as PlatformKey, type, out);
   }
 

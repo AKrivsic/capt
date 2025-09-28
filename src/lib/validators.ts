@@ -1,7 +1,7 @@
 export function sanitizeProfanity(s: string) {
   // f*ck / f#%k / f@ck / f u c k → f**k
-  s = s.replace(/\bf[\W_]*u[\W_]*c[\W_]*k\b/gi, "f**k");
-  // w t f / w.t.f → WTH
+  s = s.replace(/\bf[\W_]*[u\*#@][\W_]*c[\W_]*k\b/gi, "f**k");
+  // wtf / w.t.f / w t f → WTH
   s = s.replace(/\bw[\W_]*t[\W_]*f\b/gi, "WTH");
   return s;
 }
@@ -161,4 +161,27 @@ export function fixCommonTagTypos(line: string) {
   return line
     .replace(/\b#ragedquit\b/gi, '#ragequit')
     .replace(/\b#gamersunite\b/gi, '#gamingcommunity');
+}
+
+// Hashtags – fallback generátor z topic keywords (když vše selže)
+export function generateHashtagsFromKeywords(keywords: string[], min = 18, max = 28) {
+  const baseSuffixes = ["life","daily","tips","guide","story","vibes","moment","talk","community","memes","fails","wins","problems","highlight","update","today"];
+  const tags: string[] = [];
+
+  for (const k of keywords) {
+    const core = k.replace(/[^a-z0-9]/gi, "");
+    if (!core || core.length < 2) continue;
+    tags.push(`#${core.toLowerCase()}`);
+    for (const suf of baseSuffixes.slice(0, 3)) tags.push(`#${core.toLowerCase()}${suf}`);
+  }
+  // doplň neutrálními, pokud je málo klíčových slov
+  const neutrals = ["#trending","#relatable","#onrepeat","#daily","#vibes","#mood","#creator","#community","#highlights","#clips","#share"];
+  for (const t of neutrals) if (!tags.includes(t)) tags.push(t);
+
+  // unikáty a rozsah
+  const uniq = Array.from(new Set(tags)).filter(t => /^#[a-z0-9_]+$/i.test(t));
+  const slice = uniq.slice(0, Math.max(min, Math.min(max, uniq.length)));
+  // pokud pořád < min, duplicitně doplň neutrals (okrajový případ)
+  while (slice.length < min) slice.push(neutrals[(slice.length) % neutrals.length]);
+  return slice.join(" ");
 }
