@@ -20,11 +20,12 @@ import {
   validateAndCleanHashtags,
   ensureFiveCommentsBlock,
   ensureDifferentOpenings,
-  ensureBioQuality,
   validateCommentsBlock,
   validateStoryKeywords,
   extractTopicKeywords,
-  makeTopicRegex
+  makeTopicRegex,
+  extractHashtagsOnly,
+  fixCommonTagTypos
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
@@ -131,6 +132,9 @@ const DEFAULT_VARIANTS: Record<OutputType, number> = {
   story: 2,
   hook: 5,
 };
+
+// Validní typy pro postprocessing
+const VALID_TYPES = new Set(["Caption","Bio","Hashtags","DM","Comments","Story","Hook"]);
 
 // Typy, u kterých se počet variant NEPŘEPISUJE přes input.variants
 // const FIXED_VARIANTS: ReadonlySet<OutputType> = new Set<OutputType>([
@@ -676,10 +680,10 @@ export async function POST(req: NextRequest) {
   };
 
   // ====== Post-processing and regeneration utilities ======
-  async function regen(type: string): Promise<string> {
+  async function regen(type: string, extraInstruction?: string): Promise<string> {
     const mappedType = typeMapping[type];
     const mappedPlatform = platformMapping[input.platform];
-    
+
     const systemContent = [
       "You are Captioni — an expert social content copywriter.",
       `Platform: ${mappedPlatform}. ${platformNotes[mappedPlatform]}`,
@@ -687,7 +691,8 @@ export async function POST(req: NextRequest) {
       targetByType[mappedType],
       "Avoid NSFW. Keep it brand-safe.",
       `Return only the ${type} in the exact required format, nothing else.`,
-    ].join("\n");
+      extraInstruction || ""
+    ].filter(Boolean).join("\n");
 
     try {
       const res = await callOpenAIWithRetry(
@@ -720,118 +725,93 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  async function postprocessOne(
-    platform: string,
-    type: string,
-    raw: string,
-    regen: (type: string) => Promise<string>,
-    vibe: string
-  ): Promise<string> {
-    const topicKeywords = extractTopicKeywords(vibe || "");
-    const topicRx = makeTopicRegex(topicKeywords);
+  async function handleOne({ platform, type, raw, regen, vibe }: {
+    platform: string;
+    type: string;
+    raw: string;
+    regen: (type: string, extraInstruction?: string) => Promise<string>;
+    vibe: string;
+  }): Promise<string> {
+    // ignore neznámé typy
+    if (!VALID_TYPES.has(type)) return raw || "";
 
-    let out = sanitizeProfanity(raw || "");
+    console.log(`[POSTPROCESS] ${type}: ${(raw || '').length} chars, preview: "${(raw || '').slice(0, 20)}..."`);
 
-    if (type === "hashtags") {
-      const fixed = validateAndCleanHashtags(out);
-      if (!fixed) {
-        const retry = await regen("hashtags");
-        const retryFixed = validateAndCleanHashtags(sanitizeProfanity(retry || ""));
-        if (!retryFixed) throw new Error("HASHTAGS_INVALID");
-        return retryFixed;
+    // vždy sanitizace
+    const out = sanitizeProfanity(raw || "");
+
+    // Hashtags: extrahuj jen #tokeny, pak validuj
+    if (type === "Hashtags") {
+      const cleaned = extractHashtagsOnly(fixCommonTagTypos(out));
+      const fixed = validateAndCleanHashtags(cleaned);
+      if (fixed) {
+        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split(' ').length} hashtags`);
+        return fixed;
       }
-      return fixed;
-    }
 
-    if (type === "comments") {
-      const five = ensureFiveCommentsBlock(out) || ensureFiveCommentsBlock(await regen("comments"));
-      if (!five) throw new Error("COMMENTS_INVALID");
-      const topical = validateCommentsBlock(five, topicRx, 1)
-        || validateCommentsBlock(sanitizeProfanity(await regen("comments")), topicRx, 1);
-      if (!topical) throw new Error("COMMENTS_CONTEXT_INVALID");
-      return topical;
-    }
-
-    if (type === "story") {
-      const fixed = validateStoryKeywords(fixStoryFormat(out), topicRx);
-      if (fixed) return fixed;
-      const retry = await regen("story");
-      const retryFixed = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
-      if (!retryFixed) throw new Error("STORY_TOPIC_INVALID");
+      // 1× řízená regenerace
+      console.log(`[POSTPROCESS] ${type}: REGENERATING - invalid hashtags`);
+      const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No text.");
+      const retryClean = extractHashtagsOnly(fixCommonTagTypos(sanitizeProfanity(retry || "")));
+      const retryFixed = validateAndCleanHashtags(retryClean);
+      if (!retryFixed) throw new Error("HASHTAGS_INVALID");
+      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryFixed.split(' ').length} hashtags`);
       return retryFixed;
     }
 
-    if (type === "caption") {
-      const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
-      const ok = ensureDifferentOpenings(variants);
-      if (!ok) {
-        const retry = await regen("caption");
-        const retryVariants = sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
-        const retryOk = ensureDifferentOpenings(retryVariants);
-        if (!retryOk) throw new Error("CAPTION_OPENINGS_INVALID");
-        out = retryOk.join("\n\n");
-      } else {
-        out = ok.join("\n\n");
-      }
+    // Comments
+    if (type === "Comments") {
+      const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
+      const five = ensureFiveCommentsBlock(out) || ensureFiveCommentsBlock(await regen("Comments", "Return only 5 lines, no extras."));
+      if (!five) throw new Error("COMMENTS_INVALID");
+      const topical = validateCommentsBlock(five, topicRx, 1)
+        || validateCommentsBlock(sanitizeProfanity(await regen("Comments", "Return only 5 short comments tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'.")), topicRx, 1);
+      if (!topical) throw new Error("COMMENTS_CONTEXT_INVALID");
+      console.log(`[POSTPROCESS] ${type}: SUCCESS - ${topical.split('\n').length} comments`);
+      return topical;
     }
 
-    // Bio: lehká sanitace stačí (limit drží prompt)
+    // Story
+    if (type === "Story") {
+      const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
+      const fixed = validateStoryKeywords(fixStoryFormat(out), topicRx);
+      if (fixed) {
+        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split('\n').length} slides`);
+        return fixed;
+      }
 
+      console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic relevance`);
+      const retry = await regen("Story", "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels.");
+      const retryFixed = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
+      if (!retryFixed) throw new Error("STORY_TOPIC_INVALID");
+      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryFixed.split('\n').length} slides`);
+      return retryFixed;
+    }
+
+    // Caption – unikátní ouvertury
+    if (type === "Caption") {
+      const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
+      const ok = ensureDifferentOpenings(variants);
+      if (ok) {
+        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${ok.length} variants`);
+        return ok.join("\n\n");
+      }
+
+      console.log(`[POSTPROCESS] ${type}: REGENERATING - duplicate openings`);
+      const retry = await regen("Caption", "Return multiple variants separated by a blank line. Each variant must start with a different opening.");
+      const retryOk = ensureDifferentOpenings(
+        sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean)
+      );
+      if (!retryOk) throw new Error("CAPTION_OPENINGS_INVALID");
+      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryOk.length} variants`);
+      return retryOk.join("\n\n");
+    }
+
+    // Bio/Hook/DM – jen sanitizace + platform constraints
+    console.log(`[POSTPROCESS] ${type}: SUCCESS - basic processing`);
     return applyPlatformConstraints(platform as PlatformKey, type, out);
   }
 
-  async function postprocessMultipleVariants(
-    platform: string,
-    type: string,
-    variants: string[],
-    regen: (type: string) => Promise<string>,
-    _vibe: string
-  ): Promise<string[]> {
-    if (type === 'caption') {
-      // Ensure different openings across all caption variants
-      const uniqueOpenings = ensureDifferentOpenings(variants);
-      if (!uniqueOpenings) {
-        // If openings are not unique, regenerate all variants
-        const newVariants = await Promise.all(
-          variants.map(async (_, idx) => {
-            try {
-              const retry = await regen('caption');
-              return sanitizeProfanity(retry || '');
-            } catch {
-              return sanitizeProfanity(variants[idx] || '');
-            }
-          })
-        );
-        const retryUnique = ensureDifferentOpenings(newVariants);
-        return retryUnique || newVariants;
-      }
-      return uniqueOpenings.map(v => applyPlatformConstraints(platform as PlatformKey, type, v));
-    }
-
-    if (type === 'bio') {
-      // Ensure bio quality across all variants
-      const cleaned = ensureBioQuality(variants);
-      if (!cleaned) {
-        // If bio quality is not met, regenerate all variants
-        const newVariants = await Promise.all(
-          variants.map(async (_, idx) => {
-            try {
-              const retry = await regen('bio');
-              return sanitizeProfanity(retry || '');
-            } catch {
-              return sanitizeProfanity(variants[idx] || '');
-            }
-          })
-        );
-        const retryClean = ensureBioQuality(newVariants);
-        return retryClean || newVariants;
-      }
-      return cleaned.map(v => applyPlatformConstraints(platform as PlatformKey, type, v));
-    }
-
-    // For other types, just sanitize each variant
-    return variants.map(v => applyPlatformConstraints(platform as PlatformKey, type, sanitizeProfanity(v)));
-  }
 
   try {
     for (const type of input.outputs) {
@@ -881,36 +861,22 @@ export async function POST(req: NextRequest) {
         const unique = ensureUniqueVariants(texts, n, type, input);
         
         // Apply enhanced post-processing based on type
-        let processed: string[];
-        
-        if (type === "caption" || type === "bio") {
-          // For caption and bio, process all variants together to ensure quality across variants
-          try {
-            processed = await postprocessMultipleVariants(input.platform, type, unique, regen, input.vibe);
-          } catch {
-            // If enhanced processing fails, fall back to basic processing
-            processed = await Promise.all(
-              unique.map(async (variant) => {
-                try {
-                  return await postprocessOne(input.platform, type, variant, regen, input.vibe);
-                } catch {
-                  return sanitizeProfanity(variant);
-                }
-              })
-            );
-          }
-        } else {
-          // For other types, process each variant individually
-          processed = await Promise.all(
-            unique.map(async (variant) => {
-              try {
-                return await postprocessOne(input.platform, type, variant, regen, input.vibe);
-              } catch {
-                return sanitizeProfanity(variant);
-              }
-            })
-          );
-        }
+        const processed = await Promise.all(
+          unique.map(async (variant) => {
+            try {
+              return await handleOne({
+                platform: input.platform,
+                type: typeMapping[type],
+                raw: variant,
+                regen,
+                vibe: input.vibe
+              });
+            } catch (error) {
+              console.log(`[POSTPROCESS] ${type}: ERROR - ${error}`);
+              return sanitizeProfanity(variant);
+            }
+          })
+        );
         
         // Apply CTA injection for applicable types
         if (type === "caption" || type === "story") {
@@ -925,36 +891,22 @@ export async function POST(req: NextRequest) {
         );
         
         // Apply enhanced post-processing to fallback variants
-        let processed: string[];
-        
-        if (type === "caption" || type === "bio") {
-          // For caption and bio, process all variants together to ensure quality across variants
-          try {
-            processed = await postprocessMultipleVariants(input.platform, type, arr, regen, input.vibe);
-          } catch {
-            // If enhanced processing fails, fall back to basic processing
-            processed = await Promise.all(
-              arr.map(async (variant) => {
-                try {
-                  return await postprocessOne(input.platform, type, variant, regen, input.vibe);
-                } catch {
-                  return sanitizeProfanity(variant);
-                }
-              })
-            );
-          }
-        } else {
-          // For other types, process each variant individually
-          processed = await Promise.all(
-            arr.map(async (variant) => {
-              try {
-                return await postprocessOne(input.platform, type, variant, regen, input.vibe);
-              } catch {
-                return sanitizeProfanity(variant);
-              }
-            })
-          );
-        }
+        const processed = await Promise.all(
+          arr.map(async (variant) => {
+            try {
+              return await handleOne({
+                platform: input.platform,
+                type: typeMapping[type],
+                raw: variant,
+                regen,
+                vibe: input.vibe
+              });
+            } catch (error) {
+              console.log(`[POSTPROCESS] ${type}: ERROR - ${error}`);
+              return sanitizeProfanity(variant);
+            }
+          })
+        );
         
         // Apply CTA injection for applicable types
         if (type === "caption" || type === "story") {
@@ -970,7 +922,13 @@ export async function POST(req: NextRequest) {
       if (out[requestedType].length === 0) {
         try {
           const regenerated = await regen(requestedType);
-          const processed = await postprocessOne(input.platform, requestedType, regenerated, regen, input.vibe);
+          const processed = await handleOne({
+            platform: input.platform,
+            type: typeMapping[requestedType],
+            raw: regenerated,
+            regen,
+            vibe: input.vibe
+          });
           
           if (requestedType === "caption" || requestedType === "story") {
             out[requestedType] = injectCTA(requestedType, [processed]);

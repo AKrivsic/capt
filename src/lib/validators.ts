@@ -129,3 +129,22 @@ export function collapseForTwitter(s: string) {
   // X/Twitter: žádné prázdné odstavce
   return s.replace(/\n{2,}/g, '\n').trim();
 }
+
+export function extractHashtagsOnly(line: string) {
+  // vyzobe pouze #tokeny a ignoruje okolní text
+  const tokens = line.match(/#[A-Za-z0-9_]+/g) || [];
+  // normalizace: lowercase pro generické, akronymy ponech
+  const uniq = Array.from(new Set(tokens.map(t => {
+    const w = t.slice(1);
+    const isAcr = /^[A-Z0-9]+$/.test(w);
+    return isAcr ? `#${w}` : `#${w.toLowerCase()}`;
+  })));
+  return uniq.join(' ');
+}
+
+// volitelné opravy běžných překlepů u tagů
+export function fixCommonTagTypos(line: string) {
+  return line
+    .replace(/\b#ragedquit\b/gi, '#ragequit')
+    .replace(/\b#gamersunite\b/gi, '#gamingcommunity');
+}
