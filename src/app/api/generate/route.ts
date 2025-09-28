@@ -16,16 +16,16 @@ import { buildMessages, type PromptInput } from "@/lib/prompt";
 import { perStyleParams } from "@/lib/openaiConfig";
 import {
   sanitizeProfanity,
-  fixStoryFormat,
+  extractHashtagsOnly,
   validateAndCleanHashtags,
   ensureFiveCommentsBlock,
-  ensureDifferentOpenings,
   validateCommentsBlock,
+  fixStoryFormat,
   validateStoryKeywords,
+  validateStoryNotGeneric,
+  ensureDifferentOpenings,
   extractTopicKeywords,
   makeTopicRegex,
-  extractHashtagsOnly,
-  fixCommonTagTypos
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
@@ -725,90 +725,104 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  async function handleOne({ platform, type, raw, regen, vibe }: {
-    platform: string;
-    type: string;
-    raw: string;
-    regen: (type: string, extraInstruction?: string) => Promise<string>;
-    vibe: string;
-  }): Promise<string> {
-    // ignore neznámé typy
+  async function postprocessOne(platform: string, type: string, raw: string, regen: (type: string, extraInstruction?: string) => Promise<string>, vibe: string): Promise<string> {
     if (!VALID_TYPES.has(type)) return raw || "";
 
     console.log(`[POSTPROCESS] ${type}: ${(raw || '').length} chars, preview: "${(raw || '').slice(0, 20)}..."`);
 
-    // vždy sanitizace
-    const out = sanitizeProfanity(raw || "");
+    let out = sanitizeProfanity(raw || "");
+    let didRegen = false;
 
-    // Hashtags: extrahuj jen #tokeny, pak validuj
     if (type === "Hashtags") {
-      const cleaned = extractHashtagsOnly(fixCommonTagTypos(out));
+      // 1) vyzobat jen #tokeny, 2) validovat, 3) případně 1× regenerovat
+      const cleaned = extractHashtagsOnly(out);
       const fixed = validateAndCleanHashtags(cleaned);
       if (fixed) {
         console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split(' ').length} hashtags`);
-        return fixed;
+        return applyPlatformConstraints(platform as PlatformKey, type, fixed);
       }
 
-      // 1× řízená regenerace
       console.log(`[POSTPROCESS] ${type}: REGENERATING - invalid hashtags`);
-      const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No text.");
-      const retryClean = extractHashtagsOnly(fixCommonTagTypos(sanitizeProfanity(retry || "")));
+      const retry = await regen(
+        "Hashtags",
+        "Return only 18–28 hashtags as a single space-separated line. No other text."
+      );
+      const retryClean = extractHashtagsOnly(sanitizeProfanity(retry || ""));
       const retryFixed = validateAndCleanHashtags(retryClean);
       if (!retryFixed) throw new Error("HASHTAGS_INVALID");
       console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryFixed.split(' ').length} hashtags`);
-      return retryFixed;
+      didRegen = true;
+      out = retryFixed;
     }
 
-    // Comments
-    if (type === "Comments") {
+    else if (type === "Comments") {
       const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
-      const five = ensureFiveCommentsBlock(out) || ensureFiveCommentsBlock(await regen("Comments", "Return only 5 lines, no extras."));
+      const five = ensureFiveCommentsBlock(out)
+        || ensureFiveCommentsBlock(await regen("Comments", "Return only 5 lines, no extras."));
       if (!five) throw new Error("COMMENTS_INVALID");
+
       const topical = validateCommentsBlock(five, topicRx, 1)
-        || validateCommentsBlock(sanitizeProfanity(await regen("Comments", "Return only 5 short comments tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'.")), topicRx, 1);
+        || validateCommentsBlock(
+          sanitizeProfanity(await regen("Comments",
+            "Return 5 short comments tied to the topic. One per line. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'."
+          )),
+          topicRx,
+          1
+        );
       if (!topical) throw new Error("COMMENTS_CONTEXT_INVALID");
       console.log(`[POSTPROCESS] ${type}: SUCCESS - ${topical.split('\n').length} comments`);
-      return topical;
+      out = topical;
     }
 
-    // Story
-    if (type === "Story") {
+    else if (type === "Story") {
       const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
       const fixed = validateStoryKeywords(fixStoryFormat(out), topicRx);
       if (fixed) {
-        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split('\n').length} slides`);
-        return fixed;
+        const notGeneric = validateStoryNotGeneric(fixed);
+        if (notGeneric) {
+          console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split('\n').length} slides`);
+          return applyPlatformConstraints(platform as PlatformKey, type, notGeneric);
+        }
       }
-
-      console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic relevance`);
-      const retry = await regen("Story", "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels.");
+      
+      console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic or generic content`);
+      const retry = await regen(
+        "Story",
+        "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels. Avoid generic lines like 'Behind the magic' or 'Tap for the reveal'."
+      );
       const retryFixed = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
-      if (!retryFixed) throw new Error("STORY_TOPIC_INVALID");
+      const retryNotGeneric = retryFixed && validateStoryNotGeneric(retryFixed);
+      if (!retryNotGeneric) throw new Error("STORY_TOPIC_INVALID");
       console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryFixed.split('\n').length} slides`);
-      return retryFixed;
+      didRegen = true;
+      out = retryNotGeneric;
     }
 
-    // Caption – unikátní ouvertury
-    if (type === "Caption") {
+    else if (type === "Caption") {
       const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
-      const ok = ensureDifferentOpenings(variants);
-      if (ok) {
-        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${ok.length} variants`);
-        return ok.join("\n\n");
+      const unique = ensureDifferentOpenings(variants);
+      if (unique) {
+        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${unique.length} variants`);
+        return applyPlatformConstraints(platform as PlatformKey, type, unique.join("\n\n"));
       }
 
       console.log(`[POSTPROCESS] ${type}: REGENERATING - duplicate openings`);
-      const retry = await regen("Caption", "Return multiple variants separated by a blank line. Each variant must start with a different opening.");
-      const retryOk = ensureDifferentOpenings(
+      const retry = await regen(
+        "Caption",
+        "Return multiple caption variants separated by a blank line. Each variant must start with a different opening."
+      );
+      const retryUnique = ensureDifferentOpenings(
         sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean)
       );
-      if (!retryOk) throw new Error("CAPTION_OPENINGS_INVALID");
-      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryOk.length} variants`);
-      return retryOk.join("\n\n");
+      if (!retryUnique) throw new Error("CAPTION_OPENINGS_INVALID");
+      console.log(`[POSTPROCESS] ${type}: REGENERATED - ${retryUnique.length} variants`);
+      didRegen = true;
+      out = retryUnique.join("\n\n");
     }
 
-    // Bio/Hook/DM – jen sanitizace + platform constraints
-    console.log(`[POSTPROCESS] ${type}: SUCCESS - basic processing`);
+    // Bio/Hook/DM – zatím stačí sanitizace; platform constraints aplikuj pro všechny typy níže
+    console.log(`[POSTPROCESS] ${type}: SUCCESS - basic processing${didRegen ? ' (regenerated)' : ''}`);
+    
     return applyPlatformConstraints(platform as PlatformKey, type, out);
   }
 
@@ -864,13 +878,13 @@ export async function POST(req: NextRequest) {
         const processed = await Promise.all(
           unique.map(async (variant) => {
             try {
-              return await handleOne({
-                platform: input.platform,
-                type: typeMapping[type],
-                raw: variant,
+              return await postprocessOne(
+                input.platform,
+                typeMapping[type],
+                variant,
                 regen,
-                vibe: input.vibe
-              });
+                input.vibe
+              );
             } catch (error) {
               console.log(`[POSTPROCESS] ${type}: ERROR - ${error}`);
               return sanitizeProfanity(variant);
@@ -894,13 +908,13 @@ export async function POST(req: NextRequest) {
         const processed = await Promise.all(
           arr.map(async (variant) => {
             try {
-              return await handleOne({
-                platform: input.platform,
-                type: typeMapping[type],
-                raw: variant,
+              return await postprocessOne(
+                input.platform,
+                typeMapping[type],
+                variant,
                 regen,
-                vibe: input.vibe
-              });
+                input.vibe
+              );
             } catch (error) {
               console.log(`[POSTPROCESS] ${type}: ERROR - ${error}`);
               return sanitizeProfanity(variant);
@@ -922,13 +936,13 @@ export async function POST(req: NextRequest) {
       if (out[requestedType].length === 0) {
         try {
           const regenerated = await regen(requestedType);
-          const processed = await handleOne({
-            platform: input.platform,
-            type: typeMapping[requestedType],
-            raw: regenerated,
+          const processed = await postprocessOne(
+            input.platform,
+            typeMapping[requestedType],
+            regenerated,
             regen,
-            vibe: input.vibe
-          });
+            input.vibe
+          );
           
           if (requestedType === "caption" || requestedType === "story") {
             out[requestedType] = injectCTA(requestedType, [processed]);

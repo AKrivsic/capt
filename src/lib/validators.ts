@@ -1,7 +1,9 @@
 export function sanitizeProfanity(s: string) {
-  return s
-    .replace(/\bfuck\b/gi, 'f**k')
-    .replace(/\bwtf\b/gi, 'WTH');
+  // f*ck / f#%k / f@ck / f u c k → f**k
+  s = s.replace(/\bf[\W_]*u[\W_]*c[\W_]*k\b/gi, "f**k");
+  // w t f / w.t.f → WTH
+  s = s.replace(/\bw[\W_]*t[\W_]*f\b/gi, "WTH");
+  return s;
 }
 
 export function fixStoryFormat(s: string) {
@@ -130,16 +132,28 @@ export function collapseForTwitter(s: string) {
   return s.replace(/\n{2,}/g, '\n').trim();
 }
 
+// Zakázané generické story šablony
+const STORY_BANNED = [
+  /behind the magic/i,
+  /tap for the reveal/i,
+  /swipe up for more/i,
+  /instant save/i,
+  /serving looks/i
+];
+
+export function validateStoryNotGeneric(s: string) {
+  return STORY_BANNED.some(rx => rx.test(s)) ? null : s;
+}
+
+// Vyzobe z textu pouze #tokeny a normalizuje je
 export function extractHashtagsOnly(line: string) {
-  // vyzobe pouze #tokeny a ignoruje okolní text
   const tokens = line.match(/#[A-Za-z0-9_]+/g) || [];
-  // normalizace: lowercase pro generické, akronymy ponech
   const uniq = Array.from(new Set(tokens.map(t => {
     const w = t.slice(1);
-    const isAcr = /^[A-Z0-9]+$/.test(w);
+    const isAcr = /^[A-Z0-9]+$/.test(w); // akronymy/proper necháme
     return isAcr ? `#${w}` : `#${w.toLowerCase()}`;
   })));
-  return uniq.join(' ');
+  return uniq.join(" ");
 }
 
 // volitelné opravy běžných překlepů u tagů
