@@ -76,8 +76,8 @@ export function clamp(str: string, max = 900): string {
   return str.length <= max ? str : str.slice(0, max - 1) + "…";
 }
 
-function clamp2500(s: string) { 
-  return s.length <= 2500 ? s : s.slice(0, 2497) + "..."; 
+function clamp2200(s: string) { 
+  return s.length <= 2200 ? s : s.slice(0, 2197) + "...";
 }
 
 const GENERAL_RULES = [
@@ -110,11 +110,11 @@ export function buildSystemPrompt(i: BuildPromptInput) {
     `General guidelines: ${GENERAL_RULES}`
   ].filter(Boolean).join("\n");
 
-  return clamp2500(composed);
+  return clamp2200(composed);
 }
 
 export function buildUserPrompt(vibe: string) {
-  return clamp2500(`Topic/Vibe: ${vibe}`);
+  return clamp2200(`Topic/Vibe: ${vibe}`);
 }
 
 // === message builder ===

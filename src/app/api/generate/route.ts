@@ -17,7 +17,6 @@ import { perStyleParams } from "@/lib/openaiConfig";
 import {
   sanitizeProfanity,
   extractHashtagsOnly,
-  validateAndCleanHashtags,
   generateHashtagsFromKeywords,
   ensureFiveCommentsBlock,
   validateCommentsBlock,
@@ -28,7 +27,13 @@ import {
   extractTopicKeywords,
   makeTopicRegex,
   ensureUniqueFiveLines,
-  buildCommentsFallback
+  buildCommentsFallback,
+  canonizeType,
+  isValidType,
+  validateCleanHashtags,
+  validateCaptionOpenings,
+  logProcessing,
+  deduplicateForUI
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
@@ -136,8 +141,8 @@ const DEFAULT_VARIANTS: Record<OutputType, number> = {
   hook: 5,
 };
 
-// Validní typy pro postprocessing
-const VALID_TYPES = new Set(["Caption","Bio","Hashtags","DM","Comments","Story","Hook"]);
+// Validní typy pro postprocessing (používá se v isValidType)
+// const VALID_TYPES = new Set(["Caption","Bio","Hashtags","DM","Comments","Story","Hook"]);
 
 // Typy, u kterých se počet variant NEPŘEPISUJE přes input.variants
 // const FIXED_VARIANTS: ReadonlySet<OutputType> = new Set<OutputType>([
@@ -729,45 +734,49 @@ export async function POST(req: NextRequest) {
   }
 
   async function postprocessOne(platform: string, type: string, raw: string, regen: (type: string, extraInstruction?: string) => Promise<string>, vibe: string): Promise<string> {
-    if (!VALID_TYPES.has(type)) return raw || "";
-
-    console.log(`[POSTPROCESS] ${type}: ${(raw || '').length} chars, preview: "${(raw || '').slice(0, 20)}..."`);
-
-    const out = sanitizeProfanity(raw || "");
-    const topicRx = makeTopicRegex(extractTopicKeywords(vibe || ""));
-
-    if (type === "Hashtags") {
-      // 1) extrakce → validace
-      const cleaned = extractHashtagsOnly(out);
-      let fixed = validateAndCleanHashtags(cleaned);
-      if (fixed) {
-        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${fixed.split(' ').length} hashtags`);
-        return applyPlatformConstraints(platform as PlatformKey, type, fixed);
-      }
-
-      // 2) 1× řízená regenerace
-      console.log(`[POSTPROCESS] ${type}: REGENERATING - invalid hashtags`);
-      const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No other text.");
-      fixed = validateAndCleanHashtags(extractHashtagsOnly(sanitizeProfanity(retry || "")));
-      if (fixed) {
-        console.log(`[POSTPROCESS] ${type}: REGENERATED - ${fixed.split(' ').length} hashtags`);
-        return applyPlatformConstraints(platform as PlatformKey, type, fixed);
-      }
-
-      // 3) FAIL-SAFE fallback z keywords
-      console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback from keywords`);
-      const fallback = generateHashtagsFromKeywords(extractTopicKeywords(vibe || ""));
-      fixed = validateAndCleanHashtags(fallback);
-      if (!fixed) throw new Error("HASHTAGS_INVALID");
-      console.log(`[POSTPROCESS] ${type}: FALLBACK - ${fixed.split(' ').length} hashtags`);
-      return applyPlatformConstraints(platform as PlatformKey, type, fixed);
+    // Kanonizace typu
+    const canonType = canonizeType(type);
+    if (!isValidType(canonType)) {
+      logProcessing(type, "IGNORED", "Invalid type, returning raw", raw);
+      return raw || "";
     }
 
-    if (type === "Comments") {
-      const kws = extractTopicKeywords(vibe || "");
-      const topicRx = makeTopicRegex(kws);
+    logProcessing(canonType, "START", `${(raw || '').length} chars`, raw);
 
-      // 1) formát: přesně 5 řádků
+    const out = sanitizeProfanity(raw || "");
+    const kws = extractTopicKeywords(vibe || "");
+    const topicRx = makeTopicRegex(kws);
+
+    if (canonType === "hashtags") {
+      // Vyzobej pouze #tokeny, validuj 18-28
+      const cleaned = extractHashtagsOnly(out);
+      let fixed = validateCleanHashtags(cleaned);
+      
+      if (fixed) {
+        logProcessing(canonType, "SUCCESS", `${fixed.split(' ').length} hashtags`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+      }
+
+      logProcessing(canonType, "REGENERATING", "Invalid hashtags");
+      const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No other text.");
+      fixed = validateCleanHashtags(extractHashtagsOnly(sanitizeProfanity(retry || "")));
+      
+      if (fixed) {
+        logProcessing(canonType, "REGENERATED", `${fixed.split(' ').length} hashtags`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+      }
+
+      logProcessing(canonType, "FALLBACK", "Using keyword fallback");
+      const fallback = generateHashtagsFromKeywords(kws);
+      fixed = validateCleanHashtags(fallback);
+      if (!fixed) throw new Error("HASHTAGS_INVALID");
+      
+      logProcessing(canonType, "FALLBACK_SUCCESS", `${fixed.split(' ').length} hashtags`);
+      return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+    }
+
+    if (canonType === "comments") {
+      // 1) Formát: přesně 5 řádků
       let five = ensureFiveCommentsBlock(out);
       if (!five) {
         const retryRaw = await regen("Comments", "Return only 5 short comments, one per line. No extra text.");
@@ -775,99 +784,96 @@ export async function POST(req: NextRequest) {
       }
       if (!five) throw new Error("COMMENTS_INVALID");
 
-      // 2) ban + topicalita (min 1 řádek obsahuje topic slovo)
+      // 2) Ban + topicalita + unikátnost
       let topical = validateCommentsBlock(five, topicRx, 1);
-
-      // 3) unikátnost 5 řádků
       topical = topical && ensureUniqueFiveLines(topical);
+      
       if (!topical) {
-        const retryRaw = await regen(
-          "Comments",
-          "Return 5 short, UNIQUE comments (no repeated lines), one per line, tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'."
-        );
+        const retryRaw = await regen("Comments", "Return 5 short, UNIQUE comments (no repeated lines), one per line, tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'.");
         const retryFive = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
         const retryTopical = retryFive && validateCommentsBlock(retryFive, topicRx, 1);
         topical = retryTopical && ensureUniqueFiveLines(retryTopical);
       }
 
-      // 4) FAIL-SAFE fallback (když model 2× selže)
+      // 3) FAIL-SAFE fallback
       if (!topical) {
         const fb = buildCommentsFallback(kws, 5);
         const fbUnique = ensureUniqueFiveLines(fb);
         const fbTopical = fbUnique && validateCommentsBlock(fbUnique, topicRx, 1);
         if (!fbTopical) throw new Error("COMMENTS_CONTEXT_INVALID");
-        console.log(`[POSTPROCESS] ${type}: FALLBACK - ${fbTopical.split('\n').length} comments`);
-        return applyPlatformConstraints(platform as PlatformKey, type, fbTopical);
+        
+        logProcessing(canonType, "FALLBACK", `${fbTopical.split('\n').length} comments`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, fbTopical);
       }
 
-      console.log(`[POSTPROCESS] ${type}: SUCCESS - ${topical.split('\n').length} comments`);
-      return applyPlatformConstraints(platform as PlatformKey, type, topical);
+      logProcessing(canonType, "SUCCESS", `${topical.split('\n').length} comments`);
+      return applyPlatformConstraints(platform as PlatformKey, canonType, topical);
     }
 
-    if (type === "Story") {
+    if (canonType === "story") {
       const first = validateStoryKeywords(fixStoryFormat(out), topicRx);
       const firstOk = first && validateStoryNotGeneric(first);
+      
       if (firstOk) {
-        console.log(`[POSTPROCESS] ${type}: SUCCESS - ${first.split('\n').length} slides`);
-        return applyPlatformConstraints(platform as PlatformKey, type, firstOk);
+        logProcessing(canonType, "SUCCESS", `${first.split('\n').length} slides`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, firstOk);
       }
 
-      console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic or generic content`);
-      const retry = await regen(
-        "Story",
-        "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels. Avoid generic lines like 'Behind the magic' or 'Tap for the reveal'."
-      );
+      logProcessing(canonType, "REGENERATING", "Missing topic or generic content");
+      const retry = await regen("Story", "Return 2–3 short slides, one per line. Tie at least 1 slide to the topic. No 'Slide 1:' labels. Avoid generic lines like 'Behind the magic' or 'Tap for the reveal'.");
       const second = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
       const secondOk = second && validateStoryNotGeneric(second);
+      
       if (secondOk) {
-        console.log(`[POSTPROCESS] ${type}: REGENERATED - ${second.split('\n').length} slides`);
-        return applyPlatformConstraints(platform as PlatformKey, type, secondOk);
+        logProcessing(canonType, "REGENERATED", `${second.split('\n').length} slides`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, secondOk);
       }
 
-      // FAIL-SAFE: vygeneruj stručnou story z keywords
-      console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback story`);
-      const kws = extractTopicKeywords(vibe || "");
+      logProcessing(canonType, "FALLBACK", "Using keyword fallback");
       const s1 = `${(kws[0]||'Today')} broke my patience 💥`;
-      const s2 = `${kws[1] ? `${kws[1]} > skills` : `mood`} — rage meter MAX 😤`;
+      const s2 = `${(kws[1] ? `${kws[1]} > skills` : `mood`)} — rage meter MAX 😤`;
       const s3 = `queue therapy later? bring memes 🔥`;
       const fallback = [s1,s2,s3].slice(0,3).join('\n');
       const fbOk = validateStoryKeywords(fallback, topicRx);
       if (!fbOk) throw new Error("STORY_TOPIC_INVALID");
-      console.log(`[POSTPROCESS] ${type}: FALLBACK - ${fbOk.split('\n').length} slides`);
-      return applyPlatformConstraints(platform as PlatformKey, type, fbOk);
+      
+      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbOk.split('\n').length} slides`);
+      return applyPlatformConstraints(platform as PlatformKey, canonType, fbOk);
     }
 
-    if (type === "Caption") {
-      const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
-      let unique = ensureDifferentOpenings(variants);
-      if (!unique) {
-        console.log(`[POSTPROCESS] ${type}: REGENERATING - duplicate openings`);
-        const retry = await regen("Caption",
-          "Return multiple caption variants separated by a blank line. Each variant must start with a different opening."
-        );
-        unique = ensureDifferentOpenings(
-          sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean)
-        );
+    if (canonType === "caption") {
+      const variants = validateCaptionOpenings(out);
+      
+      if (variants) {
+        logProcessing(canonType, "SUCCESS", `${variants.length} variants`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, variants.join("\n\n"));
       }
-      if (!unique) {
-        // FAIL-SAFE: 3 rychlé varianty z keywords
-        console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback captions`);
-        const k = extractTopicKeywords(vibe || "");
-        const caps = [
-          `${(k[0]||'today').toUpperCase()} DID ME DIRTY 😤🔥`,
-          `logged in brave, logged out tilted`,
-          `${k[1]||'lag'} peek > my aim 💀`
-        ];
-        unique = ensureDifferentOpenings(caps);
+
+      logProcessing(canonType, "REGENERATING", "Duplicate openings");
+      const retry = await regen("Caption", "Return multiple caption variants separated by a blank line. Each variant must start with a different opening.");
+      const retryVariants = validateCaptionOpenings(sanitizeProfanity(retry || ""));
+      
+      if (retryVariants) {
+        logProcessing(canonType, "REGENERATED", `${retryVariants.length} variants`);
+        return applyPlatformConstraints(platform as PlatformKey, canonType, retryVariants.join("\n\n"));
       }
-      if (!unique) throw new Error("CAPTION_OPENINGS_INVALID");
-      console.log(`[POSTPROCESS] ${type}: SUCCESS - ${unique.length} variants`);
-      return applyPlatformConstraints(platform as PlatformKey, type, unique.join("\n\n"));
+
+      logProcessing(canonType, "FALLBACK", "Using keyword fallback");
+      const caps = [
+        `${(kws[0]||'today').toUpperCase()} DID ME DIRTY 😤🔥`,
+        `logged in brave, logged out tilted`,
+        `${(kws[1]||'lag')} peek > my aim 💀`
+      ];
+      const fbVariants = ensureDifferentOpenings(caps);
+      if (!fbVariants) throw new Error("CAPTION_OPENINGS_INVALID");
+      
+      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbVariants.length} variants`);
+      return applyPlatformConstraints(platform as PlatformKey, canonType, fbVariants.join("\n\n"));
     }
 
-    // Bio / Hook / DM – sanitizace stačí (limit drží prompt)
-    console.log(`[POSTPROCESS] ${type}: SUCCESS - basic processing`);
-    return applyPlatformConstraints(platform as PlatformKey, type, out);
+    // Bio, Hook, DM - pouze základní sanitizace
+    logProcessing(canonType, "SUCCESS", "Basic processing");
+    return applyPlatformConstraints(platform as PlatformKey, canonType, out);
   }
 
 
@@ -936,9 +942,12 @@ export async function POST(req: NextRequest) {
           })
         );
         
-        // Apply CTA injection for applicable types
+        // Apply CTA injection for applicable types + deduplikace pro Comments/Hashtags
         if (type === "caption" || type === "story") {
           out[type] = injectCTA(type, processed);
+        } else if (type === "comments" || type === "hashtags") {
+          // Deduplikace: vezme první variantu, ostatní zahoď
+          out[type] = [deduplicateForUI(processed)];
         } else {
           out[type] = processed;
         }
@@ -966,9 +975,12 @@ export async function POST(req: NextRequest) {
           })
         );
         
-        // Apply CTA injection for applicable types
+        // Apply CTA injection for applicable types + deduplikace pro Comments/Hashtags
         if (type === "caption" || type === "story") {
           out[type] = injectCTA(type, processed);
+        } else if (type === "comments" || type === "hashtags") {
+          // Deduplikace: vezme první variantu, ostatní zahoď
+          out[type] = [deduplicateForUI(processed)];
         } else {
           out[type] = processed;
         }

@@ -1,8 +1,24 @@
+// — kanonizace typů: normalizuj názvy typů
+export function canonizeType(type: string): string {
+  return type.trim().toLowerCase().replace(/\s+/g, '');
+}
+
+// — validní typy pro processing
+const VALID_TYPES = new Set(['caption', 'bio', 'hashtags', 'dm', 'comments', 'story', 'hook']);
+
+export function isValidType(type: string): boolean {
+  return VALID_TYPES.has(canonizeType(type));
+}
+
 export function sanitizeProfanity(s: string) {
   // f*ck / f#%k / f@ck / f u c k → f**k
   s = s.replace(/\bf[\W_]*[u\*#@][\W_]*c[\W_]*k\b/gi, "f**k");
   // wtf / w.t.f / w t f → WTH
   s = s.replace(/\bw[\W_]*t[\W_]*f\b/gi, "WTH");
+  // Další obfuskované vulgarity
+  s = s.replace(/\bs[\W_]*h[\W_]*i[\W_]*t\b/gi, "stuff");
+  s = s.replace(/\bc[\W_]*r[\W_]*a[\W_]*p\b/gi, "crap");
+  s = s.replace(/\bb[\W_]*s\b/gi, "BS");
   return s;
 }
 
@@ -74,6 +90,20 @@ export function ensureDifferentOpenings(variants: string[]) {
   return variants;
 }
 
+// — validace Caption openings: různé první slova
+export function validateCaptionOpenings(text: string) {
+  const variants = text.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
+  if (variants.length === 0) return null;
+  
+  const firstWords = variants.map(v => {
+    const firstLine = (v.split(/\r?\n/)[0] || '').trim();
+    return firstLine.split(/\s+/)[0]?.toLowerCase() || '';
+  }).filter(Boolean);
+  
+  const uniqueFirstWords = Array.from(new Set(firstWords));
+  return (uniqueFirstWords.length === variants.length) ? variants : null;
+}
+
 // Bio kvalita: max ~80 znaků, 0–1 emoji povoleno, ne „profanity-only" a ne duplicity
 export function ensureBioQuality(variants: string[]) {
   const cleaned = variants.map(v => v.trim()).filter(Boolean);
@@ -101,7 +131,7 @@ const BANNED_COMMENTS = [/^obsessed\b/i, /^so clean\b/i, /^serving looks\b/i, /^
 const TOPIC_STOP = new Set([
   'this','is','the','and','or','a','an','to','of','for','with','on','in','at','by',
   'my','me','you','your','today','day','thing','stuff','please','help',
-  'fuck','f**k','wtf','wth','shit','bs','crap'
+  'play','game','games','gaming','fuck','f**k','wtf','wth','shit','bs','crap'
 ]);
 
 // Topic-agnostic: extrahuj klíčová slova z `vibe` a postav regex
@@ -143,20 +173,26 @@ export function collapseForTwitter(s: string) {
   return s.replace(/\n{2,}/g, '\n').trim();
 }
 
-// Zakázané generické story šablony
+// Zakázané generické story šablony - rozšířené
 const STORY_BANNED = [
   /behind the magic/i,
   /tap for the reveal/i,
   /swipe up for more/i,
   /instant save/i,
-  /serving looks/i
+  /serving looks/i,
+  /behind the scenes/i,
+  /tap to see more/i,
+  /swipe to reveal/i,
+  /double tap to save/i,
+  /link in bio/i,
+  /more in stories/i
 ];
 
 export function validateStoryNotGeneric(s: string) {
   return STORY_BANNED.some(rx => rx.test(s)) ? null : s;
 }
 
-// Vyzobe z textu pouze #tokeny a normalizuje je
+// Vyzobe z textu pouze #tokeny a normalizuje je - vylepšená verze
 export function extractHashtagsOnly(line: string) {
   const tokens = line.match(/#[A-Za-z0-9_]+/g) || [];
   const uniq = Array.from(new Set(tokens.map(t => {
@@ -165,6 +201,24 @@ export function extractHashtagsOnly(line: string) {
     return isAcr ? `#${w}` : `#${w.toLowerCase()}`;
   })));
   return uniq.join(" ");
+}
+
+// — čistá validace hashtagů: 18-28 unikátních tokenů
+export function validateCleanHashtags(line: string) {
+  const tags = extractHashtagsOnly(line);
+  const tagArray = tags.split(' ').filter(Boolean);
+  
+  // Filtruj stop-slova a nevalidní tagy
+  const validTags = tagArray.filter(t => {
+    const word = t.slice(1).toLowerCase();
+    return word.length >= 2 && !STOPWORDS.has(word);
+  });
+  
+  const uniq = Array.from(new Set(validTags));
+  if (uniq.length >= 18 && uniq.length <= 28) {
+    return uniq.join(' ');
+  }
+  return null;
 }
 
 // volitelné opravy běžných překlepů u tagů
@@ -218,4 +272,16 @@ export function buildCommentsFallback(keywords: string[], count = 5): string {
   }
   const uniq = Array.from(new Set(out)); // jistota
   return uniq.slice(0, count).join('\n');
+}
+
+// — rozšířené logování pro debugging
+export function logProcessing(type: string, action: string, details: string, raw?: string) {
+  const timestamp = new Date().toISOString().slice(11, 19);
+  const preview = raw ? raw.slice(0, 30) + '...' : 'N/A';
+  console.log(`[${timestamp}] ${type.toUpperCase()}: ${action} - ${details} | Preview: "${preview}"`);
+}
+
+// — deduplikace pro UI: vezme první variantu, ostatní zahoď
+export function deduplicateForUI(variants: string[]): string {
+  return variants.length > 0 ? variants[0] : '';
 }
