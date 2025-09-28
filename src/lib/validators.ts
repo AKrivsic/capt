@@ -47,6 +47,14 @@ export function ensureFiveCommentsBlock(s: string) {
   return null; // vynutíme 1× regeneraci
 }
 
+// — vynutí, že 5 řádků je opravdu unikátních
+export function ensureUniqueFiveLines(s: string) {
+  const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length !== 5) return null;
+  const uniq = Array.from(new Set(lines.map(l => l.toLowerCase())));
+  return (uniq.length === 5) ? lines.join('\n') : null;
+}
+
 // — existující sanitizeProfanity a fixStoryFormat ponech
 // — doplň normalizaci #CS2, kontrolu openingů, bio kvality, keywords a ban frází
 
@@ -89,14 +97,17 @@ const BANNED_COMMENTS = [/^obsessed\b/i, /^so clean\b/i, /^serving looks\b/i, /^
 
 
 
+// — STOP slovník pro topic keywords (vulgarity pryč)
+const TOPIC_STOP = new Set([
+  'this','is','the','and','or','a','an','to','of','for','with','on','in','at','by',
+  'my','me','you','your','today','day','thing','stuff','please','help',
+  'fuck','f**k','wtf','wth','shit','bs','crap'
+]);
+
 // Topic-agnostic: extrahuj klíčová slova z `vibe` a postav regex
 export function extractTopicKeywords(vibe: string, max = 8): string[] {
-  const STOP = new Set([
-    'this','is','the','and','or','a','an','to','of','for','with','on','in','at','by',
-    'my','me','you','your','today','day','thing','stuff','please','help'
-  ]);
   const tokens = (vibe.toLowerCase().match(/[a-z0-9]+/g) ?? []);
-  const words = tokens.filter(w => w.length >= 3 && !STOP.has(w));
+  const words = tokens.filter(w => w.length >= 3 && !TOPIC_STOP.has(w));
   return Array.from(new Set(words)).slice(0, max);
 }
 
@@ -184,4 +195,27 @@ export function generateHashtagsFromKeywords(keywords: string[], min = 18, max =
   // pokud pořád < min, duplicitně doplň neutrals (okrajový případ)
   while (slice.length < min) slice.push(neutrals[(slice.length) % neutrals.length]);
   return slice.join(" ");
+}
+
+// — variabilní, deterministický fallback pro komentáře
+export function buildCommentsFallback(keywords: string[], count = 5): string {
+  const ks = keywords.length ? keywords : ['queue','lag','server','rank','tilt'];
+  const templates = [
+    (k: string) => `${k} did me dirty today 😭`,
+    (k: string) => `skill issue? nah, ${k} issue 😂`,
+    (_: string) => `alt+F4 speedrun unlocked 💥`,
+    (_: string) => `my ping said "not today" 💀`,
+    (_: string) => `we need a patch note and a hug`,
+    (k: string) => `${k} > my aim, send help 😅`,
+    (k: string) => `who queued us into ${k} hell 😭`,
+    (k: string) => `clutch denied by ${k} again 💢`,
+  ];
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const k = ks[i % ks.length];
+    const t = templates[i % templates.length];
+    out.push(t(k));
+  }
+  const uniq = Array.from(new Set(out)); // jistota
+  return uniq.slice(0, count).join('\n');
 }

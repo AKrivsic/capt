@@ -26,7 +26,9 @@ import {
   validateStoryNotGeneric,
   ensureDifferentOpenings,
   extractTopicKeywords,
-  makeTopicRegex
+  makeTopicRegex,
+  ensureUniqueFiveLines,
+  buildCommentsFallback
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
@@ -762,36 +764,42 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === "Comments") {
+      const kws = extractTopicKeywords(vibe || "");
+      const topicRx = makeTopicRegex(kws);
+
+      // 1) formát: přesně 5 řádků
       let five = ensureFiveCommentsBlock(out);
       if (!five) {
-        console.log(`[POSTPROCESS] ${type}: REGENERATING - not 5 lines`);
-        const retry = await regen("Comments", "Return only 5 short comments, one per line. No extra text.");
-        five = ensureFiveCommentsBlock(sanitizeProfanity(retry || ""));
+        const retryRaw = await regen("Comments", "Return only 5 short comments, one per line. No extra text.");
+        five = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
       }
       if (!five) throw new Error("COMMENTS_INVALID");
 
+      // 2) ban + topicalita (min 1 řádek obsahuje topic slovo)
       let topical = validateCommentsBlock(five, topicRx, 1);
+
+      // 3) unikátnost 5 řádků
+      topical = topical && ensureUniqueFiveLines(topical);
       if (!topical) {
-        console.log(`[POSTPROCESS] ${type}: REGENERATING - missing topic relevance`);
-        const retry = await regen("Comments",
-          "Return 5 short comments tied to the topic. One per line. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'."
+        const retryRaw = await regen(
+          "Comments",
+          "Return 5 short, UNIQUE comments (no repeated lines), one per line, tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'."
         );
-        topical = validateCommentsBlock(sanitizeProfanity(retry || ""), topicRx, 1);
+        const retryFive = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
+        const retryTopical = retryFive && validateCommentsBlock(retryFive, topicRx, 1);
+        topical = retryTopical && ensureUniqueFiveLines(retryTopical);
       }
+
+      // 4) FAIL-SAFE fallback (když model 2× selže)
       if (!topical) {
-        // FAIL-SAFE: vyrob 5 basic topical komentů
-        console.log(`[POSTPROCESS] ${type}: FAIL-SAFE fallback comments`);
-        const kws = extractTopicKeywords(vibe || "");
-        const gen = [
-          `${kws[0] ? kws[0]+' ' : ''}did me dirty today 😭`,
-          `skill issue? nah, ${kws[0] || 'server'} issue 😂`,
-          `alt+F4 speedrun unlocked 💥`,
-          `my ping said "not today" 💀`,
-          `we need a patch note and a hug`
-        ].filter(Boolean).slice(0,5).join('\n');
-        topical = validateCommentsBlock(gen, topicRx, 1);
+        const fb = buildCommentsFallback(kws, 5);
+        const fbUnique = ensureUniqueFiveLines(fb);
+        const fbTopical = fbUnique && validateCommentsBlock(fbUnique, topicRx, 1);
+        if (!fbTopical) throw new Error("COMMENTS_CONTEXT_INVALID");
+        console.log(`[POSTPROCESS] ${type}: FALLBACK - ${fbTopical.split('\n').length} comments`);
+        return applyPlatformConstraints(platform as PlatformKey, type, fbTopical);
       }
-      if (!topical) throw new Error("COMMENTS_CONTEXT_INVALID");
+
       console.log(`[POSTPROCESS] ${type}: SUCCESS - ${topical.split('\n').length} comments`);
       return applyPlatformConstraints(platform as PlatformKey, type, topical);
     }
