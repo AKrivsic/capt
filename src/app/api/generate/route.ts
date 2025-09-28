@@ -1243,6 +1243,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    console.log('[DEBUG] Final out object:', JSON.stringify(out, null, 2));
+    console.log('[DEBUG] Input outputs:', input.outputs);
+    
     return NextResponse.json(
       {
         ok: true,

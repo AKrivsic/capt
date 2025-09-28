@@ -65,15 +65,30 @@ export default function TextDemo({ onClose }: TextDemoProps) {
       });
 
       const data = await response.json();
+      console.log('[DEBUG] API Response:', data);
+      console.log('[DEBUG] Output type:', outputType);
+      console.log('[DEBUG] Data structure:', {
+        ok: data.ok,
+        hasData: !!data.data,
+        dataKeys: data.data ? Object.keys(data.data) : 'no data',
+        outputTypeData: data.data ? data.data[outputType] : 'no data for outputType'
+      });
 
       if (!response.ok) {
         throw new Error(data.message || 'Generation failed');
       }
 
       if (data.ok && data.data && data.data[outputType] && data.data[outputType].length > 0) {
+        console.log('[DEBUG] Setting result:', data.data[outputType][0]);
         setResult(data.data[outputType][0]);
         trackGenerationComplete('FREE');
       } else {
+        console.log('[DEBUG] No result conditions failed:', {
+          dataOk: data.ok,
+          hasData: !!data.data,
+          hasOutputType: !!(data.data && data.data[outputType]),
+          outputTypeLength: data.data && data.data[outputType] ? data.data[outputType].length : 0
+        });
         throw new Error('No result generated');
       }
     } catch (err) {
