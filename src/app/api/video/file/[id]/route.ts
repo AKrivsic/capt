@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { FileDownloadResponse, ApiErrorResponse } from '@/types/api';
 import { getStorage } from '@/lib/storage/r2';
@@ -15,7 +16,7 @@ export async function GET(
 ): Promise<NextResponse<FileDownloadResponse | ApiErrorResponse>> {
   try {
     // Ověření autentizace
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized', message: 'You must be logged in' },

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { UploadInitRequestSchema } from '@/types/api';
 import type { UploadInitResponse, ApiErrorResponse } from '@/types/api';
@@ -25,7 +26,7 @@ export async function POST(
 ): Promise<NextResponse<UploadInitResponse | ApiErrorResponse>> {
   try {
     // Ověření autentizace (volitelné pro demo)
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const isDemo = !session?.user?.email;
 
     // Validace input dat
