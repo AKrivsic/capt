@@ -35,12 +35,20 @@ import {
   validateStoryQuality,
   validateBioQuality,
   buildStoryFallback,
-  buildBioFallback
+  buildBioFallback,
+  validateInstagramCaption,
+  validateInstagramHashtags,
+  validateInstagramComments,
+  validateInstagramStory,
+  buildInstagramCaptionFallback,
+  buildInstagramHashtagsFallback,
+  buildInstagramCommentsFallback,
+  buildInstagramStoryFallback
 } from '@/lib/validators';
 import { applyPlatformConstraints } from "@/lib/platformConstraints";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
 import { styleNotes } from "@/constants/styleNotes";
-import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
+import { targetByType, type TargetTypeKey, getPlatformSpecificPrompt } from "@/constants/targetByType";
 
 // ====== enums & vstup ======
 const OutputEnum = z.enum([
@@ -749,154 +757,291 @@ export async function POST(req: NextRequest) {
     const kws = extractTopicKeywords(vibe || "");
     const topicRx = makeTopicRegex(kws);
 
-    if (canonType === "hashtags") {
-      // Vyzobej pouze #tokeny, validuj 18-28
-      const cleaned = extractHashtagsOnly(out);
-      let fixed = validateCleanHashtags(cleaned);
-      
-      if (fixed) {
-        logProcessing(canonType, "SUCCESS", `${fixed.split(' ').length} hashtags`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
-      }
+        if (canonType === "hashtags") {
+          // Instagram-specific hashtag validation
+          if (platform === "instagram") {
+            const cleaned = extractHashtagsOnly(out);
+            let fixed = validateInstagramHashtags(cleaned);
 
-      logProcessing(canonType, "REGENERATING", "Invalid hashtags");
-      const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No other text.");
-      fixed = validateCleanHashtags(extractHashtagsOnly(sanitizeProfanity(retry || "")));
-      
-      if (fixed) {
-        logProcessing(canonType, "REGENERATED", `${fixed.split(' ').length} hashtags`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
-      }
+            if (fixed) {
+              logProcessing(canonType, "SUCCESS", `${fixed.split(' ').length} hashtags`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+            }
 
-      logProcessing(canonType, "FALLBACK", "Using keyword fallback");
-      const fallback = generateHashtagsFromKeywords(kws);
-      fixed = validateCleanHashtags(fallback);
-      if (!fixed) throw new Error("HASHTAGS_INVALID");
-      
-      logProcessing(canonType, "FALLBACK_SUCCESS", `${fixed.split(' ').length} hashtags`);
-      return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
-    }
+            logProcessing(canonType, "REGENERATING", "Missing niche FPS tags");
+            const retry = await regen("Hashtags", "Return only the Hashtags in the exact required format, nothing else. Return 18-28 Instagram hashtags with 3-5 niche FPS tags (matchmaking, netcode, spraycontrol, aimtrain, headshot). Mix 60-70% general gaming/FPS + niche FPS tags.");
+            fixed = validateInstagramHashtags(extractHashtagsOnly(sanitizeProfanity(retry || "")));
 
-    if (canonType === "comments") {
-      // 1) Formát: přesně 5 řádků
-      let five = ensureFiveCommentsBlock(out);
-      if (!five) {
-        const retryRaw = await regen("Comments", "Return only 5 short comments, one per line. No extra text.");
-        five = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
-      }
-      if (!five) throw new Error("COMMENTS_INVALID");
+            if (fixed) {
+              logProcessing(canonType, "REGENERATED", `${fixed.split(' ').length} hashtags`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+            }
 
-      // 2) Ban + topicalita + unikátnost
-      let topical = validateCommentsBlock(five, topicRx, 1);
-      topical = topical && ensureUniqueFiveLines(topical);
-      
-      if (!topical) {
-        const retryRaw = await regen("Comments", "Return 5 short, UNIQUE comments (no repeated lines), one per line, tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'.");
-        const retryFive = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
-        const retryTopical = retryFive && validateCommentsBlock(retryFive, topicRx, 1);
-        topical = retryTopical && ensureUniqueFiveLines(retryTopical);
-      }
+            logProcessing(canonType, "FALLBACK", "Using Instagram hashtag fallback");
+            const fallback = buildInstagramHashtagsFallback(kws);
+            fixed = validateInstagramHashtags(fallback);
+            if (!fixed) throw new Error("HASHTAGS_INVALID");
 
-      // 3) FAIL-SAFE fallback
-      if (!topical) {
-        const fb = buildCommentsFallback(kws, 5);
-        const fbUnique = ensureUniqueFiveLines(fb);
-        const fbTopical = fbUnique && validateCommentsBlock(fbUnique, topicRx, 1);
-        if (!fbTopical) throw new Error("COMMENTS_CONTEXT_INVALID");
-        
-        logProcessing(canonType, "FALLBACK", `${fbTopical.split('\n').length} comments`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, fbTopical);
-      }
+            logProcessing(canonType, "FALLBACK_SUCCESS", `${fixed.split(' ').length} hashtags`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+          }
 
-      logProcessing(canonType, "SUCCESS", `${topical.split('\n').length} comments`);
-      return applyPlatformConstraints(platform as PlatformKey, canonType, topical);
-    }
+          // Standard hashtag validation for other platforms
+          const cleaned = extractHashtagsOnly(out);
+          let fixed = validateCleanHashtags(cleaned);
 
-    if (canonType === "story") {
-      // Nová validace: 2-3 řádky, BAN check, topicalita, emoji limit
-      const formatted = fixStoryFormat(out);
-      const validated = validateStoryQuality(formatted, topicRx, style);
-      
-      if (validated) {
-        logProcessing(canonType, "SUCCESS", `${validated.split('\n').length} slides`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
-      }
+          if (fixed) {
+            logProcessing(canonType, "SUCCESS", `${fixed.split(' ').length} hashtags`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+          }
 
-      logProcessing(canonType, "REGENERATING", "Quality validation failed");
-      const retry = await regen("Story", "Return only the Story in the exact required format, nothing else. Return 2-3 short slides, one per line, at least 1 topical, no generic CTAs, last line = subtle punchline/CTA tied to the vibe.");
-      const retryFormatted = fixStoryFormat(sanitizeProfanity(retry || ""));
-      const retryValidated = validateStoryQuality(retryFormatted, topicRx, style);
-      
-      if (retryValidated) {
-        logProcessing(canonType, "REGENERATED", `${retryValidated.split('\n').length} slides`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, retryValidated);
-      }
+          logProcessing(canonType, "REGENERATING", "Invalid hashtags");
+          const retry = await regen("Hashtags", "Return only 18–28 hashtags as a single space-separated line. No other text.");
+          fixed = validateCleanHashtags(extractHashtagsOnly(sanitizeProfanity(retry || "")));
 
-      logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
-      const fallback = buildStoryFallback(kws, style || "Rage");
-      const fbValidated = validateStoryQuality(fallback, topicRx, style);
-      if (!fbValidated) throw new Error("STORY_TOPIC_INVALID");
-      
-      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.split('\n').length} slides`);
-      return applyPlatformConstraints(platform as PlatformKey, canonType, fbValidated);
-    }
+          if (fixed) {
+            logProcessing(canonType, "REGENERATED", `${fixed.split(' ').length} hashtags`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+          }
 
-    if (canonType === "caption") {
-      const variants = validateCaptionOpenings(out);
-      
-      if (variants) {
-        logProcessing(canonType, "SUCCESS", `${variants.length} variants`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, variants.join("\n\n"));
-      }
+          logProcessing(canonType, "FALLBACK", "Using keyword fallback");
+          const fallback = generateHashtagsFromKeywords(kws);
+          fixed = validateCleanHashtags(fallback);
+          if (!fixed) throw new Error("HASHTAGS_INVALID");
 
-      logProcessing(canonType, "REGENERATING", "Duplicate openings");
-      const retry = await regen("Caption", "Return multiple caption variants separated by a blank line. Each variant must start with a different opening.");
-      const retryVariants = validateCaptionOpenings(sanitizeProfanity(retry || ""));
-      
-      if (retryVariants) {
-        logProcessing(canonType, "REGENERATED", `${retryVariants.length} variants`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, retryVariants.join("\n\n"));
-      }
+          logProcessing(canonType, "FALLBACK_SUCCESS", `${fixed.split(' ').length} hashtags`);
+          return applyPlatformConstraints(platform as PlatformKey, canonType, fixed);
+        }
 
-      logProcessing(canonType, "FALLBACK", "Using keyword fallback");
-      const caps = [
-        `${(kws[0]||'today').toUpperCase()} DID ME DIRTY 😤🔥`,
-        `logged in brave, logged out tilted`,
-        `${(kws[1]||'lag')} peek > my aim 💀`
-      ];
-      const fbVariants = ensureDifferentOpenings(caps);
-      if (!fbVariants) throw new Error("CAPTION_OPENINGS_INVALID");
-      
-      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbVariants.length} variants`);
-      return applyPlatformConstraints(platform as PlatformKey, canonType, fbVariants.join("\n\n"));
-    }
+        if (canonType === "comments") {
+          // Instagram-specific comments validation
+          if (platform === "instagram") {
+            let validated = validateInstagramComments(out);
 
-    if (canonType === "bio") {
-      // Nová validace: 3 varianty, ≤90 chars, 0-2 emoji, různé úhly
-      const validated = validateBioQuality(out, style);
-      
-      if (validated) {
-        logProcessing(canonType, "SUCCESS", `${validated.length} variants`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, validated.join('\n'));
-      }
+            if (validated) {
+              logProcessing(canonType, "SUCCESS", `${validated.split('\n').length} comments`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+            }
 
-      logProcessing(canonType, "REGENERATING", "Quality validation failed");
-      const retry = await regen("Bio", "Return only the Bio in the exact required format, nothing else. Return exactly 3 single-line bios (≤90 chars each), distinct angles, 0-2 emojis, no questions/CTAs, brand-safe.");
-      const retryValidated = validateBioQuality(sanitizeProfanity(retry || ""), style);
-      
-      if (retryValidated) {
-        logProcessing(canonType, "REGENERATED", `${retryValidated.length} variants`);
-        return applyPlatformConstraints(platform as PlatformKey, canonType, retryValidated.join('\n'));
-      }
+            logProcessing(canonType, "REGENERATING", "Missing insider lexicon");
+            const retry = await regen("Comments", "Return only the Comments in the exact required format, nothing else. Return 5 short, unique Instagram comments with 1-2 in-game lexicon terms (ping, whiff, clutch, desync). BAN: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'.");
+            validated = validateInstagramComments(sanitizeProfanity(retry || ""));
 
-      logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
-      const fallback = buildBioFallback(kws, style || "Rage");
-      const fbValidated = validateBioQuality(fallback.join('\n'), style);
-      if (!fbValidated) throw new Error("BIO_QUALITY_INVALID");
-      
-      logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.length} variants`);
-      return applyPlatformConstraints(platform as PlatformKey, canonType, fbValidated.join('\n'));
-    }
+            if (validated) {
+              logProcessing(canonType, "REGENERATED", `${validated.split('\n').length} comments`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+            }
+
+            logProcessing(canonType, "FALLBACK", "Using Instagram comments fallback");
+            const fallback = buildInstagramCommentsFallback(kws);
+            validated = validateInstagramComments(fallback);
+            if (!validated) throw new Error("COMMENTS_INVALID");
+
+            logProcessing(canonType, "FALLBACK_SUCCESS", `${validated.split('\n').length} comments`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+          }
+
+          // Standard comments validation for other platforms
+          let five = ensureFiveCommentsBlock(out);
+          if (!five) {
+            const retryRaw = await regen("Comments", "Return only 5 short comments, one per line. No extra text.");
+            five = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
+          }
+          if (!five) throw new Error("COMMENTS_INVALID");
+
+          let topical = validateCommentsBlock(five, topicRx, 1);
+          topical = topical && ensureUniqueFiveLines(topical);
+
+          if (!topical) {
+            const retryRaw = await regen("Comments", "Return 5 short, UNIQUE comments (no repeated lines), one per line, tied to the topic. Ban: 'Obsessed','So clean','Serving looks','Chef's kiss','Iconic'.");
+            const retryFive = ensureFiveCommentsBlock(sanitizeProfanity(retryRaw || ""));
+            const retryTopical = retryFive && validateCommentsBlock(retryFive, topicRx, 1);
+            topical = retryTopical && ensureUniqueFiveLines(retryTopical);
+          }
+
+          if (!topical) {
+            const fb = buildCommentsFallback(kws, 5);
+            const fbUnique = ensureUniqueFiveLines(fb);
+            const fbTopical = fbUnique && validateCommentsBlock(fbUnique, topicRx, 1);
+            if (!fbTopical) throw new Error("COMMENTS_CONTEXT_INVALID");
+
+            logProcessing(canonType, "FALLBACK", `${fbTopical.split('\n').length} comments`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, fbTopical);
+          }
+
+          logProcessing(canonType, "SUCCESS", `${topical.split('\n').length} comments`);
+          return applyPlatformConstraints(platform as PlatformKey, canonType, topical);
+        }
+
+        if (canonType === "story") {
+          // Instagram-specific story validation
+          if (platform === "instagram") {
+            const formatted = fixStoryFormat(out);
+            let validated = validateInstagramStory(formatted, topicRx);
+
+            if (validated) {
+              logProcessing(canonType, "SUCCESS", `${validated.split('\n').length} slides`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+            }
+
+            logProcessing(canonType, "REGENERATING", "Missing IG micro-CTA or insider detail");
+            const retry = await regen("Story", "Return only the Story in the exact required format, nothing else. Return 2-3 Instagram story slides with 1 in-game element (ping/desync/Dust2/whiff) and end with IG micro-CTA: 'comment your L 👇', 'save for later', 'tag your duo'. BAN: 'Swipe up', 'Tap for the reveal', follow-CTAs.");
+            const retryFormatted = fixStoryFormat(sanitizeProfanity(retry || ""));
+            validated = validateInstagramStory(retryFormatted, topicRx);
+
+            if (validated) {
+              logProcessing(canonType, "REGENERATED", `${validated.split('\n').length} slides`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+            }
+
+            logProcessing(canonType, "FALLBACK", "Using Instagram story fallback");
+            const fallback = buildInstagramStoryFallback(kws);
+            validated = validateInstagramStory(fallback, topicRx);
+            if (!validated) throw new Error("STORY_TOPIC_INVALID");
+
+            logProcessing(canonType, "FALLBACK_SUCCESS", `${validated.split('\n').length} slides`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+          }
+
+          // Standard story validation for other platforms
+          const formatted = fixStoryFormat(out);
+          const validated = validateStoryQuality(formatted, topicRx, style);
+
+          if (validated) {
+            logProcessing(canonType, "SUCCESS", `${validated.split('\n').length} slides`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, validated);
+          }
+
+          logProcessing(canonType, "REGENERATING", "Quality validation failed");
+          const retry = await regen("Story", "Return only the Story in the exact required format, nothing else. Return 2-3 short slides, one per line, at least 1 topical, no generic CTAs, last line = subtle punchline/CTA tied to the vibe.");
+          const retryFormatted = fixStoryFormat(sanitizeProfanity(retry || ""));
+          const retryValidated = validateStoryQuality(retryFormatted, topicRx, style);
+
+          if (retryValidated) {
+            logProcessing(canonType, "REGENERATED", `${retryValidated.split('\n').length} slides`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, retryValidated);
+          }
+
+          logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
+          const fallback = buildStoryFallback(kws, style || "Rage");
+          const fbValidated = validateStoryQuality(fallback, topicRx, style);
+          if (!fbValidated) throw new Error("STORY_TOPIC_INVALID");
+
+          logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.split('\n').length} slides`);
+          return applyPlatformConstraints(platform as PlatformKey, canonType, fbValidated);
+        }
+
+        if (canonType === "caption") {
+          // Instagram-specific caption validation
+          if (platform === "instagram") {
+            let variants = validateInstagramCaption(out, topicRx);
+
+            if (variants) {
+              logProcessing(canonType, "SUCCESS", `${variants.length} variants`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, variants.join("\n\n"));
+            }
+
+            logProcessing(canonType, "REGENERATING", "Missing insider detail or duplicate openings");
+            const retry = await regen("Caption", "Return only the Caption in the exact required format, nothing else. Return 2-3 Instagram caption variants with different opening words and at least 1 in-game detail (ping spike, desync, Dust2, whiff, netcode). Allowed micro-CTAs: 'Save if relatable', 'Comment your L', 'Tag your duo'. BAN: 'follow for more', 'swipe up'.");
+            variants = validateInstagramCaption(sanitizeProfanity(retry || ""), topicRx);
+
+            if (variants) {
+              logProcessing(canonType, "REGENERATED", `${variants.length} variants`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, variants.join("\n\n"));
+            }
+
+            logProcessing(canonType, "FALLBACK", "Using Instagram caption fallback");
+            const fallback = buildInstagramCaptionFallback(kws);
+            variants = validateInstagramCaption(fallback.join("\n\n"), topicRx);
+            if (!variants) throw new Error("CAPTION_OPENINGS_INVALID");
+
+            logProcessing(canonType, "FALLBACK_SUCCESS", `${variants.length} variants`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, variants.join("\n\n"));
+          }
+
+          // Standard caption validation for other platforms
+          const variants = validateCaptionOpenings(out);
+
+          if (variants) {
+            logProcessing(canonType, "SUCCESS", `${variants.length} variants`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, variants.join("\n\n"));
+          }
+
+          logProcessing(canonType, "REGENERATING", "Duplicate openings");
+          const retry = await regen("Caption", "Return multiple caption variants separated by a blank line. Each variant must start with a different opening.");
+          const retryVariants = validateCaptionOpenings(sanitizeProfanity(retry || ""));
+
+          if (retryVariants) {
+            logProcessing(canonType, "REGENERATED", `${retryVariants.length} variants`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, retryVariants.join("\n\n"));
+          }
+
+          logProcessing(canonType, "FALLBACK", "Using keyword fallback");
+          const caps = [
+            `${(kws[0]||'today').toUpperCase()} DID ME DIRTY 😤🔥`,
+            `logged in brave, logged out tilted`,
+            `${(kws[1]||'lag')} peek > my aim 💀`
+          ];
+          const fbVariants = ensureDifferentOpenings(caps);
+          if (!fbVariants) throw new Error("CAPTION_OPENINGS_INVALID");
+
+          logProcessing(canonType, "FALLBACK_SUCCESS", `${fbVariants.length} variants`);
+          return applyPlatformConstraints(platform as PlatformKey, canonType, fbVariants.join("\n\n"));
+        }
+
+        if (canonType === "bio") {
+          // Instagram-specific bio validation
+          if (platform === "instagram") {
+            let validated = validateBioQuality(out, style);
+
+            if (validated) {
+              logProcessing(canonType, "SUCCESS", `${validated.length} variants`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, validated.join('\n'));
+            }
+
+            logProcessing(canonType, "REGENERATING", "Quality validation failed");
+            const retry = await regen("Bio", "Return only the Bio in the exact required format, nothing else. Return exactly 3 single-line Instagram bio variants (≤90 chars each), distinct angles (identity/role, value prop, mood/style), 0-2 emojis, no questions/CTAs, brand-safe.");
+            validated = validateBioQuality(sanitizeProfanity(retry || ""), style);
+
+            if (validated) {
+              logProcessing(canonType, "REGENERATED", `${validated.length} variants`);
+              return applyPlatformConstraints(platform as PlatformKey, canonType, validated.join('\n'));
+            }
+
+            logProcessing(canonType, "FALLBACK", "Using Instagram bio fallback");
+            const fallback = buildBioFallback(kws, style || "Rage");
+            validated = validateBioQuality(fallback.join('\n'), style);
+            if (!validated) throw new Error("BIO_QUALITY_INVALID");
+
+            logProcessing(canonType, "FALLBACK_SUCCESS", `${validated.length} variants`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, validated.join('\n'));
+          }
+
+          // Standard bio validation for other platforms
+          const validated = validateBioQuality(out, style);
+
+          if (validated) {
+            logProcessing(canonType, "SUCCESS", `${validated.length} variants`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, validated.join('\n'));
+          }
+
+          logProcessing(canonType, "REGENERATING", "Quality validation failed");
+          const retry = await regen("Bio", "Return only the Bio in the exact required format, nothing else. Return exactly 3 single-line bios (≤90 chars each), distinct angles, 0-2 emojis, no questions/CTAs, brand-safe.");
+          const retryValidated = validateBioQuality(sanitizeProfanity(retry || ""), style);
+
+          if (retryValidated) {
+            logProcessing(canonType, "REGENERATED", `${retryValidated.length} variants`);
+            return applyPlatformConstraints(platform as PlatformKey, canonType, retryValidated.join('\n'));
+          }
+
+          logProcessing(canonType, "FALLBACK", "Using style-specific fallback");
+          const fallback = buildBioFallback(kws, style || "Rage");
+          const fbValidated = validateBioQuality(fallback.join('\n'), style);
+          if (!fbValidated) throw new Error("BIO_QUALITY_INVALID");
+
+          logProcessing(canonType, "FALLBACK_SUCCESS", `${fbValidated.length} variants`);
+          return applyPlatformConstraints(platform as PlatformKey, canonType, fbValidated.join('\n'));
+        }
 
     // Hook, DM - pouze základní sanitizace
     logProcessing(canonType, "SUCCESS", "Basic processing");
@@ -919,7 +1064,8 @@ export async function POST(req: NextRequest) {
         const mappedInput: PromptInput = {
           ...input,
           platform: platformMapping[input.platform],
-          outputs: input.outputs.map(o => typeMapping[o])
+          outputs: input.outputs.map(o => typeMapping[o]),
+          platformSpecificPrompt: input.platform === "instagram" ? getPlatformSpecificPrompt(typeMapping[type], input.platform) : undefined
         };
         const mappedType = typeMapping[type];
 

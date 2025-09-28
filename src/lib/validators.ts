@@ -488,3 +488,190 @@ export function buildBioFallback(keywords: string[], style: string): string[] {
   
   return templates[style as keyof typeof templates] || templates.Rage;
 }
+
+// — INSTAGRAM-specifické validátory
+
+// Insider gaming terms pro Instagram
+const INSIDER_TERMS = [
+  'ping', 'lag', 'desync', 'whiff', 'clutch', 'netcode', 'dust2', 'inferno', 'nuke', 'mirage',
+  'headshot', 'spray', 'aim', 'flick', 'peek', 'prefire', 'wallbang', 'ace', 'defuse', 'plant',
+  'eco', 'force', 'save', 'rotate', 'stack', 'split', 'rush', 'bait', 'trade', 'entry'
+];
+
+// Instagram-specific banned phrases
+const IG_BANNED = [
+  /follow for more/i,
+  /swipe up/i,
+  /tap for more/i,
+  /behind the magic/i,
+  /instant save/i,
+  /serving looks/i
+];
+
+// Instagram micro-CTAs
+const IG_MICRO_CTAS = [
+  /save if relatable/i,
+  /comment your l/i,
+  /tag your duo/i,
+  /save for later/i
+];
+
+// Niche FPS hashtags pro Instagram
+const NICHE_FPS_TAGS = [
+  '#matchmaking', '#netcode', '#spraycontrol', '#aimtrain', '#headshot',
+  '#crosshair', '#sensitivity', '#flick', '#peek', '#prefire', '#wallbang',
+  '#ace', '#clutch', '#defuse', '#plant', '#eco', '#force', '#save'
+];
+
+// — Instagram Caption validace
+export function validateInstagramCaption(text: string, topicRx: RegExp | null): string[] | null {
+  const variants = text.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
+  if (variants.length < 2 || variants.length > 3) return null;
+  
+  // Unikátní opening words
+  const firstWords = variants.map(v => v.split(/\s+/)[0]?.toLowerCase() || '');
+  const uniqueFirstWords = Array.from(new Set(firstWords));
+  if (uniqueFirstWords.length !== variants.length) return null;
+  
+  // Insider detail check
+  let hasInsiderDetail = false;
+  for (const variant of variants) {
+    if (INSIDER_TERMS.some(term => variant.toLowerCase().includes(term))) {
+      hasInsiderDetail = true;
+      break;
+    }
+  }
+  if (!hasInsiderDetail) return null;
+  
+  // BAN phrases check
+  if (IG_BANNED.some(rx => rx.test(text))) return null;
+  
+  // Emoji limit (max 2 per line)
+  for (const variant of variants) {
+    const lines = variant.split(/\n/);
+    for (const line of lines) {
+      const emojiCount = (line.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+      if (emojiCount > 2) return null;
+    }
+  }
+  
+  return variants;
+}
+
+// — Instagram Hashtags validace s niche FPS
+export function validateInstagramHashtags(line: string): string | null {
+  const tags = extractHashtagsOnly(line);
+  const tagArray = tags.split(' ').filter(Boolean);
+  
+  if (tagArray.length < 18 || tagArray.length > 28) return null;
+  
+  // Check for niche FPS tags (at least 3-5)
+  const nicheCount = tagArray.filter(tag => 
+    NICHE_FPS_TAGS.some(niche => tag.toLowerCase() === niche.toLowerCase())
+  ).length;
+  
+  if (nicheCount < 3) return null;
+  
+  return tags;
+}
+
+// — Instagram Comments validace s insider lexikem
+export function validateInstagramComments(s: string): string | null {
+  const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length !== 5) return null;
+  
+  // Unikátnost
+  const uniq = Array.from(new Set(lines.map(l => l.toLowerCase())));
+  if (uniq.length !== 5) return null;
+  
+  // Insider lexikum (min 1-2 komenty)
+  const insiderCount = lines.filter(line => 
+    INSIDER_TERMS.some(term => line.toLowerCase().includes(term))
+  ).length;
+  
+  if (insiderCount < 1) return null;
+  
+  // BAN phrases
+  if (BANNED_COMMENTS.some(rx => rx.test(s))) return null;
+  
+  return lines.join('\n');
+}
+
+// — Instagram Story validace s IG micro-CTA
+export function validateInstagramStory(s: string, topicRx: RegExp | null): string | null {
+  const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2 || lines.length > 3) return null;
+  
+  // BAN fráze check
+  if (IG_BANNED.some(rx => rx.test(s))) return null;
+  
+  // Topicalita
+  if (topicRx) {
+    const topical = lines.filter(l => topicRx.test(l)).length;
+    if (topical < 1) return null;
+  }
+  
+  // Insider detail
+  const hasInsider = lines.some(line => 
+    INSIDER_TERMS.some(term => line.toLowerCase().includes(term))
+  );
+  if (!hasInsider) return null;
+  
+  // IG micro-CTA na posledním slidu
+  const lastLine = lines[lines.length - 1];
+  const hasIGCTA = IG_MICRO_CTAS.some(rx => rx.test(lastLine));
+  if (!hasIGCTA) return null;
+  
+  // Emoji limit
+  for (const line of lines) {
+    const emojiCount = (line.match(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+    if (emojiCount > 2) return null;
+  }
+  
+  return lines.join('\n');
+}
+
+// — Instagram fallback generátory
+export function buildInstagramCaptionFallback(keywords: string[]): string[] {
+  const k1 = keywords[0] || 'cs2';
+  const k2 = keywords[1] || 'queue';
+  
+  return [
+    `${k1} did me dirty today 😭\nping spike at the worst moment\nsave if relatable`,
+    `logged in brave, logged out tilted\n${k2} matchmaking strikes again\ncomment your L`,
+    `${k1} > my aim, classic\nwhiffed the easiest shot\ntag your duo for therapy`
+  ];
+}
+
+export function buildInstagramHashtagsFallback(keywords: string[]): string {
+  const base = keywords.slice(0, 3).map(k => `#${k.toLowerCase()}`);
+  const niche = NICHE_FPS_TAGS.slice(0, 5);
+  const general = ['#gaming', '#fps', '#cs2', '#competitive', '#highlights', '#clips', '#fails', '#wins', '#moments', '#community', '#esports', '#progamer'];
+  
+  const all = [...base, ...niche, ...general].slice(0, 25);
+  return all.join(' ');
+}
+
+export function buildInstagramCommentsFallback(keywords: string[]): string {
+  const k1 = keywords[0] || 'ping';
+  const k2 = keywords[1] || 'lag';
+  
+  return [
+    `${k1} spike at the worst time 😭`,
+    `whiffed the easiest shot ever`,
+    `${k2} > my skills, expected`,
+    `clutch denied by desync again`,
+    `netcode said "not today" 💀`
+  ].join('\n');
+}
+
+export function buildInstagramStoryFallback(keywords: string[]): string {
+  const k1 = keywords[0] || 'cs2';
+  const k2 = keywords[1] || 'ping';
+  
+  return [
+    `${k1} BROKE my patience today 💥`,
+    `${k2} spike > my aim, classic`,
+    `comment your L 👇`
+  ].join('\n');
+}

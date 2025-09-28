@@ -95,6 +95,8 @@ export type BuildPromptInput = {
   type: TargetTypeKey;
   vibe: string;
   userPrefs?: string;
+  platformSpecificPrompt?: string;
+  outputs?: string[];
 };
 
 export function buildSystemPrompt(i: BuildPromptInput) {
@@ -102,7 +104,7 @@ export function buildSystemPrompt(i: BuildPromptInput) {
   const platformLine = `${i.platform}. ${platformNotes[i.platform]}`;
   const styleLine = `Style: ${i.style}. Voice: ${styleNotes[i.style]}. Guidance: ${styleGuidance[i.style] ?? ""}`;
   const prefs = i.userPrefs ? `User preferences: ${i.userPrefs}` : "";
-  const typeInstr = targetByType[i.type];
+  const typeInstr = i.platformSpecificPrompt || targetByType[i.type];
 
   const composed = [
     base, platformLine, styleLine, prefs,
@@ -129,6 +131,7 @@ export interface PromptInput {
   vibe: string;
   variants?: number;
   demo?: boolean;
+  platformSpecificPrompt?: string;
 }
 
 export function buildMessages(
@@ -144,7 +147,7 @@ export function buildMessages(
       `Platform: ${input.platform}. ${platformNotes[input.platform]}`,
       `Style: ${input.style}. Voice: ${styleNotes[input.style]}.`,
       prefLine || null,
-      targetByType[type],
+      input.platformSpecificPrompt || targetByType[type],
       "Avoid NSFW. Keep it brand-safe.",
       "Return only the requested format. Never wrap the whole output in quotes.",
       "Every variant MUST explore a different angle, tone, or structure (e.g., sarcastic, angry, ironic, exaggerated). Avoid rephrasing the same sentence. Vary structure, vocabulary, emoji usage, and perspective.",
