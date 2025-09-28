@@ -3,6 +3,7 @@
 import { styleNotes, type StyleType } from "@/constants/styleNotes";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
 import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
+import { styleGuidance } from "@/lib/styleGuidance";
 import type { PrefSummary } from "@/lib/prefs";
 
 // ====== preference komprese ======
@@ -73,6 +74,47 @@ export function compressPrefs(p: PrefSummary | null | undefined): string {
 
 export function clamp(str: string, max = 900): string {
   return str.length <= max ? str : str.slice(0, max - 1) + "…";
+}
+
+function clamp900(s: string) { 
+  return s.length <= 900 ? s : s.slice(0, 897) + "..."; 
+}
+
+const GENERAL_RULES = [
+  "Avoid NSFW. Keep it brand-safe.",
+  "Return only the requested format. Never wrap the whole output in quotes.",
+  "Every variant MUST explore a different angle, tone, or structure. Avoid rephrasing the same sentence. Vary structure, vocabulary, emoji usage, and perspective.",
+  "Favor authenticity over polish. Use humor, internet slang, or inside jokes when relevant to the vibe. Prioritize lines that spark comments, shares, or reactions.",
+  "If the user input contains profanity, soften it to brand-safe (e.g., 'f**k', 'WTH').",
+  "For each requested output type, return that type exactly once and align with the current platform guidance."
+].join(" ");
+
+export type BuildPromptInput = {
+  platform: PlatformKey;
+  style: keyof typeof styleNotes;
+  type: TargetTypeKey;
+  vibe: string;
+  userPrefs?: string;
+};
+
+export function buildSystemPrompt(i: BuildPromptInput) {
+  const base = `You are Captioni — an expert social content copywriter.`;
+  const platformLine = `${i.platform}. ${platformNotes[i.platform]}`;
+  const styleLine = `Style: ${i.style}. Voice: ${styleNotes[i.style]}. Guidance: ${styleGuidance[i.style] ?? ""}`;
+  const prefs = i.userPrefs ? `User preferences: ${i.userPrefs}` : "";
+  const typeInstr = targetByType[i.type];
+
+  const composed = [
+    base, platformLine, styleLine, prefs,
+    `Specific instructions for output type: ${typeInstr}`,
+    `General guidelines: ${GENERAL_RULES}`
+  ].filter(Boolean).join("\n");
+
+  return clamp900(composed);
+}
+
+export function buildUserPrompt(vibe: string) {
+  return clamp900(`Topic/Vibe: ${vibe}`);
 }
 
 // === message builder ===

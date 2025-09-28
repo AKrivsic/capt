@@ -79,30 +79,53 @@ export function ensureBioQuality(variants: string[]) {
   return ok.length ? ok : null;
 }
 
-// Klíčová slova pro gaming/CS2 vibe
-const TOPIC_RX = /(cs2|counter[-\s]?strike|lag|glitch|ping|tilt|clutch|rank|spray|aim|server|queue|headshot|steam|dust2|inferno|nuke)/i;
+// Klíčová slova pro gaming/CS2 vibe (deprecated - using topic-agnostic approach)
+// const TOPIC_RX = /(cs2|counter[-\s]?strike|lag|glitch|ping|tilt|clutch|rank|spray|aim|server|queue|headshot|steam|dust2|inferno|nuke)/i;
 
 // Comments – zákaz frází a min. 2 řádky s topic lexikem
 const BANNED_COMMENTS = [/^obsessed\b/i, /^so clean\b/i, /^serving looks\b/i, /^chef('?s)? kiss\b/i, /^iconic\b/i];
 
-export function validateCommentsBlock(s: string) {
+
+
+// Topic-agnostic: extrahuj klíčová slova z `vibe` a postav regex
+export function extractTopicKeywords(vibe: string, max = 8): string[] {
+  const STOP = new Set([
+    'this','is','the','and','or','a','an','to','of','for','with','on','in','at','by',
+    'my','me','you','your','today','day','thing','stuff','please','help'
+  ]);
+  const tokens = (vibe.toLowerCase().match(/[a-z0-9]+/g) ?? []);
+  const words = tokens.filter(w => w.length >= 3 && !STOP.has(w));
+  return Array.from(new Set(words)).slice(0, max);
+}
+
+export function makeTopicRegex(keywords: string[]): RegExp | null {
+  const ks = keywords.filter(Boolean).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!ks.length) return null;
+  return new RegExp(`\\b(${ks.join('|')})\\b`, 'i');
+}
+
+export function validateCommentsBlock(s: string, topicRx: RegExp | null, minTopical = 1) {
   const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length !== 5) return null;
-  // ban fráze
-  for (const l of lines) {
-    if (BANNED_COMMENTS.some(rx => rx.test(l))) return null;
+  if (lines.some(l => BANNED_COMMENTS.some(rx => rx.test(l)))) return null;
+  if (topicRx) {
+    const topical = lines.filter(l => topicRx.test(l)).length;
+    if (topical < minTopical) return null;
   }
-  // aspoň 2 řádky musí obsahovat topic lexikum
-  const topical = lines.filter(l => TOPIC_RX.test(l)).length;
-  if (topical < 2) return null;
   return lines.join('\n');
 }
 
-// Story – požaduj aspoň 1 řádek s topic lexikem
-export function validateStoryKeywords(s: string) {
+export function validateStoryKeywords(s: string, topicRx: RegExp | null) {
   const lines = s.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length < 2 || lines.length > 3) return null;
-  const topical = lines.filter(l => TOPIC_RX.test(l)).length;
-  if (topical < 1) return null;
+  if (topicRx) {
+    const topical = lines.filter(l => topicRx.test(l)).length;
+    if (topical < 1) return null;
+  }
   return lines.join('\n');
+}
+
+export function collapseForTwitter(s: string) {
+  // X/Twitter: žádné prázdné odstavce
+  return s.replace(/\n{2,}/g, '\n').trim();
 }

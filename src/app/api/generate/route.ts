@@ -13,18 +13,21 @@ import { PLAN_LIMITS, isUnlimited } from "@/constants/plans";
 import { mlMarkEvent } from "@/lib/mailerlite";
 import { prisma } from "@/lib/prisma";
 import { buildMessages, type PromptInput } from "@/lib/prompt";
+import { perStyleParams } from "@/lib/openaiConfig";
 import {
   sanitizeProfanity,
   fixStoryFormat,
   validateAndCleanHashtags,
   ensureFiveCommentsBlock,
-  normalizeHashtagsCs2,
   ensureDifferentOpenings,
   ensureBioQuality,
   validateCommentsBlock,
-  validateStoryKeywords
+  validateStoryKeywords,
+  extractTopicKeywords,
+  makeTopicRegex
 } from '@/lib/validators';
-import { platformNotes } from "@/constants/platformNotes";
+import { applyPlatformConstraints } from "@/lib/platformConstraints";
+import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
 import { styleNotes } from "@/constants/styleNotes";
 import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
 
@@ -112,6 +115,7 @@ function firstPublicIp(h: Headers): string {
 type GenParams = {
   n: number;
   temperature: number;
+  top_p?: number;
   max_tokens: number;
   presence_penalty?: number;
   frequency_penalty?: number;
@@ -142,23 +146,24 @@ const DEFAULT_VARIANTS: Record<OutputType, number> = {
 //   return Math.min(5, Math.max(1, requested));
 // }
 
-function genParamsFor(type: OutputType): GenParams {
-  switch (type) {
-    case "hashtags":
-      return { n: DEFAULT_VARIANTS.hashtags, temperature: 0.5, max_tokens: 120, presence_penalty: 0.2, frequency_penalty: 0.3 };
-    case "bio":
-      return { n: DEFAULT_VARIANTS.bio, temperature: 0.7, max_tokens: 120, presence_penalty: 0.4, frequency_penalty: 0.4 };
-    case "comments":
-      return { n: DEFAULT_VARIANTS.comments, temperature: 0.75, max_tokens: 180, presence_penalty: 0.5, frequency_penalty: 0.5 };
-    case "story":
-      return { n: DEFAULT_VARIANTS.story, temperature: 0.85, max_tokens: 250, presence_penalty: 0.6, frequency_penalty: 0.5 };
-    case "hook":
-      return { n: DEFAULT_VARIANTS.hook, temperature: 0.95, max_tokens: 200, presence_penalty: 0.7, frequency_penalty: 0.6 };
-    case "dm":
-      return { n: DEFAULT_VARIANTS.dm, temperature: 0.9, max_tokens: 220, presence_penalty: 0.7, frequency_penalty: 0.6 };
-    default:
-      return { n: DEFAULT_VARIANTS.caption, temperature: 0.9, max_tokens: 200, presence_penalty: 0.6, frequency_penalty: 0.5 };
-  }
+function genParamsFor(type: OutputType, style: string): GenParams {
+  const styleParams = perStyleParams[style] || { temperature: 0.8, top_p: 0.9 };
+  
+  // Base parameters per type
+  const typeDefaults = {
+    hashtags: { max_tokens: 120, n: DEFAULT_VARIANTS.hashtags },
+    bio: { max_tokens: 120, n: DEFAULT_VARIANTS.bio },
+    comments: { max_tokens: 180, n: DEFAULT_VARIANTS.comments },
+    story: { max_tokens: 250, n: DEFAULT_VARIANTS.story },
+    hook: { max_tokens: 200, n: DEFAULT_VARIANTS.hook },
+    dm: { max_tokens: 220, n: DEFAULT_VARIANTS.dm },
+    caption: { max_tokens: 200, n: DEFAULT_VARIANTS.caption }
+  };
+
+  return {
+    ...styleParams,
+    ...typeDefaults[type]
+  };
 }
 
 // ====== OpenAI typy ======
@@ -716,92 +721,71 @@ export async function POST(req: NextRequest) {
   }
 
   async function postprocessOne(
+    platform: string,
     type: string,
     raw: string,
-    regen: (type: string) => Promise<string>
+    regen: (type: string) => Promise<string>,
+    vibe: string
   ): Promise<string> {
-    let out = sanitizeProfanity(raw || '');
+    const topicKeywords = extractTopicKeywords(vibe || "");
+    const topicRx = makeTopicRegex(topicKeywords);
 
-    if (type === 'hashtags') {
-      out = normalizeHashtagsCs2(out);
+    let out = sanitizeProfanity(raw || "");
+
+    if (type === "hashtags") {
       const fixed = validateAndCleanHashtags(out);
       if (!fixed) {
-        const retry = await regen('hashtags');
-        const retryFixed = validateAndCleanHashtags(normalizeHashtagsCs2(sanitizeProfanity(retry || '')));
-        if (!retryFixed) throw new Error('HASHTAGS_INVALID');
+        const retry = await regen("hashtags");
+        const retryFixed = validateAndCleanHashtags(sanitizeProfanity(retry || ""));
+        if (!retryFixed) throw new Error("HASHTAGS_INVALID");
         return retryFixed;
       }
       return fixed;
     }
 
-    if (type === 'comments') {
-      // 1) základní formát (5 řádků), 2) zákaz frází + topická vazba
-      const five = ensureFiveCommentsBlock(out);
-      if (!five) {
-        const retry = await regen('comments');
-        const retryFive = ensureFiveCommentsBlock(sanitizeProfanity(retry || ''));
-        if (!retryFive) throw new Error('COMMENTS_INVALID');
-        out = retryFive;
+    if (type === "comments") {
+      const five = ensureFiveCommentsBlock(out) || ensureFiveCommentsBlock(await regen("comments"));
+      if (!five) throw new Error("COMMENTS_INVALID");
+      const topical = validateCommentsBlock(five, topicRx, 1)
+        || validateCommentsBlock(sanitizeProfanity(await regen("comments")), topicRx, 1);
+      if (!topical) throw new Error("COMMENTS_CONTEXT_INVALID");
+      return topical;
+    }
+
+    if (type === "story") {
+      const fixed = validateStoryKeywords(fixStoryFormat(out), topicRx);
+      if (fixed) return fixed;
+      const retry = await regen("story");
+      const retryFixed = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || "")), topicRx);
+      if (!retryFixed) throw new Error("STORY_TOPIC_INVALID");
+      return retryFixed;
+    }
+
+    if (type === "caption") {
+      const variants = out.split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
+      const ok = ensureDifferentOpenings(variants);
+      if (!ok) {
+        const retry = await regen("caption");
+        const retryVariants = sanitizeProfanity(retry || "").split(/\n{2,}/).map(v => v.trim()).filter(Boolean);
+        const retryOk = ensureDifferentOpenings(retryVariants);
+        if (!retryOk) throw new Error("CAPTION_OPENINGS_INVALID");
+        out = retryOk.join("\n\n");
       } else {
-        out = five;
+        out = ok.join("\n\n");
       }
-      const topicalOk = validateCommentsBlock(out);
-      if (!topicalOk) {
-        const retry = await regen('comments');
-        const retryOk = validateCommentsBlock(sanitizeProfanity(retry || ''));
-        if (!retryOk) throw new Error('COMMENTS_CONTEXT_INVALID');
-        return retryOk;
-      }
-      return topicalOk;
     }
 
-    if (type === 'story') {
-      // odeber "Slide X:", limit 3, vynucení topic keywords
-      out = fixStoryFormat(out);
-      const topicalOk = validateStoryKeywords(out);
-      if (!topicalOk) {
-        const retry = await regen('story');
-        const retryOk = validateStoryKeywords(fixStoryFormat(sanitizeProfanity(retry || '')));
-        if (!retryOk) throw new Error('STORY_TOPIC_INVALID');
-        return retryOk;
-      }
-      return topicalOk;
-    }
+    // Bio: lehká sanitace stačí (limit drží prompt)
 
-    if (type === 'bio') {
-      // Bio – zpracuj pole variant pokud vracíš více možností
-      const variants = [out]; // pro single variant
-      const cleaned = ensureBioQuality(variants.map(v => sanitizeProfanity(v)));
-      if (!cleaned) {
-        const retry = await regen('bio');
-        const retryClean = ensureBioQuality([sanitizeProfanity(retry || '')]);
-        if (!retryClean) throw new Error('BIO_INVALID');
-        return retryClean[0];
-      }
-      return cleaned[0];
-    }
-
-    if (type === 'caption') {
-      // Caption – vynucení odlišných openingů mezi variantami
-      const variants = [out]; // pro single variant
-      const uniqueOpenings = ensureDifferentOpenings(variants.map(v => v.trim()).filter(Boolean));
-      if (!uniqueOpenings) {
-        const retry = await regen('caption');
-        const retryUnique = ensureDifferentOpenings([sanitizeProfanity(retry || '')]);
-        if (!retryUnique) throw new Error('CAPTION_OPENINGS_INVALID');
-        return retryUnique[0];
-      }
-      return uniqueOpenings[0];
-    }
-
-    // Default: jen brand-safe
-    return out;
+    return applyPlatformConstraints(platform as PlatformKey, type, out);
   }
 
   async function postprocessMultipleVariants(
+    platform: string,
     type: string,
     variants: string[],
-    regen: (type: string) => Promise<string>
+    regen: (type: string) => Promise<string>,
+    _vibe: string
   ): Promise<string[]> {
     if (type === 'caption') {
       // Ensure different openings across all caption variants
@@ -821,7 +805,7 @@ export async function POST(req: NextRequest) {
         const retryUnique = ensureDifferentOpenings(newVariants);
         return retryUnique || newVariants;
       }
-      return uniqueOpenings;
+      return uniqueOpenings.map(v => applyPlatformConstraints(platform as PlatformKey, type, v));
     }
 
     if (type === 'bio') {
@@ -842,11 +826,11 @@ export async function POST(req: NextRequest) {
         const retryClean = ensureBioQuality(newVariants);
         return retryClean || newVariants;
       }
-      return cleaned;
+      return cleaned.map(v => applyPlatformConstraints(platform as PlatformKey, type, v));
     }
 
     // For other types, just sanitize each variant
-    return variants.map(v => sanitizeProfanity(v));
+    return variants.map(v => applyPlatformConstraints(platform as PlatformKey, type, sanitizeProfanity(v)));
   }
 
   try {
@@ -854,10 +838,11 @@ export async function POST(req: NextRequest) {
       const {
         n,
         temperature,
+        top_p,
         max_tokens,
         presence_penalty,
         frequency_penalty,
-      } = genParamsFor(type);
+      } = genParamsFor(type, input.style);
 
       try {
         const mappedInput: PromptInput = {
@@ -874,6 +859,7 @@ export async function POST(req: NextRequest) {
             model: MODEL,
             messages: buildMessages(mappedInput, mappedType, prefs),
             temperature,
+            top_p,
             max_tokens,
             n: n, // Použij n z genParamsFor (DEFAULT_VARIANTS)
             presence_penalty,
@@ -900,13 +886,13 @@ export async function POST(req: NextRequest) {
         if (type === "caption" || type === "bio") {
           // For caption and bio, process all variants together to ensure quality across variants
           try {
-            processed = await postprocessMultipleVariants(type, unique, regen);
+            processed = await postprocessMultipleVariants(input.platform, type, unique, regen, input.vibe);
           } catch {
             // If enhanced processing fails, fall back to basic processing
             processed = await Promise.all(
               unique.map(async (variant) => {
                 try {
-                  return await postprocessOne(type, variant, regen);
+                  return await postprocessOne(input.platform, type, variant, regen, input.vibe);
                 } catch {
                   return sanitizeProfanity(variant);
                 }
@@ -918,7 +904,7 @@ export async function POST(req: NextRequest) {
           processed = await Promise.all(
             unique.map(async (variant) => {
               try {
-                return await postprocessOne(type, variant, regen);
+                return await postprocessOne(input.platform, type, variant, regen, input.vibe);
               } catch {
                 return sanitizeProfanity(variant);
               }
@@ -944,13 +930,13 @@ export async function POST(req: NextRequest) {
         if (type === "caption" || type === "bio") {
           // For caption and bio, process all variants together to ensure quality across variants
           try {
-            processed = await postprocessMultipleVariants(type, arr, regen);
+            processed = await postprocessMultipleVariants(input.platform, type, arr, regen, input.vibe);
           } catch {
             // If enhanced processing fails, fall back to basic processing
             processed = await Promise.all(
               arr.map(async (variant) => {
                 try {
-                  return await postprocessOne(type, variant, regen);
+                  return await postprocessOne(input.platform, type, variant, regen, input.vibe);
                 } catch {
                   return sanitizeProfanity(variant);
                 }
@@ -962,7 +948,7 @@ export async function POST(req: NextRequest) {
           processed = await Promise.all(
             arr.map(async (variant) => {
               try {
-                return await postprocessOne(type, variant, regen);
+                return await postprocessOne(input.platform, type, variant, regen, input.vibe);
               } catch {
                 return sanitizeProfanity(variant);
               }
@@ -984,7 +970,7 @@ export async function POST(req: NextRequest) {
       if (out[requestedType].length === 0) {
         try {
           const regenerated = await regen(requestedType);
-          const processed = await postprocessOne(requestedType, regenerated, regen);
+          const processed = await postprocessOne(input.platform, requestedType, regenerated, regen, input.vibe);
           
           if (requestedType === "caption" || requestedType === "story") {
             out[requestedType] = injectCTA(requestedType, [processed]);
