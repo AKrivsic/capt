@@ -1,21 +1,43 @@
-// src/lib/styleGuidance.ts (NOVÝ)
-export const styleGuidance: Record<string, string> = {
-  Barbie:
-    "Keep it playful and glamorous. Prefer positive vibes, light humor. Avoid profanity. 0–2 emojis. 1 gentle micro-CTA allowed if natural.",
-  Edgy:
-    "Bold, punchy, slightly provocative. Use rhetorical lines. Keep it concise. 0–1 emoji.",
-  Glamour:
-    "Elegant and aspirational. Avoid slang and caps. Polished wording.",
-  Baddie:
-    "Confident, flirty, unapologetic. First-person swagger ok. 0–2 emojis.",
-  Innocent:
-    "Sweet, soft, wholesome. No negativity, no caps. Keep it gentle.",
-  Funny:
-    "Witty setups and punchlines. Ironic asides '(…if you know, you know)'. 0–2 emojis.",
-  Rage:
-    "High-energy, brand-safe rage. Max 1 ALL-CAPS line. Include 1 insider term relevant to the topic (a real term people in that niche use). Profanity softened.",
-  Meme:
-    "Hyper-relatable, layered references, short lines. One meme-y twist or ironic bracket aside.",
-  Streamer:
-    "Clear, clip-ready. Mention moments/timecodes when natural (e.g., 0:13). 1 CTA to watch/follow is ok."
-} as const;
+// src/lib/styleGuidance.ts
+
+import type { StyleType as Style } from "@/constants/styleNotes";
+
+export const styleGuidance: Record<Style, string[]> = {
+  Barbie: [
+    "Playful, pink-core, upbeat.",
+    "No gaming jargon unless the user's vibe explicitly mentions a game.",
+    "Keep it light, flirty, and brand-safe.",
+  ],
+  Edgy: [
+    "Bold, sharp, a bit rebellious.",
+    "Only use gaming jargon if user's vibe is gaming-related.",
+  ],
+  Glamour: [
+    "Elegant, high-fashion tone.",
+    "Avoid insider gamer slang.",
+  ],
+  Baddie: [
+    "Confident, bossy, punchy.",
+    "Gamer slang only if vibe is gaming.",
+  ],
+  Innocent: [
+    "Soft, cute, wholesome.",
+    "No insider gaming terms.",
+  ],
+  Funny: [
+    "Humor-first, punchlines, memes okay.",
+    "Gaming jargon optional if vibe hints at gaming.",
+  ],
+  Rage: [
+    "High energy, tilted gamer tone.",
+    "Use authentic gamer slang and pain points when relevant.",
+  ],
+  Meme: [
+    "Meme-native phrasing, trends, formats.",
+    "Gaming references welcome if vibe is gaming.",
+  ],
+  Streamer: [
+    "Creator/streamer POV, chat lingo.",
+    "Gaming terms are natural; use when relevant.",
+  ],
+};

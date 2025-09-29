@@ -3,6 +3,7 @@
 import { styleNotes, type StyleType } from "@/constants/styleNotes";
 import { platformNotes, type PlatformKey } from "@/constants/platformNotes";
 import { targetByType, type TargetTypeKey } from "@/constants/targetByType";
+import { GAMER_STYLES } from "@/constants/targetByType";
 import { styleGuidance } from "@/lib/styleGuidance";
 import type { PrefSummary } from "@/lib/prefs";
 
@@ -86,7 +87,9 @@ const GENERAL_RULES = [
   "Every variant MUST explore a different angle, tone, or structure. Avoid rephrasing the same sentence. Vary structure, vocabulary, emoji usage, and perspective.",
   "Favor authenticity over polish. Use humor, internet slang, or inside jokes when relevant to the vibe. Prioritize lines that spark comments, shares, or reactions.",
   "If the user input contains profanity, soften it to brand-safe (e.g., 'f**k', 'WTH').",
-  "For each requested output type, return that type exactly once and align with the current platform guidance."
+  "For each requested output type, return that type exactly once and align with the current platform guidance.",
+  "Use domain-specific jargon only when the chosen style or the user's vibe clearly calls for it.",
+  "Do not inject gaming slang into non-gaming styles (e.g., Barbie, Glamour, Innocent) unless the user's input explicitly mentions gaming."
 ].join(" ");
 
 export type BuildPromptInput = {
@@ -102,7 +105,10 @@ export type BuildPromptInput = {
 export function buildSystemPrompt(i: BuildPromptInput) {
   const base = `You are Captioni — an expert social content copywriter.`;
   const platformLine = `${i.platform}. ${platformNotes[i.platform]}`;
-  const styleLine = `Style: ${i.style}. Voice: ${styleNotes[i.style]}. Guidance: ${styleGuidance[i.style] ?? ""}`;
+  const styleGuidanceLine = Array.isArray(styleGuidance[i.style])
+    ? styleGuidance[i.style].join(" ")
+    : String(styleGuidance[i.style] ?? "");
+  const styleLine = `Style: ${i.style}. Voice: ${styleNotes[i.style]}. Guidance: ${styleGuidanceLine}`;
   const prefs = i.userPrefs ? `User preferences: ${i.userPrefs}` : "";
   const typeInstr = i.platformSpecificPrompt || targetByType[i.type];
 
@@ -141,19 +147,40 @@ export function buildMessages(
 ): ChatMessage[] {
   const prefLine = compressPrefs(prefs);
 
+  // Compute conditional gaming detail rule and inject into platform-specific prompt lines
+  const style = input.style;
+  const vibe = input.vibe;
+  const isGamerStyle = GAMER_STYLES.has(style);
+  const GAMING_HINT_RE = /\b(cs2|counter[- ]?strike|valorant|lol|league|dota|fortnite|apex|dust2|inferno|nuke|rank|elo|mmr|fps|ping|lag|desync|whiff|netcode|buff|nerf|patch|drop|queue|tilt|gank|meta)\b/i;
+  const vibeLooksGaming = GAMING_HINT_RE.test(vibe || "");
+  const wantsGamingInsider = isGamerStyle || vibeLooksGaming;
+  const GAMING_DETAIL_RULE = wantsGamingInsider
+    ? "Include at least one authentic in-game detail (e.g., ping spike, desync, Dust2, whiff, netcode) only if it fits naturally."
+    : "";
+
+  const platformSpecBlocks = (input.platformSpecificPrompt || targetByType[type])
+    .split(". ")
+    .map((s) => s.trim());
+  const platformBlocks = platformSpecBlocks
+    .map((line) => line.replace("{{GAMING_DETAIL_RULE}}", GAMING_DETAIL_RULE).trim())
+    .filter(Boolean);
+  const platformInstr = platformBlocks.join(". ");
+
   const systemContent = clamp(
     [
       "You are Captioni — an expert social content copywriter.",
       `Platform: ${input.platform}. ${platformNotes[input.platform]}`,
-      `Style: ${input.style}. Voice: ${styleNotes[input.style]}.`,
+      `Style: ${input.style}. Voice: ${styleNotes[input.style]}. Guidance: ${Array.isArray(styleGuidance[input.style]) ? styleGuidance[input.style].join(" ") : String(styleGuidance[input.style] ?? "")}`,
       prefLine || null,
-      input.platformSpecificPrompt || targetByType[type],
+      platformInstr,
       "Avoid NSFW. Keep it brand-safe.",
       "Return only the requested format. Never wrap the whole output in quotes.",
       "Every variant MUST explore a different angle, tone, or structure (e.g., sarcastic, angry, ironic, exaggerated). Avoid rephrasing the same sentence. Vary structure, vocabulary, emoji usage, and perspective.",
       "Favor authenticity over polish. Use humor, internet slang, or inside jokes when relevant to the vibe. Prioritize text that sparks comments, shares, or reactions.",
       "If the user input contains profanity, soften it to brand-safe (e.g., 'f**k', 'WTH').",
       "For each requested output type, return that type exactly once in the requested format and align with the current platform guidance.",
+      "Use domain-specific jargon only when the chosen style or the user's vibe clearly calls for it.",
+      "Do not inject gaming slang into non-gaming styles (e.g., Barbie, Glamour, Innocent) unless the user's input explicitly mentions gaming.",
     ]
       .filter(Boolean)
       .join("\n"),

@@ -1,9 +1,13 @@
 // src/constants/targetByType.ts
 
+import type { StyleType } from "@/constants/styleNotes";
+
+export const GAMER_STYLES = new Set<StyleType>(["Rage", "Meme", "Streamer"]);
+
 // Instagram-specific prompts
 const instagramTargetByType = {
   Caption:
-    "Write 2-3 Instagram caption variants (1-3 short lines each). Return each variant on a separate line. Each MUST have different opening words. Include at least 1 in-game detail (ping spike, desync, Dust2, whiff, netcode). Allowed micro-CTAs: 'Save if relatable', 'Comment your L', 'Tag your duo'. BAN: 'follow for more', 'swipe up', hashtags in caption. Max 2 emoji per line. Profanity softened (f**k, WTH).",
+    "Write 2-3 Instagram caption variants (1-3 short lines each). Return each variant on a separate line. Each MUST have different opening words. {{GAMING_DETAIL_RULE}} Allowed micro-CTAs: 'Save if relatable', 'Comment your L', 'Tag your duo'. BAN: 'follow for more', 'swipe up', hashtags in caption. Max 2 emoji per line. Profanity softened (f**k, WTH).",
   Bio:
     "Write exactly 3 single-line Instagram bio variants (≤90 chars each). Return each variant on a separate line. Each MUST be distinct: (1) Identity/role, (2) Value prop, (3) Mood/style. Use 0-2 emoji max per variant. BAN: questions to audience, direct CTAs, violent imagery. Keep brand-safe, memorable, commercially viable.",
   Hashtags:
