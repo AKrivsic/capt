@@ -266,23 +266,44 @@ export default function VideoDemoModal({ onClose, onSuccess }: VideoDemoModalPro
                       }),
                     });
 
-                    const payload = (await res.json()) as {
-                      ok: boolean;
-                      jobId?: string;
-                      result?: DemoProcessingResult;
-                      error?: string;
-                    };
+                    const payload = (await res.json()) as { jobId?: string; error?: string };
 
-                    if (!res.ok) {
-                      throw new Error(payload.error || 'Video processing failed');
+                    if (!res.ok || !payload.jobId) {
+                      throw new Error(payload?.error || 'Video processing failed');
                     }
 
-                    if (payload.ok && payload.result) {
-                      console.log('Demo video processing completed:', payload.jobId);
-                      setProcessingResult(payload.result);
-                      if (onSuccess) onSuccess({ previewUrl: videoPreviewUrl! });
-                    } else {
-                      throw new Error(payload.error || 'Video processing failed');
+                    // Poll job status until completed
+                    const jobId = payload.jobId;
+                    let attempts = 0;
+                    let done = false;
+                    while (!done && attempts < 60) { // up to ~60s
+                      const statusRes = await fetch(`/api/video/job/${jobId}`);
+                      if (!statusRes.ok) {
+                        throw new Error(`Job status error: HTTP ${statusRes.status}`);
+                      }
+                      const status = (await statusRes.json()) as {
+                        status: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+                        downloadUrl?: string;
+                        resultKey?: string;
+                        error?: string;
+                      };
+                      if (status.status === 'COMPLETED') {
+                        setProcessingResult({
+                          downloadUrl: status.downloadUrl || null,
+                          resultKey: status.resultKey || null,
+                        } as unknown as DemoProcessingResult);
+                        if (onSuccess) onSuccess({ previewUrl: videoPreviewUrl! });
+                        done = true;
+                        break;
+                      }
+                      if (status.status === 'FAILED') {
+                        throw new Error(status.error || 'Video processing failed');
+                      }
+                      attempts += 1;
+                      await new Promise((r) => setTimeout(r, 1000));
+                    }
+                    if (!done) {
+                      throw new Error('Processing timeout');
                     }
                   } catch (e) {
                     const msg =
