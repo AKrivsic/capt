@@ -10,25 +10,18 @@ import { prisma } from '@/lib/prisma';
 import { ProcessRequestSchema } from '@/types/api';
 import type { ProcessResponse, ApiErrorResponse } from '@/types/api';
 import { jobTracking } from '@/lib/tracking';
-import { enqueueSubtitlesJob } from '@/server/queue';
 
 export async function POST(request: NextRequest): Promise<NextResponse<ProcessResponse | ApiErrorResponse>> {
   try {
-    // Check if Redis is available - no fallback, throw error
-    if (!process.env.REDIS_URL) {
-      return NextResponse.json(
-        { error: 'Service Unavailable', message: 'REDIS_URL not configured' },
-        { status: 503 }
-      );
-    }
+    // Orchestration via n8n webhook (BullMQ deprecated)
 
     // Ověření autentizace (volitelné pro demo)
     const session = await getServerSession(authOptions);
     const isDemo = !session?.user?.email;
 
     // Validace input dat
-    const body = await request.json();
-    const validationResult = ProcessRequestSchema.safeParse(body);
+    const requestBody = await request.json();
+    const validationResult = ProcessRequestSchema.safeParse(requestBody);
     
     if (!validationResult.success) {
       return NextResponse.json(
@@ -141,14 +134,107 @@ export async function POST(request: NextRequest): Promise<NextResponse<ProcessRe
     // Trackování
     jobTracking.started({ jobId: result.id, style });
 
-    // Spusť background job pro zpracování
+    // Spusť orchestraci přes n8n webhook
     console.log(`Starting subtitle job ${result.id} for video ${fileId} with style ${style}`);
-    
-    // Enqueue job do BullMQ
-    await enqueueSubtitlesJob(
-      { subtitleJobId: result.id, fileId, style },
-      { jobId: result.id, priority: 5 }
-    );
+
+    type StartJobPayload = {
+      jobId: string;
+      fileId: string;
+      style: string;
+    };
+
+    type N8nOkResponse = {
+      ok: boolean;
+      received?: unknown;
+    };
+
+    const webhookUrl = process.env.N8N_WEBHOOK_URL;
+    if (!webhookUrl) {
+      // ponecháme job v QUEUED, FE bude dál pollovat; vrátíme 503 pro jasnou signalizaci
+      await prisma.subtitleJob.update({
+        where: { id: result.id },
+        data: {
+          errorMessage: 'N8N_WEBHOOK_URL is not set',
+        },
+      });
+      return NextResponse.json(
+        { error: 'Service Unavailable', message: 'N8N webhook is not configured' },
+        { status: 503 }
+      );
+    }
+
+    const webhookPayload: StartJobPayload = { jobId: result.id, fileId, style };
+
+    const headers = new Headers({ 'content-type': 'application/json' });
+    const authUser = process.env.N8N_BASIC_USER;
+    const authPass = process.env.N8N_BASIC_PASS;
+    if (authUser && authPass) {
+      const token = Buffer.from(`${authUser}:${authPass}`).toString('base64');
+      headers.set('authorization', `Basic ${token}`);
+    }
+
+    // Retry with timeout/backoff (idempotent webhook expected)
+    async function postWithTimeout(url: string, init: RequestInit & { timeoutMs: number }): Promise<Response> {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), init.timeoutMs);
+      try {
+        return await fetch(url, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    const maxAttempts = 3;
+    const baseDelayMs = 500;
+    let attempt = 0;
+    let accepted = false;
+    let lastError: string | undefined;
+
+    while (attempt < maxAttempts && !accepted) {
+      try {
+        const resp = await postWithTimeout(webhookUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(webhookPayload),
+          timeoutMs: 5000,
+        });
+        if (resp.ok) {
+          // Optional validation
+          try {
+            const json = (await resp.json()) as N8nOkResponse;
+            if (json && typeof json.ok === 'boolean' && json.ok === false) {
+              lastError = 'n8n response not ok';
+            } else {
+              accepted = true;
+            }
+          } catch {
+            // Non-JSON OK response - považujme za accepted
+            accepted = true;
+          }
+        } else {
+          lastError = `n8n webhook ${resp.status}: ${await resp.text()}`;
+        }
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : 'request failed';
+      }
+
+      if (!accepted) {
+        attempt += 1;
+        if (attempt < maxAttempts) {
+          const delay = baseDelayMs * Math.pow(3, attempt - 1);
+          await new Promise((res) => setTimeout(res, delay));
+        }
+      }
+    }
+
+    if (!accepted) {
+      // ponecháme job v QUEUED; FE bude pollovat a retry řešíme mimo (cron/n8n)
+      await prisma.subtitleJob.update({
+        where: { id: result.id },
+        data: { errorMessage: lastError ?? 'webhook trigger failed' },
+      });
+      // neblokujeme klienta – vracíme jobId, zůstane v QUEUED
+    }
 
     const response: ProcessResponse = {
       jobId: result.id

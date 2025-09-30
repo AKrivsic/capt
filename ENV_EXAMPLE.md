@@ -6,9 +6,16 @@ Vytvořte `.env.local` soubor s následujícími proměnnými:
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/captioni"
 
-# Redis (Upstash)
-REDIS_URL="rediss://default:password@host:port"
-BULLMQ_PREFIX="bull"
+# Orchestration via n8n webhook
+# Required
+N8N_WEBHOOK_URL="https://n8n.example.com/webhook/your-id"
+# Optional (Basic Auth)
+# N8N_BASIC_USER="username"
+# N8N_BASIC_PASS="password"
+
+# Redis (Upstash) – deprecated for orchestration (kept for rate limiting only)
+# REDIS_URL="rediss://default:password@host:port"
+# BULLMQ_PREFIX="bull"
 
 # Upstash Redis (for rate limiting)
 KV_REST_API_REDIS_URL="rediss://default:password@host:port"
@@ -36,12 +43,9 @@ STRIPE_PUBLISHABLE_KEY="pk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
 ```
 
-## Upstash Redis Setup
+## Orchestrace přes n8n
 
-1. Vytvořte účet na [Upstash](https://upstash.com/)
-2. Vytvořte Redis databázi
-3. Zkopírujte `REDIS_URL` z dashboardu
-4. Nastavte `BULLMQ_PREFIX` na `bull` (default)
+API vytvoří DB záznam v tabulce `SubtitleJob` a spustí n8n webhook (`N8N_WEBHOOK_URL`). n8n workflow provede zpracování (Whisper/FFmpeg) a zapíše průběh a výsledek zpět do DB. Frontend pouze polluje stav jobu z API/DB.
 
 ## Upstash Redis Setup (for Rate Limiting)
 

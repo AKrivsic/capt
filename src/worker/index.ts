@@ -1,4 +1,4 @@
-import { getWorker, BULL_CONF, maskRedisUrl } from '../server/queue/bullmq';
+// Deprecated: BullMQ worker replaced by n8n workflow. This module is kept for reference and should not be used.
 import { processSubtitleJob } from './processSubtitleJob';
 
 // Validate required environment variables
@@ -25,72 +25,7 @@ async function startWorker() {
     // Validate environment
     validateEnv();
     
-    console.log(`[WORKER] Starting subtitle worker with concurrency: ${BULL_CONF.WORKER_CONCURRENCY}`);
-    console.log(`[WORKER] Redis URL: ${maskRedisUrl(BULL_CONF.REDIS_URL)}`);
-    console.log(`[WORKER] R2 Bucket: ${process.env.R2_BUCKET_NAME}`);
-    console.log(`[WORKER] Queue prefix: ${BULL_CONF.BULLMQ_PREFIX}`);
-    
-    // Create worker using centralized config
-    const worker = getWorker('subtitles', async (job: { data: unknown; id?: string }) => {
-      console.log(`[WORKER] Processing job ${job.id}:`, job.data);
-      
-      try {
-        // Transform data to match processSubtitleJob interface
-        const jobData = job.data as { subtitleJobId: string; fileId: string; style: string };
-        const transformedData = {
-          jobId: jobData.subtitleJobId,
-          fileId: jobData.fileId,
-          style: jobData.style
-        };
-        
-        const result = await processSubtitleJob(transformedData);
-        console.log(`[WORKER] Job ${job.id} completed successfully`);
-        return result;
-      } catch (error) {
-        console.error(`[WORKER] Job ${job.id} failed:`, error);
-        throw error;
-      }
-    }, BULL_CONF.WORKER_CONCURRENCY);
-    
-    // Worker event handlers
-    worker.on('ready', () => {
-      console.log('[WORKER] Ready', {
-        redis: maskRedisUrl(BULL_CONF.REDIS_URL),
-        prefix: BULL_CONF.BULLMQ_PREFIX,
-        concurrency: BULL_CONF.WORKER_CONCURRENCY,
-      });
-    });
-    
-    worker.on('active', (job) => {
-      console.log(`[WORKER] Job ${job.id} started processing`);
-    });
-    
-    worker.on('completed', (job, result) => {
-      console.log(`[WORKER] Job ${job.id} completed:`, result);
-    });
-    
-    worker.on('failed', (job, err) => {
-      console.error(`[WORKER] Job ${job?.id} failed:`, err.message);
-    });
-    
-    worker.on('stalled', (jobId) => {
-      console.warn(`[WORKER] Job ${jobId} stalled`);
-    });
-    
-    // Graceful shutdown
-    process.on('SIGTERM', async () => {
-      console.log('[WORKER] Received SIGTERM, shutting down gracefully');
-      await worker.close();
-      process.exit(0);
-    });
-    
-    process.on('SIGINT', async () => {
-      console.log('[WORKER] Received SIGINT, shutting down gracefully');
-      await worker.close();
-      process.exit(0);
-    });
-    
-    console.log('[WORKER] Worker started successfully');
+    console.log('[WORKER] Deprecated: BullMQ worker disabled. Use n8n workflow instead.');
     
   } catch (error) {
     console.error('[WORKER] Failed to start worker:', error);
@@ -100,7 +35,7 @@ async function startWorker() {
 
 // Start worker if this file is run directly
 if (require.main === module) {
-  startWorker();
+  // No-op
 }
 
 export { startWorker };

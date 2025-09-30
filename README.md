@@ -7,7 +7,7 @@
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **Backend**: Next.js API Routes, Prisma ORM
 - **Database**: PostgreSQL (Vercel Postgres)
-- **Queue**: BullMQ + Upstash Redis
+- **Queue/Orchestration**: n8n webhook (Redis/BullMQ deprecated)
 - **Storage**: Cloudflare R2 (S3-compatible)
 - **Auth**: NextAuth.js (Google OAuth + Magic Links)
 - **Payments**: Stripe (subscriptions + one-time)
@@ -35,6 +35,7 @@ cp .env.example .env.local
 ```
 
 **Povinné proměnné:**
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Upstash Redis URL
 - `NEXTAUTH_SECRET` - NextAuth secret
@@ -54,8 +55,7 @@ npm run prisma:generate
 # Development server
 npm run dev
 
-# Worker (v separátním terminálu)
-npm run worker
+# Worker is replaced by n8n workflow (spouští se mimo tento repo)
 ```
 
 Aplikace běží na `http://localhost:3000`
@@ -87,7 +87,7 @@ Aplikace běží na `http://localhost:3000`
 ## Hlavní toky
 
 1. **Text Generation**: Uživatel → `/api/generate` → OpenAI → Response
-2. **Video Processing**: Upload → R2 → Queue → Worker → Whisper → FFmpeg → R2
+2. **Video Processing**: Upload → R2 → API vytvoří `SubtitleJob` → n8n webhook → n8n workflow (Whisper/FFmpeg) → R2 → DB update
 3. **Authentication**: NextAuth → Google/Magic Link → Session
 4. **Payments**: Stripe → Webhook → Plan Update → Usage Reset
 

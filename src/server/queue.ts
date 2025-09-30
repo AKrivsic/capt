@@ -1,6 +1,5 @@
 // src/server/queue.ts
-import { JobsOptions } from 'bullmq';
-import { getQueue } from './queue/bullmq';
+// Deprecated: BullMQ-based queue adapter. Kept for reference during transition to n8n.
 
 function isBuildTime() {
   // během next buildu nemáme běžet žádné runtime připojení
@@ -8,23 +7,11 @@ function isBuildTime() {
 }
 
 export async function getQueueEvents() {
-  if (isBuildTime()) throw new Error('QueueEvents init during build');
-  const { getQueueEvents } = await import('./queue/bullmq');
-  return getQueueEvents('subtitles');
+  // Deprecated – BullMQ events no longer used. Function kept to avoid breaking imports.
+  throw new Error('BullMQ is deprecated. QueueEvents are no longer available.');
 }
 
-export async function enqueueSubtitlesJob(payload: Record<string, unknown>, opts: JobsOptions = {}) {
-  if (isBuildTime()) {
-    throw new Error('Queue init attempted during build');
-  }
-  
-  const q = getQueue('subtitles');
-  // připoj se až teď (lazy)
-  await (q as unknown as { client?: { connect?: () => Promise<void> } }).client?.connect?.().catch(() => {});
-  return q.add('subtitles', payload, {
-    attempts: 3,
-    removeOnComplete: 500,
-    removeOnFail: 1000,
-    ...opts,
-  });
+export async function enqueueSubtitlesJob(): Promise<never> {
+  // Deprecated – use n8n webhook from API route instead
+  throw new Error('BullMQ enqueue is deprecated. Use n8n webhook orchestration.');
 }

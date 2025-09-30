@@ -1,13 +1,5 @@
-// Deprecated: Use src/server/queue/bullmq.ts instead
-import { getQueue, getQueueEvents } from '../server/queue/bullmq';
-
-export const subtitleQueue = getQueue('subtitles');
-export const subtitleEvents = getQueueEvents('subtitles');
-
-export const DEFAULT_JOB_OPTS = {
-  attempts: 3,
-  backoff: { type: 'exponential', delay: 5000 },
-  removeOnComplete: 1000,
-  removeOnFail: 5000,
-};
+// Deprecated: BullMQ no longer used. Kept as stub to avoid breaking imports.
+export const subtitleQueue = undefined as unknown as never;
+export const subtitleEvents = undefined as unknown as never;
+export const DEFAULT_JOB_OPTS = {} as const;
 
